@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Six days, one per battle, no shop in between.
+
+  Total combat time is 40+50+60+70+80+120 = 420 seconds. That figure is load bearing: the exp curve,
+  the drop economy and the pity timers were all solved against it. Redistribute the day lengths freely,
+  but keep the sum, or every one of those three needs to be recomputed.
+
+  Spawn counts are derived from density, never authored. A designer changing a day's length gets the
+  matching enemy count for free, which is the whole reason the count is not six hard numbers.
+  Day six is the single exception and says so with totalSpawn.
+-->
+<Days>
+
+  <!--
+    HP grows far faster than damage. The reverse would mean late days kill on contact, and being
+    deleted by a number reads as the game being unfair rather than as the player misplaying.
+    0.80 rather than 1.00 because PPT and 老油条 carry 45 and 80 base hp on their own.
+  -->
+  <Scaling hpPerDay="0.80" dmgPerDay="0.32" />
+
+  <!--
+    The clock is a projection of day progress, never a driver. snapMinutes keeps a 40 second day from
+    rolling eighteen minutes a second, which would be unreadable noise.
+  -->
+  <Clock startHour="9" endHour="21" snapMinutes="30" />
+
+  <!--
+    Elliptical because the screen is. A circular band would put the side spawns five units further out
+    than the top ones, and the player reads that as the side mobs arriving late.
+
+    The axes are not the screen half extents. An ellipse contains the screen rectangle only when
+    (9.78/semiX)^2 + (5.5/semiY)^2 <= 1, so axes matched to the screen would cut through all four
+    corners and enemies would appear on camera at 45 degrees. 14.5 x 8.6 sits at 0.86, roughly a 15
+    percent margin at the worst angle. Shrinking either axis towards the screen size reintroduces the
+    corner pop, which is why the validator now checks the whole inequality rather than each axis.
+
+    Left and right outweigh top and bottom: the field is twice as wide as it is tall, so a mob entering
+    from above is already halfway to the player's face when it becomes visible.
+  -->
+  <SpawnBand semiX="14.5" semiY="8.6" sectors="24"
+             weightLeft="35" weightRight="35" weightUp="15" weightDown="15"
+             outwardPush="1.4" minSeparation="0.8" edgeMargin="1" retries="4"
+             minSectors="2" maxSectors="4"
+             graceRadius="3" graceSeconds="0.5" />
+
+  <!--
+    Teaching day. Two enemies, not one: forty seconds of nothing but mail teaches "walk away" and
+    nothing else, so the first Deadline on Tuesday would read as the game cheating. Mail alone for
+    twenty seconds, then the contrast arrives while the lesson is still fresh.
+  -->
+  <Day index="1" label="怎么周末又结束了，不想上班" weekday="周一"
+       duration="40" offWork="3" density="0.82" concurrentMax="30">
+    <Spawner from="0" to="20" interval="2.0" groupSize="3" budgetPct="75">
+      <Pick enemyId="mail" weight="1" />
+    </Spawner>
+    <Spawner from="20" to="40" interval="2.5" groupSize="3" budgetPct="25">
+      <Pick enemyId="mail" weight="3" />
+      <Pick enemyId="deadline" weight="2" />
+    </Spawner>
+  </Day>
+
+  <!--
+    First elite lands here rather than on Thursday. Tuesday ends at the 93 second mark, so both the
+    elite fight and its guaranteed yellow fall inside the three minute window a judge actually watches.
+  -->
+  <Day index="2" label="线上怎么又出 BUG 了" weekday="周二"
+       duration="50" offWork="3" density="1.01" concurrentMax="36">
+    <Spawner interval="2.2" groupSize="4" budgetPct="100">
+      <Pick enemyId="mail" weight="5" />
+      <Pick enemyId="deadline" weight="2" />
+      <Pick enemyId="bug" weight="3" />
+    </Spawner>
+    <Fixed enemyId="leader" count="1" atSecond="38" entrance="true" guaranteeDrop="yellow" />
+  </Day>
+
+  <!--
+    周报 moved up from Friday. It is the only unit that punishes standing still, and if it first
+    appears at second 232 the demo we show a judge is one where circling forever wins.
+  -->
+  <Day index="3" label="周报还没写，需求又改了" weekday="周三"
+       duration="60" offWork="3" density="1.24" concurrentMax="44">
+    <Spawner interval="2.2" groupSize="5" budgetPct="100">
+      <Pick enemyId="mail" weight="5" />
+      <Pick enemyId="deadline" weight="2" />
+      <Pick enemyId="bug" weight="3" />
+      <Pick enemyId="report" weight="2" />
+    </Spawner>
+  </Day>
+
+  <Day index="4" label="怎么那么多新需求" weekday="周四"
+       duration="70" offWork="3" density="1.53" concurrentMax="54">
+    <Spawner interval="2.0" groupSize="6" budgetPct="100">
+      <Pick enemyId="mail" weight="4" />
+      <Pick enemyId="deadline" weight="2" />
+      <Pick enemyId="bug" weight="3" />
+      <Pick enemyId="report" weight="2" />
+      <Pick enemyId="ppt" weight="2" />
+    </Spawner>
+    <Fixed enemyId="leader" count="1" atSecond="46" entrance="true" guaranteeDrop="yellow" />
+  </Day>
+
+  <!--
+    The pressure peak, and the sheet understates it: 老油条 debuts here and its attack slow drags the
+    real damage output below what the clear requirement assumes. Friday is not hard to win, it is hard
+    to last through.
+  -->
+  <Day index="5" label="周五周五，敲锣打鼓" weekday="周五"
+       duration="80" offWork="3" density="1.88" concurrentMax="64">
+    <Spawner interval="1.9" groupSize="7" budgetPct="100">
+      <Pick enemyId="mail" weight="4" />
+      <Pick enemyId="deadline" weight="3" />
+      <Pick enemyId="bug" weight="3" />
+      <Pick enemyId="report" weight="2" />
+      <Pick enemyId="ppt" weight="2" />
+      <Pick enemyId="veteran" weight="1" />
+    </Spawner>
+    <Fixed enemyId="leader" count="1" atSecond="34" entrance="true" />
+    <Fixed enemyId="leader" count="1" atSecond="62" entrance="true" guaranteeDrop="yellow" />
+  </Day>
+
+  <!--
+    Saturday is the one hand written total. The density formula asks for 277 trash mobs, which would
+    bury the boss telegraphs and the legendary drop under a screen of noise. 20 arrive here up front;
+    the other 40 come from the two phase transitions, so the middle of the fight is a clean duel.
+
+    That is not only pacing. Every weapon auto locks the nearest target, so leaving trash on the field
+    means six weapons spend the whole fight shooting mail while the boss stands untouched.
+  -->
+  <Day index="6" label="忘了周六要加班赶进度" weekday="周六"
+       duration="120" offWork="0" totalSpawn="20" concurrentMax="40">
+    <Spawner from="0" to="12" interval="2.0" groupSize="4" budgetPct="100">
+      <Pick enemyId="mail" weight="4" />
+      <Pick enemyId="deadline" weight="2" />
+      <Pick enemyId="bug" weight="2" />
+    </Spawner>
+    <Fixed enemyId="boss" count="1" atSecond="6" entrance="true" guaranteeDrop="orange" />
+  </Day>
+
+</Days>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Player, skill, camera, arena, growth and coffee. One file because tuning any of them means looking
+  at the others: raising moveSpeed without checking the enemy table is how a build stops being playable.
+-->
+<Config>
+
+  <!--
+    maxSan 99 rather than 100. Every ceiling in this game is 99, and a player who notices it once
+    starts looking for it everywhere.
+
+    moveSpeed 4.5 is the number every enemy speed was chosen against. Raising it makes the whole
+    enemy table trivially outrunnable, lowering it makes Deadline at 4.0 undodgeable. Treat it as
+    fixed and tune the enemies instead.
+
+    def 0 and dodge 0 at the start on purpose: the first armour piece has to feel like it did something,
+    and a player who starts at 30 percent reduction cannot feel the difference of the next 10.
+  -->
+  <Player maxSan="99" atk="10" critChance="5" critMulti="200"
+          def="0" dodge="0" dodgeCap="60"
+          moveSpeed="4.5" haste="0" luck="0"
+          invulnAfterHit="0.6"
+          pickupRadius="1.6" stepPickupRadius="0.6"
+          radius="0.4" />
+
+  <!--
+    摸鱼. Heals only 5 percent, so it is an escape button and not a heal button. The push exists to
+    break a surround; without it the invulnerability just delays the same death by 1.5 seconds.
+  -->
+  <Skill id="slack" name="摸鱼" cd="12" invulnDuration="1.5" healPctMaxSan="5"
+         pushRadius="3" pushForce="8" />
+
+  <!--
+    orthographicSize 5.5 at 16:9 gives a 19.6 x 11 view, so the camera half extents are 9.78 x 5.5.
+
+    Those two numbers decide the spawn band, and the relationship is not the obvious one. An ellipse
+    only encloses the screen rectangle when (halfW/semiX)^2 + (halfH/semiY)^2 <= 1: matching the axes
+    to the screen leaves the ellipse cutting through all four corners, and enemies pop in diagonally.
+    The band in Days.xml is sized against that inequality, so changing this line means resizing it too.
+  -->
+  <Camera orthographicSize="5.5" followLerp="6" aspect="1.7777778" />
+
+  <!--
+    Bounded field. A bounded arena is what stops "run left forever" from being the correct answer to
+    pressure, and it is the precondition for the spawn band's edge fallback rule.
+
+    Sized off the band, not off the screen: the band is anchored on the player, so the arena has to
+    contain semi axis + outward push + edge margin or the top and bottom sectors fail their placement
+    check on every attempt and the directional weighting quietly stops working.
+  -->
+  <!-- 19.71 / 11.5 matches the full 1834 x 1070 office map without cropping or stretching. -->
+  <Arena halfWidth="19.71" halfHeight="11.5" />
+
+  <!--
+    ceil(coef * L^1.55) per level, 9 levels for the 9 job ranks.
+
+    coef is 12 rather than the 10 in the design sheet, and the reason is the sheet's own stated intent:
+    「玩家正好在周六升到 CEO」. At 10 the cumulative cost to rank 9 is 920 against an exp supply of about
+    1230 across the six days, which seats the player as CEO two thirds of the way through Friday and
+    leaves the entire last day without a single level up. At 12 the cost is 1103, landing on the
+    Friday/Saturday boundary: promoted to CEO, then immediately the annual review. The rank curve is the
+    anchor, not the coefficient, because it drives equipment card quality, the number of card choices
+    and the result screen copy all at once.
+
+    The first level up still costs 12, which is 6 mails or roughly 7 seconds. The hard requirement is
+    that the first upgrade lands inside 10 seconds, and it depends on spawn density rather than on day
+    length, so shortening Monday to 40 seconds does not threaten it.
+
+    downgradeExp 3: a drop that cannot beat what is worn is still worth walking over. Without it the
+    late game turns the floor into scenery, which quietly deletes the reason to move.
+
+    kpiTargetKills 640 against the 672 bodies a clean full week produces, so the bar reaches the 99 cap
+    partway through Saturday and clips. It has to clip somewhere: a target the run cannot reach leaves
+    the bar at 98 and the cap never reads as a cap, while a much lower target parks it at 99 from
+    Thursday onward and the cap stops reading as a cap and starts reading as a full bar. An average run
+    that drops a third of the spawns lands in the high eighties, which is the intended near miss.
+  -->
+  <Progression maxLevel="9" expCoef="12" expPower="1.55" downgradeExp="3"
+               kpiCap="99" kpiTargetKills="640" finalSalary="9996" />
+
+  <!--
+    The drop rate doubles below one third sanity. This is the one number in the game that lies to the
+    player in their favour, and it is invisible by design: felt as a lucky break, never as a handout.
+  -->
+  <Coffee chancePct="4" lowSanChancePct="8" lowSanThresholdPct="33"
+          healPctMaxSan="12" hasteAddPct="15" buffSeconds="4" viewId="v_coffee" />
+
+</Config>

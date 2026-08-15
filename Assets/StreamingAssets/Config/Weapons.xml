@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Three weapons, three code paths, twelve behaviours. Every quality row states only what it changes
+  and inherits the rest from the tier below, so "blue adds a second needle" is readable as one line
+  instead of being buried in a full copy of every number.
+
+  Reading a tier: white is the complete definition, blue/yellow/orange are deltas on top of it.
+
+  damage = (baseDamage + atk * atkCoef) * qualityCoef, applied once per hit. With six slots the hit
+  count multiplies fast, which is why every rate here looks slow in isolation. Raising a rate by 30
+  percent raises the whole build by 30 percent, not one weapon.
+-->
+<Weapons>
+
+  <!--
+    订书机. The one weapon that reaches. Needles fly parallel rather than in a fan: a spread would
+    make the three needle tier less accurate than the one needle tier, which is the opposite of what
+    an upgrade is supposed to mean.
+  -->
+  <Weapon id="stapler" name="订书机" type="ProjectileLauncher"
+          baseDamage="6" atkCoef="0.6" rate="1.1" viewId="v_proj">
+    <Tier q="white"  projCount="1" spacing="0.30" pierce="0" range="6.5" projSpeed="13" knockback="0.4" />
+    <Tier q="blue"   projCount="2" projSpeed="14" />
+    <Tier q="yellow" projCount="3" pierce="1" range="7.5" />
+    <!-- The pin is the actual orange payoff. Two seconds of a stationary Deadline changes a fight. -->
+    <Tier q="orange" pierce="2" projSpeed="16" pinSeconds="0.6" knockback="0.6" />
+  </Weapon>
+
+  <!--
+    键盘. Commits to a coordinate, not a target, so a fast enemy walking out from under it is
+    feedback the player can read rather than a miss that needs correcting. Short lock range on
+    purpose: this is the weapon that answers a crowd already on top of you.
+  -->
+  <Weapon id="keyboard" name="键盘" type="GroundAoe"
+          baseDamage="14" atkCoef="0.9" rate="0.65" windup="0.35" viewId="v_slam">
+    <Tier q="white"  lockRange="3.0" blastRadius="1.5" slams="1" knockback="0.8" />
+    <Tier q="blue"   blastRadius="2.0" slowPct="25" />
+    <Tier q="yellow" lockRange="3.6" slams="2" secondSlamPct="60" />
+    <!-- Ctrl+A. Every fifth strike ignores position entirely and bills the whole screen. -->
+    <Tier q="orange" blastRadius="2.4" selectAllEvery="5" knockback="1.2" />
+  </Weapon>
+
+  <!--
+    工牌. No cooldown and no projectile: the badges exist while the weapon is equipped, so the damage
+    is paid for in proximity instead of in time. The per card per target cooldown is not a balance
+    knob, it is what stops an enemy pressed against the player from being judged every frame.
+  -->
+  <Weapon id="badge" name="工牌" type="Orbit"
+          baseDamage="10" atkCoef="0.5" sameTargetCd="0.9" viewId="v_orbit">
+    <Tier q="white"  orbitCount="1" orbitRadius="1.8" orbitDegPerSec="150" knockback="0.5" />
+    <Tier q="blue"   orbitCount="2" orbitDegPerSec="175" />
+    <Tier q="yellow" orbitCount="3" orbitRadius="2.1" orbitDegPerSec="200" />
+    <!-- Orange links the badges into one ring, turning four points of contact into a closed curve. -->
+    <Tier q="orange" orbitCount="4" orbitDegPerSec="220" tetherDamagePct="35" />
+  </Weapon>
+
+  <!--
+    The coefficient hits both the flat and the atk term, which is what makes an orange upgrade feel
+    like a tier change rather than a small number going up. Orange at 2.1 is deliberately short of
+    double white on the flat term alone: the tier's own behaviour change is the rest of the payoff.
+  -->
+  <Quality white="1.0" blue="1.25" yellow="1.6" orange="2.1" />
+
+</Weapons>

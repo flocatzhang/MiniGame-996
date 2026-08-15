@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Imported clips live under Resources/Audio. Every row keeps synth parameters as a playable fallback:
+  a missing or corrupt delivery must reduce fidelity rather than prevent a run from starting.
+
+  High-frequency keys own both a time throttle and a concurrency cap. The former stops one-frame
+  bursts, the latter stops long tails from accumulating into a noise wall.
+-->
+<Audio maxSourcePool="24" pitchJitter="0.08" throttleSeconds="0.06"
+       sfxVolume="0.707946" uiVolume="1" duckVolumeDb="-6" lowSanFadeSeconds="0.2">
+
+  <!-- Delivered combat sounds. -->
+  <Sfx id="sfx_weapon_stapler_fire" clip="SFX/sfx_weapon_stapler_fire"
+       synth="Blip" freq="880" dur="0.04" volume="0.55" maxConcurrent="4" />
+  <Sfx id="sfx_weapon_stapler_hit" clip="SFX/sfx_weapon_stapler_hit"
+       synth="Thud" freq="240" dur="0.05" volume="0.50" maxConcurrent="4" />
+  <Sfx id="sfx_enemy_email_death" clip="SFX/sfx_enemy_email_death"
+       synth="Thud" freq="200" dur="0.09" volume="0.62" maxConcurrent="4" />
+  <Sfx id="sfx_enemy_bug_split" clip="SFX/sfx_enemy_bug_split"
+       synth="Noise" freq="360" dur="0.20" volume="0.65" maxConcurrent="2" />
+  <Sfx id="sfx_player_hurt" clip="SFX/sfx_player_hurt"
+       synth="Noise" freq="180" dur="0.16" volume="0.78" maxConcurrent="2" />
+  <Sfx id="sfx_player_death" clip="SFX/sfx_player_death"
+       synth="Sweep" freq="140" dur="0.90" volume="0.90" maxConcurrent="1"
+       pitchJitter="0" />
+  <Sfx id="sfx_player_lowsan_loop" clip="Loop/sfx_player_lowsan_loop"
+       synth="Thud" freq="90" dur="0.50" volume="0.52" maxConcurrent="1"
+       throttleSeconds="0" pitchJitter="0" />
+
+  <!-- The SFX bus keeps 3dB of headroom; drops take it back after their authored quality volumes. -->
+  <Sfx id="sfx_drop_white" clip="Drop/sfx_drop_white"
+       synth="Chime" freq="880" dur="0.10" volume="0.50" gainDb="3" maxConcurrent="2" pitchJitter="0" />
+  <Sfx id="sfx_drop_blue" clip="Drop/sfx_drop_blue"
+       synth="Chime" freq="1040" dur="0.20" volume="0.46" gainDb="3" maxConcurrent="2" pitchJitter="0" />
+  <Sfx id="sfx_drop_yellow" clip="Drop/sfx_drop_yellow"
+       synth="Bell" freq="1175" dur="0.45" volume="1.00" gainDb="3" maxConcurrent="1"
+       pitchJitter="0" duckExempt="true" />
+  <Sfx id="sfx_drop_orange" clip="Drop/sfx_drop_orange"
+       synth="Bell" freq="1320" dur="0.80" volume="0.90" gainDb="3" maxConcurrent="1"
+       pitchJitter="0" duckExempt="true" />
+  <Sfx id="sfx_growth_card_appear" clip="SFX/sfx_growth_card_appear" bus="Ui"
+       synth="Chime" freq="1050" dur="0.35" volume="0.72" maxConcurrent="1"
+       pitchJitter="0" />
+  <Sfx id="sfx_drop_pickup" clip="SFX/sfx_drop_pickup"
+       synth="Chime" freq="1320" dur="0.15" volume="0.70" maxConcurrent="3" />
+  <Sfx id="sfx_drop_convert_xp" clip="SFX/sfx_drop_convert_xp"
+       synth="Chime" freq="980" dur="0.30" volume="0.68" maxConcurrent="2" />
+
+  <!-- Coffee, growth and flow. -->
+  <Sfx id="sfx_coffee_drop" clip="SFX/sfx_coffee_drop"
+       synth="Chime" freq="760" dur="0.20" volume="0.68" maxConcurrent="2" />
+  <Sfx id="sfx_coffee_drink" clip="SFX/sfx_coffee_drink"
+       synth="Chime" freq="1050" dur="0.30" volume="0.78" maxConcurrent="2" />
+  <Sfx id="sfx_growth_levelup" clip="SFX/sfx_growth_levelup"
+       synth="Bell" freq="660" dur="0.55" volume="0.82" maxConcurrent="1"
+       pitchJitter="0" />
+  <Sfx id="sfx_ui_clockin" clip="SFX/sfx_ui_clockin" bus="Ui"
+       synth="Chime" freq="784" dur="0.30" volume="0.78" maxConcurrent="1"
+       pitchJitter="0" />
+  <Sfx id="sfx_flow_dayend" clip="SFX/sfx_flow_dayend" bus="Ui"
+       synth="Bell" freq="392" dur="0.70" volume="0.82" maxConcurrent="1"
+       pitchJitter="0" />
+
+  <!-- Undelivered calls stay synthesised. -->
+  <Sfx id="sfx_dodge" synth="Sweep" freq="1200" dur="0.10" volume="0.40" maxConcurrent="2" />
+  <Sfx id="sfx_shield_break" synth="Noise" freq="320" dur="0.22" volume="0.60" maxConcurrent="1" />
+  <Sfx id="sfx_skill" synth="Sweep" freq="520" dur="0.26" volume="0.55" maxConcurrent="1" />
+  <Sfx id="sfx_slam" synth="Thud" freq="150" dur="0.14" volume="0.42" maxConcurrent="3" />
+  <Sfx id="sfx_select_all" synth="Sweep" freq="240" dur="0.40" volume="0.72" maxConcurrent="1" />
+  <Sfx id="sfx_boss_phase" synth="Noise" freq="90" dur="0.60" volume="0.85" maxConcurrent="1" />
+  <Sfx id="sfx_ui_click" bus="Ui" synth="Blip" freq="1480" dur="0.05" volume="0.35"
+       maxConcurrent="2" pitchJitter="0" />
+
+  <Bgm id="bgm_login" clip="BGM/bgm_login" volume="0.34" crossfadeSeconds="0.5"
+       lowPassCutoffNormal="22000" lowPassCutoffDucked="700" />
+  <Bgm id="bgm_battle" clip="BGM/bgm_battle" volume="0.34" crossfadeSeconds="0.5"
+       pitchPerDay="0.04" lowPassCutoffNormal="22000" lowPassCutoffDucked="700" />
+  <Bgm id="bgm_boss" clip="BGM/bgm_boss" volume="0.36" crossfadeSeconds="0.5"
+       phaseOneCutoff="2200" phaseThreePitch="1.06" phaseThreeVolumeDb="2"
+       lowPassCutoffNormal="22000" lowPassCutoffDucked="700" />
+  <Bgm id="bgm_result" clip="BGM/bgm_result" volume="0.36" crossfadeSeconds="0.5"
+       lowPassCutoffNormal="22000" lowPassCutoffDucked="700" />
+</Audio>

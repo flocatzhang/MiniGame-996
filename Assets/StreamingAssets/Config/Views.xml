@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Greybox visuals. Every sprite is generated at runtime from shape + colour + scale, so no art asset
+  is needed to ship a readable build and swapping in real art later means changing prefab only.
+
+  Readability rules the whole table, in this order:
+    shape  = what it does. Triangle chases, hex is armoured, diamond is ranged, circle is the player.
+    colour = how urgent it is. Red only ever means "this is about to hurt you".
+    scale  = how much it can take.
+
+  An unknown id resolves to magenta, so a missing row is visible in one frame rather than silent.
+-->
+<Views>
+
+  <!-- Real character art is optional. Shape, colour and scale remain its missing-asset fallback. -->
+  <View id="v_player" shape="Circle" color="#FFFFFF" scale="0.80"
+        spriteSet="player" spriteHeight="1.55" animationFps="8" />
+
+  <!-- Trash. Cool colours, small, all under the player's silhouette. -->
+  <View id="v_mail"      shape="Quad"     color="#8FA9C4" scale="0.62" spriteSet="mail"     spriteHeight="1.40" animationFps="8" />
+  <View id="v_deadline"  shape="Triangle" color="#FF5A4A" scale="0.58" spriteSet="deadline" spriteHeight="1.30" animationFps="8" />
+  <View id="v_bug"       shape="Hex"      color="#6FD36F" scale="0.60" spriteSet="bug"      spriteHeight="1.45" animationFps="8" />
+  <View id="v_bug_small" shape="Hex"      color="#A8E6A8" scale="0.38" spriteSet="bug"      spriteHeight="0.90" animationFps="8" />
+  <View id="v_ppt"       shape="Quad"     color="#E06A2E" scale="0.86" spriteSet="ppt"      spriteHeight="1.30" animationFps="8" />
+  <View id="v_report"    shape="Diamond"  color="#C77BE0" scale="0.66" spriteSet="report"   spriteHeight="1.25" animationFps="8" />
+  <View id="v_veteran"   shape="Hex"      color="#7A6A55" scale="0.92" spriteSet="veteran"  spriteHeight="1.65" animationFps="8" />
+
+  <!-- Elite and boss. Warm, oversized, and the only two entities that carry a health bar. -->
+  <View id="v_leader" shape="Diamond" color="#FFC24A" scale="1.25" spriteSet="leader" spriteHeight="1.90" animationFps="8" />
+  <View id="v_boss"   shape="Hex"     color="#FF3B2F" scale="1.90" spriteSet="boss"   spriteHeight="2.20" animationFps="8" />
+
+  <!--
+    Friendly fire is pale yellow, hostile fire is red. This one contrast is the reason a screen with
+    forty projectiles on it is still readable, and it is worth more than any other rule in this file.
+  -->
+  <View id="v_proj"  shape="Quad"     color="#FFF0A0" scale="0.26" />
+  <View id="v_slam"  shape="Quad"     color="#CFE3FF" scale="0.70" />
+  <View id="v_orbit" shape="Quad"     color="#A0E8FF" scale="0.34" />
+  <View id="v_eproj" shape="Diamond"  color="#FF7A7A" scale="0.30" />
+  <View id="v_kpi"   shape="Quad"     color="#FF4A3A" scale="0.42" />
+
+  <!--
+    Ground warnings. Rendered as an expanding ring with the body hidden, so the fill is the timer and
+    the player learns to read one shape for every incoming hit in the game.
+  -->
+  <View id="v_warn"        shape="Circle" color="#FFB000" scale="1.00" />
+  <View id="v_warn_elite"  shape="Circle" color="#FFC24A" scale="1.00" />
+  <View id="v_warn_summon" shape="Circle" color="#C77BE0" scale="1.00" />
+  <View id="v_warn_kpi"    shape="Circle" color="#FF4A3A" scale="1.00" />
+
+  <!--
+    Drops. Coffee is the only brown thing on screen so it never has to be identified, only noticed.
+    Gear keeps its own shape and takes its colour from the quality tier at bind time, which is why
+    these rows are deliberately neutral.
+  -->
+  <View id="v_coffee"     shape="Circle"  color="#8B5A2B" scale="0.40" />
+  <View id="v_equip"      shape="Diamond" color="#FFFFFF" scale="0.42" />
+  <View id="v_armor_head" shape="Hex"     color="#FFFFFF" scale="0.42" />
+  <View id="v_armor_body" shape="Quad"    color="#FFFFFF" scale="0.44" />
+  <View id="v_armor_feet" shape="Triangle" color="#FFFFFF" scale="0.42" />
+
+</Views>

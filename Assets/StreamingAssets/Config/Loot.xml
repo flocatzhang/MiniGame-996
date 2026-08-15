@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Quality tiers, the drop economy and every rollable stat.
+
+  Orange carries weight 0 on purpose. Legendaries never come out of the random pool: they arrive only
+  from a Fixed row's guaranteeDrop or from the pity timer. A weighted orange makes the pacing in the
+  design doc unreproducible, because the one moment the whole run is built around would land wherever
+  the dice fell.
+-->
+<Loot>
+
+  <!--
+    Feedback escalates on every channel at once: colour, beam, hitstop, shake, sound, name label, and
+    for orange the music itself drops behind a low pass. One channel per tier would read as a slightly
+    different colour; all of them together is what makes a legendary land as an event.
+
+    autoMagnet is the mechanical difference, not decoration. White and blue snap in so walking is never
+    interrupted; yellow and orange have to be stepped on, and that short detour is the payoff beat.
+  -->
+  <Quality id="white" weight="62" affixCount="0" color="#B9BEC6"
+           beam="none" hitStop="0" shake="0" label="false" autoMagnet="true"
+           sfx="sfx_drop_white" />
+
+  <Quality id="blue" weight="27" affixCount="1" color="#4A9BFF"
+           beam="thin" hitStop="0.02" shake="0.10" label="false" autoMagnet="true"
+           sfx="sfx_drop_blue" />
+
+  <Quality id="yellow" weight="11" affixCount="2" color="#FFD24A"
+           beam="medium" hitStop="0.06" shake="0.28" label="true" autoMagnet="false"
+           sfx="sfx_drop_yellow" bgmLowPass="0.3" dropLine="有点东西" />
+
+  <Quality id="orange" weight="0" affixCount="3" color="#FF7A29"
+           beam="thick" hitStop="0.14" shake="0.55" label="true" autoMagnet="false"
+           sfx="sfx_drop_orange" bgmLowPass="1.2" dropLine="这波不亏" />
+
+  <!--
+    Later days weight yellow up. Without it a day six drop feels identical to a day one drop, and the
+    growth curve stops being visible in the one place the player is looking.
+  -->
+  <LateBonus applyTo="yellow,orange" perDay="0.25" />
+
+  <!--
+    Independent timers, not a kill counter. Tied to kills, a player who is struggling waits longer for
+    the help, which is exactly backwards. 120 seconds puts the first legendary inside Wednesday, the
+    last day of the three minute window a judge actually watches.
+  -->
+  <Pity firstLegendarySeconds="120" legendarySeconds="150" />
+
+  <!--
+    5 percent. Every elite and the boss drop unconditionally on top of this, so the authored beats stay
+    guaranteed while the random channel only fills the gaps between them.
+    Weapons outdrop armour 60/40 because there are six weapon slots against three armour slots.
+  -->
+  <Drop equipChancePct="5" weaponShare="60" armorShare="40"
+        magnetSpeed="14" tossDuration="0.4" bounceCount="2" />
+
+  <!--
+    Affixes are drawn without replacement, so this list also fixes the maximum affix count at its own
+    length. Names are prefixes: the first one rolled becomes the item's name, which is why every one
+    of them reads as a modifier rather than as a sentence.
+  -->
+  <Affix id="af_atk"     name="卷王的"   stat="Atk"        base="4" />
+  <Affix id="af_crit"    name="灵光的"   stat="CritChance" base="4" />
+  <Affix id="af_critdmg" name="绝杀的"   stat="CritMulti"  base="18" />
+  <Affix id="af_def"     name="老练的"   stat="Def"        base="9" />
+  <Affix id="af_dodge"   name="划水的"   stat="Dodge"      base="5" />
+  <Affix id="af_speed"   name="通勤的"   stat="MoveSpeed"  base="0.3" />
+  <Affix id="af_haste"   name="加急的"   stat="Haste"      base="9" />
+  <Affix id="af_luck"    name="锦鲤的"   stat="Luck"       base="6" />
+  <Affix id="af_san"     name="佛系的"   stat="MaxSan"     base="7" />
+  <Affix id="af_magnet"  name="顺手的"   stat="PickupRadius" base="0.25" />
+
+  <!--
+    Three slots, three different jobs. Overlapping main stats would make two of them interchangeable
+    and reduce nine equipment slots to seven.
+
+    The headphone is the important one: blue and above grants a recurring shield, and orange grants the
+    one death save in the game. Both are read from the worn quality by ArmorSystem, so the tier itself
+    is the unlock and nothing needs to be listed here.
+  -->
+  <Armor id="headphone" name="降噪耳机" slot="Head" viewId="v_armor_head">
+    <Main stat="Def" base="12" />
+  </Armor>
+
+  <Armor id="hoodie" name="格子衬衫" slot="Body" viewId="v_armor_body">
+    <Main stat="MaxSan" base="14" />
+    <Main stat="Def" base="5" />
+  </Armor>
+
+  <Armor id="slippers" name="人字拖" slot="Feet" viewId="v_armor_feet">
+    <Main stat="MoveSpeed" base="0.35" />
+    <Main stat="Dodge" base="4" />
+  </Armor>
+
+</Loot>

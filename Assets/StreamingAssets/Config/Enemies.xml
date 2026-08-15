@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Base numbers only. The per day growth in Days.xml multiplies hp and contactDamage, except where
+  ignoreScaling is set: the boss figures are absolute so "9999 x 3" reads exactly as written.
+
+  Every enemy is slower than the player's 4.5. Pressure comes from being surrounded, never from being
+  outrun, and Deadline at 4.0 sits right against that ceiling so it always feels like a near miss.
+
+  reportVerb / reportUnit feed the end of run work log, which is what turns a kill tally into
+  "处理邮件 328 封".
+-->
+<Enemies>
+
+  <Enemy id="mail" name="邮件" reportVerb="处理邮件" reportUnit="封"
+         hp="12" speed="2.2" contactDamage="6" exp="2" radius="0.34"
+         viewId="v_mail" tier="Normal" />
+
+  <Enemy id="deadline" name="Deadline" reportVerb="赶上 Deadline" reportUnit="次"
+         hp="8" speed="4.0" contactDamage="12" exp="2" radius="0.30"
+         viewId="v_deadline" tier="Normal"
+         behavior="SuicideOnContact" />
+
+  <!--
+    Killing one makes two, so clearing faster puts more on screen instead of less. It is the only
+    enemy whose pressure scales with the player's own damage.
+  -->
+  <Enemy id="bug" name="BUG" reportVerb="修复 BUG" reportUnit="个"
+         hp="10" speed="2.8" contactDamage="5" exp="2" radius="0.33"
+         viewId="v_bug" tier="Normal"
+         behavior="SplitOnDeath" behaviorParam="splitInto=bug_small;splitCount=2;splitSpread=0.55" />
+
+  <!-- Zero exp: 修 BUG 不算 KPI. It is also what stops splitting from wrecking the exp curve. -->
+  <Enemy id="bug_small" name="小 BUG" reportVerb="修复 BUG" reportUnit="个"
+         hp="4" speed="3.4" contactDamage="3" exp="0" radius="0.20"
+         viewId="v_bug_small" tier="Normal" />
+
+  <Enemy id="ppt" name="PPT" reportVerb="看完 PPT" reportUnit="份"
+         hp="45" speed="1.2" contactDamage="10" exp="4" radius="0.42"
+         viewId="v_ppt" tier="Normal"
+         behavior="AuraMoveSlow" behaviorParam="radius=3.2;pct=25" />
+
+  <!--
+    The only ranged unit. Without it, running in circles wins every day and movement stops meaning
+    anything. Projectile speed 5 against the player's 4.5 keeps every shot dodgeable.
+  -->
+  <Enemy id="report" name="周报" reportVerb="提交周报" reportUnit="份"
+         hp="18" speed="1.4" contactDamage="6" exp="3" radius="0.36"
+         viewId="v_report" tier="Normal"
+         behavior="RangedKeepDistance"
+         behaviorParam="interval=2.5;damage=8;projSpeed=5;range=10;keepDistance=6.5" />
+
+  <!-- Never attacks. It does not threaten your life, only your throughput. -->
+  <Enemy id="veteran" name="老油条" reportVerb="说服老油条" reportUnit="人"
+         hp="80" speed="1.0" contactDamage="0" exp="5" radius="0.46"
+         viewId="v_veteran" tier="Normal"
+         behavior="AuraAttackSlow" behaviorParam="radius=3.6;pct=25" />
+
+  <Enemy id="leader" name="领导" reportVerb="应付领导" reportUnit="次"
+         hp="300" speed="1.8" contactDamage="16" exp="15" radius="0.62"
+         viewId="v_leader" tier="Elite"
+         behavior="AuraHaste" behaviorParam="radius=4.5;pct=30" />
+
+  <!--
+    Three bars of 9999. Phase two only shortens cooldowns and widens the folder throw, phase three
+    adds the rain, so the whole escalation is two branches rather than three separate fights.
+  -->
+  <Enemy id="boss" name="老板" reportVerb="挺过述职" reportUnit="次"
+         hp="9999" speed="1.4" contactDamage="20" exp="60" radius="0.95"
+         viewId="v_boss" tier="Boss" ignoreScaling="true"
+         behavior="BossSkills"
+         behaviorParam="bars=3;phaseInvuln=2;phaseAdds=20;phaseAddId=mail;pieCd=15;pieSlowPct=30;pieSlowPctLate=40;pieDuration=3;meetingCd=20;summonId=ppt;summonCount=4;summonRadius=3;summonWarn=1;kpiCd=8;kpiCount=3;kpiCountLate=5;kpiBlast=1.8;rainInterval=1.5;rainCount=4;rainWarn=0.7;rainBlast=1.5" />
+
+</Enemies>

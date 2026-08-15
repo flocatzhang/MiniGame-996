@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Offline compile check only. Not part of the Unity project and not shipped.
+    Compiles the game scripts plus the real com.unity.ugui runtime sources against the engine
+    reference assemblies of the installed editor, so api misuse is caught without opening Unity.
+    Run: dotnet build Tools/Verify/Verify.csproj
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>OfficeHell.Verify</AssemblyName>
+    <RootNamespace>OfficeHell</RootNamespace>
+    <NoWarn>0169;0414;0649;0108;0114;0672;0618;0612;1591;8632;3021;0067</NoWarn>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <DebugType>none</DebugType>
+    <UnityRoot>E:\Unity2022.3.47f1\Data\Data</UnityRoot>
+    <UguiRoot>$(UnityRoot)\Resources\PackageManager\BuiltInPackages\com.unity.ugui</UguiRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\Assets\_Game\Scripts\**\*.cs" />
+    <Compile Include="..\..\Assets\_Game\Editor\**\*.cs" />
+    <Compile Include="$(UguiRoot)\Runtime\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="$(UnityRoot)\Managed\UnityEngine\UnityEngine.*.dll" />
+    <Reference Include="$(UnityRoot)\Managed\UnityEngine\UnityEditor.*.dll" />
+    <Reference Include="$(UnityRoot)\Managed\UnityEngine\UnityEngine.dll" />
+    <Reference Include="$(UnityRoot)\Managed\UnityEngine\UnityEditor.dll" />
+  </ItemGroup>
+
+</Project>
