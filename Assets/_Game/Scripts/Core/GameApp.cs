@@ -67,7 +67,6 @@ namespace OfficeHell.Core
             BuildScene();
             BuildServices();
             Ui.MainMenu.OnStartClicked = OnStartClicked;
-            Ui.MainMenu.OnQuitClicked = OnQuitClicked;
             Ui.OffWork.OnSkipClicked = OnOffWorkSkip;
             Ui.Cards.OnCardPicked = OnCardPicked;
             Ui.Result.OnRestartClicked = OnRestart;
@@ -360,12 +359,6 @@ namespace OfficeHell.Core
         void OnStartClicked()
         {
             StartRun();
-        }
-
-        void OnQuitClicked()
-        {
-            _audio.Play(AudioService.SfxUiClick);
-            Application.Quit();
         }
 
         void OnOffWorkSkip()

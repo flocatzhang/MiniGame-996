@@ -4,9 +4,11 @@ using OfficeHell.Config;
 using OfficeHell.Core;
 using OfficeHell.Model;
 using OfficeHell.Systems;
+using OfficeHell.UI;
 using OfficeHell.View;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace OfficeHell.EditorTools
 {
@@ -115,6 +117,9 @@ namespace OfficeHell.EditorTools
 
             TestFormulas(report, cfg);
             TestArtAssets(report, cfg);
+            TestUiPrefabs(report, cfg);
+            TestUiControllerBindings(report, cfg);
+            TestResultPresentation(report, cfg);
             TestAudioAssets(report, cfg);
             TestPointerFollow(report, cfg);
             TestClockProjection(report, cfg);
@@ -159,6 +164,294 @@ namespace OfficeHell.EditorTools
             report.Require(!playerView.Body.flipX,
                 "player source frames should remain unflipped when facing left");
             Object.DestroyImmediate(playerView.gameObject);
+        }
+
+        static void TestUiPrefabs(Report report, ConfigManager cfg)
+        {
+            UIMainMenuView menu = Resources.Load<UIMainMenuView>(UIPrefabCatalog.MainMenuPath);
+            UIHudView hud = Resources.Load<UIHudView>(UIPrefabCatalog.HudPath);
+            UIOffWorkView offWork = Resources.Load<UIOffWorkView>(UIPrefabCatalog.OffWorkPath);
+            UICardPanelView panel = Resources.Load<UICardPanelView>(UIPrefabCatalog.CardPanelPath);
+            UICardView card = Resources.Load<UICardView>(UIPrefabCatalog.CardItemPath);
+            UIResultView result = Resources.Load<UIResultView>(UIPrefabCatalog.ResultPath);
+
+            report.Require(menu != null, "UIMainMenu prefab is missing from Resources");
+            report.Require(hud != null, "UIHud prefab is missing from Resources");
+            report.Require(offWork != null, "UIOffWork prefab is missing from Resources");
+            report.Require(panel != null, "UICardPanel prefab is missing from Resources");
+            report.Require(card != null, "UICardItem prefab is missing from Resources");
+            report.Require(result != null, "UIResult prefab is missing from Resources");
+            report.Require(cfg.Cards.Choices == 3,
+                "level-up choices changed to " + cfg.Cards.Choices + ", the prefab contract requires exactly 3");
+
+            if (menu != null)
+            {
+                report.Require(menu.Background != null && menu.StartButton != null && menu.StartButtonImage != null &&
+                               menu.StartButtonLabel != null && menu.StartButton.transform.parent == menu.transform,
+                    "UIMainMenu has incomplete serialized references");
+                AspectRatioFitter cover = menu.Background.GetComponent<AspectRatioFitter>();
+                report.Require(cover != null && cover.aspectMode == AspectRatioFitter.AspectMode.EnvelopeParent &&
+                               Mathf.Abs(cover.aspectRatio - 1803f / 902f) < 0.0001f,
+                    "main background must use the cropped reference ratio in Cover mode");
+                Texture texture = menu.Background.texture;
+                report.Require(texture != null && texture.width == 1803 && texture.height == 902,
+                    "main background must be cropped to the requested 1803x902 content rectangle");
+                report.Require(texture.name == "MainMenuBackgroundNoButton" &&
+                               menu.StartButtonLabel.text == "打卡上班" &&
+                               menu.StartButtonImage.gameObject == menu.StartButton.gameObject,
+                    "main-menu start button is still baked into the background or is not independently editable");
+            }
+
+            if (panel != null)
+            {
+                report.Require(panel.Dimmer != null && panel.Title != null && panel.CardContainer != null &&
+                               panel.CardPrefab != null,
+                    "UICardPanel has incomplete serialized references");
+            }
+
+            if (hud != null)
+            {
+                report.Require(hud.Portrait != null && hud.RankText != null && hud.SanFill != null &&
+                               hud.CoinText != null && hud.KillText != null && hud.SkillRoot != null &&
+                               hud.SkillBackground != null && hud.SkillIcon != null && hud.SkillFill != null &&
+                               hud.WorkClockText != null && hud.StageText != null && hud.KpiFill != null,
+                    "UIHud has incomplete character, clock or KPI references");
+                report.Require(hud.SkillRoot.transform.parent == hud.transform &&
+                               hud.SkillFill.type == Image.Type.Filled &&
+                               hud.SkillFill.fillMethod == Image.FillMethod.Horizontal,
+                    "UIHud slack skill is not an independently editable horizontal progress bar");
+                report.Require(hud.WeaponSlots != null && hud.WeaponSlots.Length == PlayerModel.WeaponSlots &&
+                               hud.ArmorSlots != null && hud.ArmorSlots.Length == PlayerModel.ArmorSlots,
+                    "UIHud slot arrays do not match the 6 weapon / 3 armor model contract");
+            }
+
+            if (offWork != null)
+            {
+                report.Require(offWork.Dimmer != null && offWork.SkipButton != null &&
+                               offWork.BossPortrait != null && offWork.Speech != null &&
+                               offWork.Summary != null && offWork.NextDay != null && offWork.Hint != null,
+                    "UIOffWork has incomplete serialized references");
+            }
+
+            if (card != null)
+            {
+                report.Require(card.Button != null && card.Frame != null && card.Border != null && card.Icon != null &&
+                               card.IconFallback != null && card.RecommendBadge != null && card.NewBadge != null &&
+                               card.DesignAccents != null && card.DesignAccents.Length == 16,
+                    "UICardItem has incomplete serialized references");
+                UICardView instance = Object.Instantiate(card);
+                report.Require(instance != null && instance.Button != null, "UICardItem cannot be instantiated");
+                if (instance != null) Object.DestroyImmediate(instance.gameObject);
+            }
+
+            if (result != null)
+            {
+                report.Require(result.WorkLabels != null && result.WorkLabels.Length == 3 &&
+                               result.WorkValues != null && result.WorkValues.Length == 3,
+                    "UIResult must expose exactly three work-stat rows");
+                report.Require(result.RestartButton != null && result.MenuButton != null && result.KpiFill != null,
+                    "UIResult has incomplete button or KPI references");
+            }
+
+            string[] iconKeys =
+            {
+                "c_atk", "c_atk_pct", "c_haste", "c_crit", "c_critdmg", "c_def", "c_dodge",
+                "c_san", "c_speed", "c_luck", "c_magnet",
+                "s_deep", "s_paid", "s_reverse", "s_extra", "s_mass",
+                "stapler", "keyboard", "badge", "headphone", "hoodie", "slippers",
+            };
+            report.Require(new HashSet<string>(iconKeys).Count == 22,
+                "card UI icon-key table must contain 22 unique entries");
+            report.Line("UI prefabs: menu, HUD, off-work, three-card panel/item, result and 22 icon keys verified");
+        }
+
+        static void TestUiControllerBindings(Report report, ConfigManager cfg)
+        {
+            UIMainMenuView menu = Object.Instantiate(Resources.Load<UIMainMenuView>(UIPrefabCatalog.MainMenuPath));
+            UIMainMenuController menuController = new UIMainMenuController(menu);
+            bool started = false;
+            menuController.OnStartClicked = () => started = true;
+            menuController.UIInit(menu.RectTransform);
+            menuController.UIOpen();
+            menu.StartButton.onClick.Invoke();
+            report.Require(started, "main-menu prefab button is not bound to OnStartClicked");
+            Object.DestroyImmediate(menu.gameObject);
+
+            GameContext game = new GameContext();
+            game.Cfg = cfg;
+            game.Run = new RunModel();
+            game.Bus = new EventBus();
+            game.Grid = new SpatialGrid();
+            game.Run.ResetRun(cfg);
+            GameLoopDriver driver = new GameLoopDriver(game);
+            UIContext context = new UIContext { Game = game, Driver = driver };
+            UICardPanelView panel = Object.Instantiate(Resources.Load<UICardPanelView>(UIPrefabCatalog.CardPanelPath));
+            UICardController cardController = new UICardController(context, panel);
+            cardController.UIInit(panel.RectTransform);
+
+            driver.Cards.Offers.Add(new CardOffer
+            {
+                Kind = CardKind.Stat,
+                Id = "c_atk",
+                Title = "攻击测试",
+                Desc = "攻击力",
+                Value = 6f,
+            });
+            driver.Cards.Offers.Add(new CardOffer
+            {
+                Kind = CardKind.Stat,
+                Id = "c_def",
+                Title = "防御测试",
+                Desc = "防御",
+                Value = 20f,
+            });
+            driver.Cards.Offers.Add(new CardOffer
+            {
+                Kind = CardKind.Equipment,
+                Id = "equip_keyboard_Blue",
+                DefId = "keyboard",
+                Title = "蓝色键盘",
+                Desc = "品质测试",
+                Quality = Quality.Blue,
+                IsWeapon = true,
+            });
+            cardController.Refresh();
+
+            UICardView[] firstHand = panel.CardContainer.GetComponentsInChildren<UICardView>(true);
+            report.Require(firstHand.Length == 3, "card panel created " + firstHand.Length + " items, expected 3");
+            if (firstHand.Length == 3)
+            {
+                report.Require(ColorDistance(firstHand[0].Accent.color, firstHand[1].Accent.color) > 0.1f,
+                    "different stat-card designs collapsed to the same type color");
+                Color blueQuality = cfg.QualityOf(Quality.Blue).Color;
+                report.Require(ColorDistance(firstHand[2].Accent.color, blueQuality) < 0.01f &&
+                               ColorDistance(firstHand[2].Border.effectColor, blueQuality) < 0.01f,
+                    "equipment card did not retain its authored quality color");
+                report.Require(firstHand[2].FooterText.text.Contains("蓝色品质"),
+                    "equipment card did not expose its quality in the footer");
+            }
+            int picked = -1;
+            cardController.OnCardPicked = index => picked = index;
+            if (firstHand.Length > 1) firstHand[1].Button.onClick.Invoke();
+            report.Require(picked == 1, "second card click did not report selection index 1");
+
+            cardController.Refresh();
+            cardController.Refresh();
+            UICardView[] refreshedHand = panel.CardContainer.GetComponentsInChildren<UICardView>(true);
+            report.Require(refreshedHand.Length == 3,
+                "consecutive card refreshes duplicated the prefab hierarchy to " + refreshedHand.Length + " items");
+
+            Object.DestroyImmediate(panel.gameObject);
+
+            UIHudView hud = Object.Instantiate(Resources.Load<UIHudView>(UIPrefabCatalog.HudPath));
+            UIHudController hudController = new UIHudController(context, hud);
+            hudController.UIInit(hud.RectTransform);
+            hudController.UIOpen();
+            hudController.UITick(0f);
+            report.Require(hud.StageText.text == "周一 · 上午" && hud.WorkClockText.text == "09:00" &&
+                           !hud.StageText.text.Contains("关"),
+                "battle HUD did not preserve the Monday 09:00 weekly-work semantics");
+            report.Require(hud.CoinText.text == "0" && hud.KillText.text == "0",
+                "battle HUD initial salary or kill counter is not zero");
+            report.Require(hud.WeaponSlots.Length == 6 && hud.ArmorSlots.Length == 3,
+                "battle HUD does not retain 6 weapon slots and 3 armor slots at runtime");
+            float skillCd = game.Run.Player.SkillCd(cfg.Skill);
+            game.Run.Player.SkillReadyAt = GameClock.Now + skillCd * 0.5f;
+            hudController.UITick(0f);
+            report.Require(hud.SkillRoot.activeSelf && Mathf.Abs(hud.SkillFill.fillAmount - 0.5f) < 0.02f &&
+                           hud.SkillText.text.Contains("充能") && hud.SkillText.text.Contains("50%"),
+                "battle HUD slack-skill bar did not expose its half-cooldown progress state");
+            Object.DestroyImmediate(hud.gameObject);
+
+            game.Run.KilledToday = 13;
+            game.Run.Kills = 13;
+            UIOffWorkView offWork = Object.Instantiate(Resources.Load<UIOffWorkView>(UIPrefabCatalog.OffWorkPath));
+            UIOffWorkController offWorkController = new UIOffWorkController(context, offWork);
+            bool skipped = false;
+            offWorkController.OnSkipClicked = () => skipped = true;
+            offWorkController.UIInit(offWork.RectTransform);
+            offWorkController.UIOpen();
+            offWork.SkipButton.onClick.Invoke();
+            report.Require(skipped, "off-work full-screen button is not bound to OnSkipClicked");
+            report.Require(offWork.Speech.text.Contains("KPI") && offWork.Summary.text.Contains("13") &&
+                           offWork.DayTitle.text.Contains("周一") && offWork.NextDay.text.Contains("明天 周二"),
+                "off-work transition is missing KPI speech, daily totals or Monday-to-Tuesday detail");
+            Object.DestroyImmediate(offWork.gameObject);
+
+            driver.Dispose();
+            report.Line("UI bindings: start, HUD projection, off-work skip, card click and hierarchy reuse verified");
+        }
+
+        static float ColorDistance(Color a, Color b)
+        {
+            return Mathf.Abs(a.r - b.r) + Mathf.Abs(a.g - b.g) +
+                   Mathf.Abs(a.b - b.b) + Mathf.Abs(a.a - b.a);
+        }
+
+        static void TestResultPresentation(Report report, ConfigManager cfg)
+        {
+            TestResultPresentationCase(report, cfg, Ending.Clear, "未达标", cfg.Progression.FinalSalary);
+            TestResultPresentationCase(report, cfg, Ending.ClearTimeout, "未达标", cfg.Progression.FinalSalary);
+
+            int failSalary = CombatFormula.Salary(
+                cfg.TotalCombatSeconds * 0.5f, cfg.TotalCombatSeconds, cfg.Progression);
+            TestResultPresentationCase(report, cfg, Ending.Fail, "已离职", failSalary);
+            report.Line("result presentation: Clear, ClearTimeout and Fail salary statements verified");
+        }
+
+        static void TestResultPresentationCase(
+            Report report,
+            ConfigManager cfg,
+            Ending ending,
+            string expectedOutcome,
+            int expectedSalary)
+        {
+            GameContext game = new GameContext();
+            game.Cfg = cfg;
+            game.Run = new RunModel();
+            game.Bus = new EventBus();
+            game.Grid = new SpatialGrid();
+            game.Run.ResetRun(cfg);
+            game.Run.Ending = ending;
+            game.Run.CombatSeconds = cfg.TotalCombatSeconds * 0.5f;
+            game.Run.Kills = 99999;
+            game.Run.KillsByType["bug"] = 2;
+            game.Run.KillsByType["bug_small"] = 3;
+            game.Run.KillsByType["mail"] = 4;
+            game.Run.AnyLootPicked = true;
+            game.Run.BestQuality = Quality.Orange;
+            game.Run.BestLootName = "测试橙装";
+
+            GameLoopDriver driver = new GameLoopDriver(game);
+            UIContext context = new UIContext { Game = game, Driver = driver };
+            UIResultView prefab = Resources.Load<UIResultView>(UIPrefabCatalog.ResultPath);
+            UIResultView view = Object.Instantiate(prefab);
+            UIResultController controller = new UIResultController(context, view);
+            controller.UIInit(view.RectTransform);
+            controller.UIOpen();
+
+            report.Require(view.Outcome.text == expectedOutcome,
+                ending + " outcome is '" + view.Outcome.text + "', expected '" + expectedOutcome + "'");
+            report.Require(view.Salary.text == "¥" + expectedSalary.ToString("N0"),
+                ending + " salary is '" + view.Salary.text + "', expected ¥" + expectedSalary.ToString("N0"));
+            report.Require(view.WorkLabels[0].text == "修复 BUG" && view.WorkValues[0].text == "+ 5 个",
+                ending + " did not merge bug and bug_small into the top '修复 BUG + 5 个' row");
+            report.Require(view.BestQuality.text.Contains("橙色") && view.BestQuality.text.Contains("测试橙装"),
+                ending + " did not show highest quality and loot name");
+            report.Require(view.Rank.text.Contains("最终职位") && view.San.text.Contains("剩余 SAN") &&
+                           view.Loadout.text.Contains("最终配置"),
+                ending + " is missing rank, SAN or loadout summary");
+
+            bool restarted = false;
+            bool returned = false;
+            controller.OnRestartClicked = () => restarted = true;
+            controller.OnMenuClicked = () => returned = true;
+            view.RestartButton.onClick.Invoke();
+            view.MenuButton.onClick.Invoke();
+            report.Require(restarted && returned, ending + " result buttons are not bound to controller actions");
+
+            Object.DestroyImmediate(view.gameObject);
+            driver.Dispose();
         }
 
         static void TestAudioAssets(Report report, ConfigManager cfg)

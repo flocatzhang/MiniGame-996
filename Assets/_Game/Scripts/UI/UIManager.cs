@@ -64,18 +64,29 @@ namespace OfficeHell.UI
             UIFactory.Stretch(ScreenFlash.rectTransform);
             ScreenFlash.enabled = false;
 
-            MainMenu = new UIMainMenuController();
-            Hud = new UIHudController(_ctx);
-            OffWork = new UIOffWorkController(_ctx);
-            Cards = new UICardController(_ctx);
-            Result = new UIResultController(_ctx);
+            UIMainMenuView mainMenuView = UIPrefabCatalog.InstantiateRequired<UIMainMenuView>(
+                UIPrefabCatalog.MainMenuPath, MainCanvas.transform);
+            UIHudView hudView = UIPrefabCatalog.InstantiateRequired<UIHudView>(
+                UIPrefabCatalog.HudPath, MainCanvas.transform);
+            UIOffWorkView offWorkView = UIPrefabCatalog.InstantiateRequired<UIOffWorkView>(
+                UIPrefabCatalog.OffWorkPath, MainCanvas.transform);
+            UICardPanelView cardPanelView = UIPrefabCatalog.InstantiateRequired<UICardPanelView>(
+                UIPrefabCatalog.CardPanelPath, MainCanvas.transform);
+            UIResultView resultView = UIPrefabCatalog.InstantiateRequired<UIResultView>(
+                UIPrefabCatalog.ResultPath, MainCanvas.transform);
+
+            MainMenu = new UIMainMenuController(mainMenuView);
+            Hud = new UIHudController(_ctx, hudView);
+            OffWork = new UIOffWorkController(_ctx, offWorkView);
+            Cards = new UICardController(_ctx, cardPanelView);
+            Result = new UIResultController(_ctx, resultView);
             Debug = new UIDebugController(_ctx);
 
-            MainMenu.UIInit(MainCanvas.transform);
-            Hud.UIInit(MainCanvas.transform);
-            OffWork.UIInit(MainCanvas.transform);
-            Cards.UIInit(MainCanvas.transform);
-            Result.UIInit(MainCanvas.transform);
+            MainMenu.UIInit(mainMenuView.RectTransform);
+            Hud.UIInit(hudView.RectTransform);
+            OffWork.UIInit(offWorkView.RectTransform);
+            Cards.UIInit(cardPanelView.RectTransform);
+            Result.UIInit(resultView.RectTransform);
 
             _ctx.Game.Bus.Register(EventID.GameStateChanged, OnGameStateChanged);
             _ctx.Game.Bus.Register(EventID.CardsOffered, OnCardsOffered);

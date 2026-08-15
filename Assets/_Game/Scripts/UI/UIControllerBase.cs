@@ -25,7 +25,23 @@ namespace OfficeHell.UI
                 return;
             }
 
-            Root = UIFactory.CreatePanel(parent, GetType().Name);
+            UIInit(UIFactory.CreatePanel(parent, GetType().Name));
+        }
+
+        public void UIInit(RectTransform root)
+        {
+            if (Root != null)
+            {
+                return;
+            }
+
+            if (root == null)
+            {
+                Debug.LogError("[UI] cannot initialize " + GetType().Name + " with a null prefab root");
+                return;
+            }
+
+            Root = root;
             Root.gameObject.SetActive(false);
             OnUIInit();
         }
