@@ -125,10 +125,259 @@ namespace OfficeHell.EditorTools
             TestClockProjection(report, cfg);
             TestSpawnGeometry(report, cfg);
             TestSpawnBandKeepsDistance(report, cfg);
+            TestCardQualityTiers(report, cfg);
+            TestArmorSlotEffects(report, cfg);
+            TestSkillHealIsSilentAtFullSanity(report, cfg);
             TestFullRun(report, cfg);
             TestRestartLeavesNoResidue(report, cfg);
 
             return report;
+        }
+
+        /// <summary>
+        /// The tier ladder degrades silently in three separate ways: a template that never gets
+        /// filled prints a literal {v} on the card, a coefficient that stops being applied makes every
+        /// tier identical, and a pool rule that reverts locks the upgrade out for the rest of the run.
+        /// None of the three produce an error, and all three make the quality decoration.
+        /// </summary>
+        static void TestCardQualityTiers(Report report, ConfigManager cfg)
+        {
+            Harness h = Harness.Create(cfg);
+            h.Driver.Flow.StartRun();
+
+            CardSystem cards = h.Driver.Cards;
+            float coef = cfg.WeaponQuality.Get(Quality.Orange);
+
+            // An unmapped passive id is treated as already owned, so the card vanishes from the pool
+            // without an error anywhere. This is the only place that catches a typo in Cards.xml.
+            for (int i = 0; i < cfg.Cards.Cards.Count; i++)
+            {
+                CardDef c = cfg.Cards.Cards[i];
+                report.Require(c.Kind != CardKind.Skill || CardSystem.PassiveOf(c.Passive) != SlackPassive.None,
+                    "skill card '" + c.Id + "' names passive '" + c.Passive +
+                    "', which maps to nothing and can never be offered");
+            }
+
+            // Saturday, so every roll is orange and the arithmetic below has one expected answer.
+            h.Run.BeginDay(6, cfg);
+
+            bool sawTemplate = false;
+            bool sawScaled = false;
+
+            for (int attempt = 0; attempt < 60; attempt++)
+            {
+                cards.Offer();
+                for (int i = 0; i < cards.Offers.Count; i++)
+                {
+                    CardOffer o = cards.Offers[i];
+                    if (o.Kind == CardKind.Equipment)
+                    {
+                        continue;
+                    }
+
+                    if (o.Desc != null && (o.Desc.Contains("{v}") || o.Desc.Contains("{v2}")))
+                    {
+                        sawTemplate = true;
+                    }
+
+                    report.Require(o.Quality == Quality.Orange,
+                        "a day six card rolled " + o.Quality + " instead of orange");
+
+                    CardDef def = null;
+                    for (int c = 0; c < cfg.Cards.Cards.Count; c++)
+                    {
+                        if (cfg.Cards.Cards[c].Id == o.Id)
+                        {
+                            def = cfg.Cards.Cards[c];
+                        }
+                    }
+
+                    if (def != null && def.Value > 0f)
+                    {
+                        sawScaled = true;
+                        report.Require(Mathf.Abs(o.Value - Mathf.Round(def.Value * coef * 10f) * 0.1f) < 0.001f,
+                            "card '" + o.Id + "' offered " + o.Value + " instead of its green " +
+                            def.Value + " times the orange coefficient");
+                    }
+                }
+            }
+
+            report.Require(!sawTemplate, "a card description reached the panel with its {v} placeholder unfilled");
+            report.Require(sawScaled, "no card carried a value, the tier scaling was never exercised");
+
+            // A stat card taken at green has to come back higher, and stack when it does.
+            CardSystem fresh = new CardSystem(h.Ctx, h.Driver.Loot);
+            fresh.Reset();
+            h.Run.BeginDay(1, cfg);
+
+            float atkBefore = h.Player.Stats.Get(StatType.Atk);
+            CardOffer green = new CardOffer
+            {
+                Kind = CardKind.Stat, Id = "c_atk", Stat = StatKey.Atk, Value = 5f, Quality = Quality.Green,
+            };
+            fresh.Offers.Add(green);
+            fresh.Pick(0);
+
+            CardOffer orange = new CardOffer
+            {
+                Kind = CardKind.Stat, Id = "c_atk", Stat = StatKey.Atk, Value = 10.5f, Quality = Quality.Orange,
+            };
+            fresh.Offers.Add(orange);
+            fresh.Pick(0);
+
+            report.Require(Mathf.Abs(h.Player.Stats.Get(StatType.Atk) - (atkBefore + 15.5f)) < 0.01f,
+                "two tiers of one stat card did not stack, atk is " + h.Player.Stats.Get(StatType.Atk));
+
+            // A passive replaces instead, so the higher tier must not be the sum of the two.
+            h.Player.GrantPassive(SlackPassive.DeepSlack, Quality.Green, 0.6f, 0f);
+            h.Player.GrantPassive(SlackPassive.DeepSlack, Quality.Orange, 1.26f, 0f);
+            report.Require(Mathf.Abs(h.Player.SkillInvulnSeconds(cfg.Skill) - (cfg.Skill.InvulnDuration + 1.26f)) < 0.01f,
+                "upgrading a passive stacked the two tiers instead of replacing");
+            report.Require(h.Player.PassiveQuality(SlackPassive.DeepSlack) == Quality.Orange,
+                "upgrading a passive did not record the new tier");
+
+            report.Line("card tiers scale off the shared quality coefficient and upgrade rather than lock out");
+            h.Dispose();
+        }
+
+        /// <summary>
+        /// Four of the nine armour effects had no implementation at all and the fifth was unbounded.
+        /// Each one only shows up at the moment it triggers, so a regression here is invisible in play
+        /// until someone notices an item has quietly done nothing for a week.
+        /// </summary>
+        static void TestArmorSlotEffects(Report report, ConfigManager cfg)
+        {
+            Harness h = Harness.Create(cfg);
+            h.Driver.Flow.StartRun();
+
+            // Real equip path rather than a hand written slot write, so the reset hooks it carries
+            // are exercised too. Auto equip replaces the worst slot, so repeated orange drops fill all
+            // three and every tier under orange is unlocked along with it.
+            h.Player.GodMode = true;
+            for (int i = 0; i < 90 && h.Player.ArmorCount() < PlayerModel.ArmorSlots; i++)
+            {
+                h.Driver.Loot.CollectNow(h.Driver.Loot.SpawnArmor(h.Player.Pos, Quality.Orange));
+            }
+
+            report.Require(h.Player.ArmorCount() == PlayerModel.ArmorSlots,
+                "could not fill all three armour slots, the effect checks below would prove nothing");
+            if (h.Player.ArmorCount() < PlayerModel.ArmorSlots)
+            {
+                h.Dispose();
+                return;
+            }
+
+            // Headphone: the shield has to lapse, or the purple tier's control immunity is permanent.
+            h.Player.NextShieldAt = GameClock.Now;
+            h.Driver.Armor.Tick(FixedDelta);
+            report.Require(h.Player.HasShield, "a blue or better headphone did not raise a shield");
+            report.Require(h.Player.ImmuneToControl, "a purple headphone with a shield up is not immune to control");
+
+            // God mode is still on, so nothing can break the shield and only a lapse can clear it.
+            for (int i = 0; i < 900 && h.Player.HasShield; i++)
+            {
+                h.Step();
+            }
+
+            report.Require(!h.Player.HasShield, "the headphone shield never lapsed, it is a permanent buffer");
+            report.Require(!h.Player.ImmuneToControl, "control immunity outlived the shield that grants it");
+
+            // Headphone orange: one save for the run, so a day boundary must not hand back a spent one.
+            h.Player.DeathSaveReady = false;
+            h.Run.BeginDay(3, cfg);
+            report.Require(!h.Player.DeathSaveReady,
+                "a new day refilled the death save, which is six free deaths across a run");
+
+            // Hoodie orange: one hit in five is refused outright rather than reduced.
+            h.Player.GodMode = false;
+            h.Player.HitsSinceGuard = 0;
+
+            bool guardFired = false;
+            for (int i = 0; i < 40 && !guardFired; i++)
+            {
+                h.Player.InvulnUntil = 0f;
+                h.Player.SkillInvulnUntil = 0f;
+                h.Player.San = h.Player.MaxSan;
+
+                int before = h.Player.HitsSinceGuard;
+                CombatSystem.DealDamageToPlayer(h.Ctx, 5f, h.Player.Pos + Vector2.right);
+
+                // Only the guard resets the counter. A dodge leaves it untouched and a normal hit
+                // raises it, so this cannot be confused with either.
+                if (before > 0 && h.Player.HitsSinceGuard == 0)
+                {
+                    guardFired = true;
+                    report.Require(Mathf.Abs(h.Player.San - h.Player.MaxSan) < 0.0001f,
+                        "the guarded hit still cost " + (h.Player.MaxSan - h.Player.San) + " sanity");
+                }
+            }
+
+            report.Require(guardFired, "the orange hoodie never refused a hit");
+
+            // Slipper orange: a dodge has to move the player, or it is not an escape from the pack.
+            h.Player.Stats.AddModifier(new StatModifier(StatType.Dodge, ModifierOp.Flat, 999f, 9001));
+            bool blinked = false;
+            for (int i = 0; i < 40 && !blinked; i++)
+            {
+                h.Player.Facing = Vector2.right;
+                h.Player.Pos = Vector2.zero;
+                h.Player.InvulnUntil = 0f;
+                h.Player.SkillInvulnUntil = 0f;
+                h.Player.San = h.Player.MaxSan;
+                CombatSystem.DealDamageToPlayer(h.Ctx, 1f, new Vector2(1f, 0f));
+                blinked = h.Player.Pos.sqrMagnitude > 0.01f;
+            }
+
+            h.Player.Stats.RemoveBySource(9001);
+            report.Require(blinked, "an orange slipper dodge never moved the player");
+
+            // Slipper purple: the trail has to actually slow what walks into it.
+            h.Player.GodMode = true;
+            h.Player.Pos = Vector2.zero;
+            h.Player.MoveIntent = Vector2.right;
+            h.Player.NextStainAt = 0f;
+            h.Driver.Armor.Tick(FixedDelta);
+
+            EnemyModel walker = h.Driver.Spawn.Spawn(cfg.Enemy("mail"), Vector2.zero, null);
+            h.Driver.ForceRebuildGrid();
+            h.Driver.Armor.Tick(FixedDelta);
+
+            report.Require(walker != null && walker.SlowUntil > GameClock.Now && walker.SlowPct > 0f,
+                "an enemy standing on a fresh coffee mark was not slowed");
+
+            report.Line("headphone shield lapses, death save is once per run, hoodie guard and both slipper tiers fire");
+            h.Dispose();
+        }
+
+        /// <summary>
+        /// The skill fires itself on a cooldown rather than on demand, so a heal that announces itself
+        /// against a full bar is a green number over the player's head every twelve seconds for the
+        /// rest of the run, reporting something that did not happen.
+        /// </summary>
+        static void TestSkillHealIsSilentAtFullSanity(Report report, ConfigManager cfg)
+        {
+            Harness h = Harness.Create(cfg);
+            h.Driver.Flow.StartRun();
+
+            int announced = 0;
+            System.Action<EvtArg> count = delegate { announced++; };
+            h.Ctx.Bus.Register(EventID.PlayerHealed, count);
+
+            h.Player.San = h.Player.MaxSan;
+            h.Driver.Skill.Cast();
+
+            report.Require(announced == 0, "the skill announced a heal while sanity was already full");
+            report.Require(Mathf.Abs(h.Player.San - h.Player.MaxSan) < 0.0001f,
+                "a heal at full sanity moved the bar to " + h.Player.San);
+
+            h.Player.San = h.Player.MaxSan * 0.5f;
+            h.Driver.Skill.Cast();
+
+            report.Require(announced == 1, "the skill stayed silent when there was room to heal");
+
+            h.Ctx.Bus.Unregister(EventID.PlayerHealed, count);
+            report.Line("the skill heal is silent at full sanity and audible below it");
+            h.Dispose();
         }
 
         static void TestArtAssets(Report report, ConfigManager cfg)
@@ -464,7 +713,7 @@ namespace OfficeHell.EditorTools
                 "sfx_player_hurt", "sfx_ui_clockin",
                 "sfx_weapon_stapler_fire", "sfx_weapon_stapler_hit",
             };
-            string[] drops = { "sfx_drop_white", "sfx_drop_blue", "sfx_drop_yellow", "sfx_drop_orange" };
+            string[] drops = { "sfx_drop_green", "sfx_drop_blue", "sfx_drop_purple", "sfx_drop_orange" };
             float[] dropLengths = { 2.259f, 2.020f, 2.276f, 3.305f };
             int[] dropRates = { 48000, 11000, 11000, 48000 };
             string[] bgm = { "bgm_login", "bgm_battle", "bgm_boss", "bgm_result" };
@@ -553,20 +802,20 @@ namespace OfficeHell.EditorTools
                 "the four quality keys should reference four distinct delivered drop clips");
             report.Require(cfg.Audio.Sfx["sfx_growth_card_appear"].Clip == "SFX/sfx_growth_card_appear",
                 "card appearance should use its newly delivered dedicated clip");
-            report.Require(Mathf.Abs(cfg.Audio.Sfx["sfx_drop_white"].Volume - 0.36f) < 0.001f &&
+            report.Require(Mathf.Abs(cfg.Audio.Sfx["sfx_drop_green"].Volume - 0.36f) < 0.001f &&
                            Mathf.Abs(cfg.Audio.Sfx["sfx_drop_blue"].Volume - 0.52f) < 0.001f &&
-                           Mathf.Abs(cfg.Audio.Sfx["sfx_drop_yellow"].Volume - 1.00f) < 0.001f &&
+                           Mathf.Abs(cfg.Audio.Sfx["sfx_drop_purple"].Volume - 1.00f) < 0.001f &&
                            Mathf.Abs(cfg.Audio.Sfx["sfx_drop_orange"].Volume - 0.90f) < 0.001f,
                 "drop quality volume ladder should be 0.36 / 0.52 / 1.00 / 0.90");
             report.Require(Mathf.Abs(cfg.Audio.SfxVolume - 0.707946f) < 0.001f &&
-                           Mathf.Abs(cfg.Audio.Sfx["sfx_drop_white"].GainDb - 3f) < 0.001f &&
+                           Mathf.Abs(cfg.Audio.Sfx["sfx_drop_green"].GainDb - 3f) < 0.001f &&
                            Mathf.Abs(cfg.Audio.Sfx["sfx_drop_blue"].GainDb - 3f) < 0.001f &&
-                           Mathf.Abs(cfg.Audio.Sfx["sfx_drop_yellow"].GainDb - 3f) < 0.001f &&
+                           Mathf.Abs(cfg.Audio.Sfx["sfx_drop_purple"].GainDb - 3f) < 0.001f &&
                            Mathf.Abs(cfg.Audio.Sfx["sfx_drop_orange"].GainDb - 3f) < 0.001f,
                 "ordinary SFX should keep 3dB headroom while all drop keys take it back");
-            report.Require(cfg.Audio.Sfx["sfx_drop_yellow"].DuckExempt &&
+            report.Require(cfg.Audio.Sfx["sfx_drop_purple"].DuckExempt &&
                            cfg.Audio.Sfx["sfx_drop_orange"].DuckExempt,
-                "yellow and orange reward sounds must remain exempt from ducking");
+                "purple and orange reward sounds must remain exempt from ducking");
 
             foreach (KeyValuePair<string, SfxDef> kv in cfg.Audio.Sfx)
             {
@@ -597,9 +846,9 @@ namespace OfficeHell.EditorTools
             report.Require(Mathf.Abs(cfg.Coffee.LowSanThresholdPct - 33f) < 0.001f &&
                            Mathf.Abs(cfg.Audio.LowSanFadeSeconds - 0.2f) < 0.001f,
                 "low SAN loop should use the existing 33% threshold and a 0.2s fade");
-            report.Require(Mathf.Abs(cfg.QualityOf(Quality.Yellow).BgmLowPass - 0.3f) < 0.001f &&
+            report.Require(Mathf.Abs(cfg.QualityOf(Quality.Purple).BgmLowPass - 0.3f) < 0.001f &&
                            Mathf.Abs(cfg.QualityOf(Quality.Orange).BgmLowPass - 1.2f) < 0.001f,
-                "yellow/orange reward ducking should last 0.3s / 1.2s");
+                "purple/orange reward ducking should last 0.3s / 1.2s");
             report.Line("audio assets: 14 SFX + 4 stereo drops + 1 low SAN loop + 4 BGM, imports and mix profiles verified");
         }
 
@@ -686,10 +935,10 @@ namespace OfficeHell.EditorTools
                 return;
             }
 
-            float white = CombatFormula.WeaponDamage(stapler, cfg.WeaponQuality.Get(Quality.White), 10f);
+            float green = CombatFormula.WeaponDamage(stapler, cfg.WeaponQuality.Get(Quality.Green), 10f);
             float orange = CombatFormula.WeaponDamage(stapler, cfg.WeaponQuality.Get(Quality.Orange), 10f);
-            report.Require(orange > white, "quality coefficient does not increase weapon damage");
-            report.Line(string.Format("stapler damage at atk 10: white {0:0.0}, orange {1:0.0}", white, orange));
+            report.Require(orange > green, "quality coefficient does not increase weapon damage");
+            report.Line(string.Format("stapler damage at atk 10: green {0:0.0}, orange {1:0.0}", green, orange));
 
             // DEF and HASTE share the 99 curve, which is the whole reason one mental model covers both.
             float slow = CombatFormula.AttackInterval(1f, 0f);
@@ -1248,15 +1497,15 @@ namespace OfficeHell.EditorTools
             // Rule one: empty slots fill in order, so the first six drops are never wasted.
             for (int i = 0; i < PlayerModel.WeaponSlots; i++)
             {
-                LootModel l = h.Driver.Loot.SpawnWeapon(h.Player.Pos, Quality.White);
+                LootModel l = h.Driver.Loot.SpawnWeapon(h.Player.Pos, Quality.Green);
                 h.Driver.Loot.CollectNow(l);
             }
 
             report.Require(h.Player.EquippedCount() == PlayerModel.WeaponSlots,
-                "six white weapons filled " + h.Player.EquippedCount() + " of " + PlayerModel.WeaponSlots + " slots");
+                "six green weapons filled " + h.Player.EquippedCount() + " of " + PlayerModel.WeaponSlots + " slots");
 
             // Rule two: with the board full, a better item takes the worst slot.
-            h.Player.Equip(3, h.Player.Weapons[3].Def, Quality.Yellow);
+            h.Player.Equip(3, h.Player.Weapons[3].Def, Quality.Purple);
             LootModel blue = h.Driver.Loot.SpawnWeapon(h.Player.Pos, Quality.Blue);
             h.Driver.Loot.CollectNow(blue);
 
@@ -1269,16 +1518,16 @@ namespace OfficeHell.EditorTools
                 }
             }
 
-            report.Require(blues == 1, "a blue weapon did not replace a white one, blue slots " + blues);
-            report.Require(h.Player.Weapons[3].Quality == Quality.Yellow,
-                "the blue weapon overwrote the yellow slot instead of a white one");
+            report.Require(blues == 1, "a blue weapon did not replace a green one, blue slots " + blues);
+            report.Require(h.Player.Weapons[3].Quality == Quality.Purple,
+                "the blue weapon overwrote the purple slot instead of a green one");
 
             // Rule three: a downgrade converts to exp instead of vanishing, so the floor stays useful.
             int expBefore = h.Player.Exp;
-            LootModel worse = h.Driver.Loot.SpawnWeapon(h.Player.Pos, Quality.White);
+            LootModel worse = h.Driver.Loot.SpawnWeapon(h.Player.Pos, Quality.Green);
             h.Driver.Loot.CollectNow(worse);
             report.Require(h.Player.Exp > expBefore || h.Player.Level > 1,
-                "a declined white weapon granted no exp, the late game floor becomes noise");
+                "a declined green weapon granted no exp, the late game floor becomes noise");
 
             report.Line("auto equip: fills empty, replaces the worst, converts downgrades to exp");
             h.Dispose();
@@ -1310,7 +1559,7 @@ namespace OfficeHell.EditorTools
             // Launcher: must create a projectile aimed at a target in range.
             Harness launcher = Harness.Create(cfg);
             launcher.Driver.Flow.StartRun();
-            launcher.Player.Equip(0, cfg.Weapon("stapler"), Quality.White);
+            launcher.Player.Equip(0, cfg.Weapon("stapler"), Quality.Green);
             launcher.Driver.Spawn.Spawn(weak, launcher.Player.Pos + new Vector2(2f, 0f), null);
             launcher.Driver.ForceRebuildGrid();
             launcher.Driver.Weapons.Tick(FixedDelta);
@@ -1322,7 +1571,7 @@ namespace OfficeHell.EditorTools
             Harness ground = Harness.Create(cfg);
             ground.Driver.Flow.StartRun();
             WeaponDef keyboard = cfg.Weapon("keyboard");
-            ground.Player.Equip(0, keyboard, Quality.White);
+            ground.Player.Equip(0, keyboard, Quality.Green);
             EnemyModel target = ground.Driver.Spawn.Spawn(weak, ground.Player.Pos + new Vector2(1f, 0f), null);
             ground.Driver.ForceRebuildGrid();
             ground.Driver.Weapons.Tick(FixedDelta);
@@ -1541,7 +1790,7 @@ namespace OfficeHell.EditorTools
                 WeaponDef def = Ctx.Cfg.Weapon("stapler");
                 if (def != null)
                 {
-                    Player.Equip(0, def, Quality.White);
+                    Player.Equip(0, def, Quality.Green);
                 }
             }
 

@@ -9,9 +9,9 @@ namespace OfficeHell.Systems
     /// <summary>
     /// Drops, the toss arc, the magnet and pickup. Money is gone, so every drop is either a coffee or
     /// a piece of gear, and a piece of gear the player cannot use converts to experience rather than
-    /// to nothing: without that patch a floor covered in white items is noise instead of a reward.
+    /// to nothing: without that patch a floor covered in green items is noise instead of a reward.
     ///
-    /// Two independent channels feed quality: a weighted random roll for white/blue/yellow and a
+    /// Two independent channels feed quality: a weighted random roll for green/blue/purple and a
     /// scripted channel for legendaries (Fixed guarantees plus the pity timer). Keeping orange out
     /// of the random pool is what makes the pacing in the design doc actually reproducible.
     /// </summary>
@@ -136,7 +136,7 @@ namespace OfficeHell.Systems
             }
 
             int idx = Rng.WeightedPick(_weights);
-            return idx < 0 ? Quality.White : (Quality)idx;
+            return idx < 0 ? Quality.Green : (Quality)idx;
         }
 
         // ---------- spawners ----------
@@ -145,7 +145,7 @@ namespace OfficeHell.Systems
         {
             LootModel l = NewLoot(from);
             l.Kind = LootKind.Coffee;
-            l.Quality = Quality.White;
+            l.Quality = Quality.Green;
             l.Name = "咖啡";
             l.ViewId = _ctx.Cfg.Coffee.ViewId;
 
@@ -298,9 +298,9 @@ namespace OfficeHell.Systems
             switch (q)
             {
                 case Quality.Blue: return "蓝色";
-                case Quality.Yellow: return "黄色";
+                case Quality.Purple: return "紫色";
                 case Quality.Orange: return "橙色";
-                default: return "普通";
+                default: return "绿色";
             }
         }
 
@@ -381,13 +381,21 @@ namespace OfficeHell.Systems
                     case LootState.Magnet:
                         Vector2 delta = player.Pos - l.Pos;
                         float dist = delta.magnitude;
-                        if (dist < 0.25f)
+
+                        // Collect on "this frame's travel reaches the player", not on a fixed radius.
+                        // The travel is 14 * dt, which is 0.23 at 60fps against a 0.25 radius: it cleared
+                        // the test by a hair at full speed and stopped clearing it the moment the frame
+                        // time grew, so a drop would jump past the player, be pulled back past them next
+                        // frame and orbit forever. The player could only break the loop by moving, which
+                        // is why it looked like the magnet needed a couple of passes to catch.
+                        float travel = loot.MagnetSpeed * dt;
+                        if (dist <= Mathf.Max(0.25f, travel))
                         {
                             Collect(l);
                         }
                         else
                         {
-                            l.Pos += delta / dist * loot.MagnetSpeed * dt;
+                            l.Pos += delta / dist * travel;
                         }
 
                         break;
@@ -396,7 +404,7 @@ namespace OfficeHell.Systems
         }
 
         /// <summary>
-        /// White, blue and coffee snap in so walking is never interrupted. Yellow and orange have to
+        /// Green, blue and coffee snap in so walking is never interrupted. Purple and orange have to
         /// be stepped on: that short run is the anticipation beat, and smoothing it away would remove
         /// the memory of having gone to get the legendary.
         /// </summary>
@@ -571,9 +579,16 @@ namespace OfficeHell.Systems
 
             if (l.Slot == EquipSlot.Head)
             {
-                // Blue headphone starts its shield cycle the moment it is worn.
+                // Blue headphone starts its shield cycle the moment it is worn. The orange save is
+                // armed here and nowhere else: it used to refill at every day boundary, which is six
+                // free deaths across a run and leaves the SAN bar with nothing to threaten.
                 p.NextShieldAt = GameClock.Now;
                 p.DeathSaveReady = l.Quality >= Quality.Orange;
+            }
+            else if (l.Slot == EquipSlot.Body)
+            {
+                // Counting from zero, so the guard cannot fire on the first hit after a late pickup.
+                p.HitsSinceGuard = 0;
             }
 
             NoteBest(l);

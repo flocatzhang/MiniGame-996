@@ -17,7 +17,7 @@ namespace OfficeHell.Systems
     /// <summary>
     /// Stapler. Every quality difference is a parameter here: needle count, pierce, range, speed and
     /// the orange pin. Multiple needles fly parallel rather than in a fan, because a spread would
-    /// make the higher tiers less accurate than white, which is the opposite of what an upgrade means.
+    /// make the higher tiers less accurate than green, which is the opposite of what an upgrade means.
     /// </summary>
     public sealed class ProjectileLauncherBehavior : IWeaponBehavior
     {
@@ -139,7 +139,7 @@ namespace OfficeHell.Systems
 
             Queue(ctx, rt, spot, from, damage, tier, now + def.WindupSeconds, selectAll);
 
-            // Yellow and above hit twice. The follow up is a second strike on the same coordinate at
+            // Purple and above hit twice. The follow up is a second strike on the same coordinate at
             // reduced damage, which keeps the code path identical instead of adding a combo state.
             for (int i = 1; i < tier.Slams; i++)
             {

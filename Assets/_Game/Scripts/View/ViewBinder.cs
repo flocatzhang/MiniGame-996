@@ -19,6 +19,15 @@ namespace OfficeHell.View
         const string KeySlam = "view.slam";
         const string KeyWarn = "view.warn";
         const string KeyOrbit = "view.orbit";
+        const string KeyStain = "view.stain";
+
+        /// <summary>
+        /// Coffee marks are the one thing drawn here that has no model id, because they live in a
+        /// fixed ring on the player rather than in a run entity list. Ids come out of a reserved
+        /// negative block so a slot keeps the same view across frames and never collides with
+        /// RunModel.NextId, which only ever hands out positives.
+        /// </summary>
+        const int StainIdBase = -1000;
 
         /// <summary>
         /// Recoil runs on unscaled time so a hitstop freezes the world but never the reaction that
@@ -32,8 +41,22 @@ namespace OfficeHell.View
         /// </summary>
         const int MaxDeathFx = 96;
 
-        /// <summary>Matches the pulse JuiceService throws on SkillCast, so the two read as one effect.</summary>
-        static readonly Color SkillTint = new Color(0.45f, 1f, 0.78f);
+        /// <summary>
+        /// Slacking, in the same pale warm key as the pulse JuiceService throws on SkillCast so the
+        /// two read as one effect. Warm rather than green because it now sweeps instead of sitting,
+        /// and a low amplitude pass needs a hue that survives being faint; it stays well clear of the
+        /// hit flash by being brief rather than by being a different colour.
+        /// </summary>
+        static readonly Color SkillTint = new Color(1f, 0.95f, 0.62f);
+
+        /// <summary>One pass of the sweep. Three of them fit inside the base 1.5s of immunity.</summary>
+        const float SkillSweepSeconds = 0.5f;
+
+        /// <summary>
+        /// Peak of the sweep, reached once per pass and near zero either side of it. This marks a
+        /// state rather than announcing one, so it is deliberately under half the old steady tint.
+        /// </summary>
+        const float SkillSweepPeak = 0.34f;
 
         /// <summary>
         /// Half the player's drawn height, refreshed each frame so a hot reload or a re-export of the
@@ -102,6 +125,7 @@ namespace OfficeHell.View
             SyncProjectiles();
             SyncSlams();
             SyncTelegraphs();
+            SyncStains();
             SyncOrbits();
             SyncLoot();
             Prune();
@@ -305,11 +329,21 @@ namespace OfficeHell.View
                 flash = Mathf.Max(flash, Mathf.Repeat(unscaledNow * 9f, 1f) > 0.5f ? 0.5f : 0.08f);
             }
 
-            // Slacking gets a steady colour of its own instead. Steady because the player chose to be
-            // in this state and it lasts a second and a half; the fade over the last quarter second is
-            // the only warning that the immunity is about to end.
+            // Slacking gets a pass of light instead of a coat of paint. Held steady it read as the
+            // character having been recoloured, which is something that happened to the sprite rather
+            // than something happening to the player, and at 0.55 of a saturated green it was also the
+            // loudest thing on screen during the one second and a half the player is safe. Sweeping
+            // keeps the state legible while spending most of each cycle near zero. The fade over the
+            // last quarter second is still the only warning that the immunity is about to end.
             float slackLeft = p.SkillInvulnUntil - logicalNow;
-            _playerView.SetTint(SkillTint, slackLeft > 0f ? Mathf.Min(1f, slackLeft * 4f) * 0.55f : 0f);
+            float sweep = 0f;
+            if (slackLeft > 0f)
+            {
+                float phase = Mathf.Repeat(unscaledNow, SkillSweepSeconds) / SkillSweepSeconds;
+                sweep = Mathf.Sin(phase * Mathf.PI) * SkillSweepPeak * Mathf.Min(1f, slackLeft * 4f);
+            }
+
+            _playerView.SetTint(SkillTint, sweep);
 
             _playerView.SetFlashAmount(flash);
             _playerView.SetBodyPose(offset, 1f, squashX, squashY, 0f);
@@ -532,6 +566,39 @@ namespace OfficeHell.View
                 Color ring = def != null ? def.Color : new Color(1f, 0.3f, 0.25f);
                 ring.a = 0.25f + 0.45f * t;
                 v.ShowRing(ring, w.Radius * Mathf.Lerp(0.6f, 1f, t));
+            }
+        }
+
+        /// <summary>
+        /// Purple slipper. The mark has to be on the floor or the slow is the game cheating: the same
+        /// rule the aura rings exist for. Fades out over its life so the player can read which end of
+        /// the trail is still working.
+        /// </summary>
+        void SyncStains()
+        {
+            PlayerModel p = _ctx.Run.Player;
+            float now = GameClock.Now;
+            ViewDef def = _ctx.Cfg.View("v_stain");
+
+            for (int i = 0; i < PlayerModel.StainSlots; i++)
+            {
+                float until = p.StainUntil(i);
+                float left = until - now;
+                if (left <= 0f)
+                {
+                    continue;
+                }
+
+                int id = StainIdBase - i;
+                _seen.Add(id);
+
+                EntityView v = Bind(id, KeyStain, 4, def);
+                v.SetWorldPosition(p.StainPos(i));
+                v.Body.enabled = false;
+
+                Color ring = def != null ? def.Color : new Color(0.42f, 0.27f, 0.16f);
+                ring.a = 0.42f * Mathf.Clamp01(left * 0.8f);
+                v.ShowRing(ring, 0.9f);
             }
         }
 

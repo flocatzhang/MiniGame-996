@@ -90,19 +90,24 @@ namespace OfficeHell.UI
             card.FooterText.text = Footer(offer);
             card.KeyHint.text = "按 " + (index + 1);
 
-            Color accent = Accent(card, offer);
+            // Two channels carrying two different facts. Identity says which card this is and stays
+            // put across tiers so ATK is always the same red; quality rides the border and the footer,
+            // which is the only pair a player can compare across three cards without reading them.
+            Color identity = Identity(card, offer);
+            Color quality = _ctx.Game.Cfg.QualityOf(offer.Quality).Color;
+
             float bodyTint = offer.Kind == CardKind.Equipment ? 0.22f : 0.14f;
-            card.Frame.color = Color.Lerp(new Color(0.97f, 0.95f, 0.91f, 1f), accent, bodyTint);
+            card.Frame.color = Color.Lerp(new Color(0.97f, 0.95f, 0.91f, 1f), identity, bodyTint);
             if (card.Border != null)
             {
-                card.Border.effectColor = accent;
+                card.Border.effectColor = quality;
             }
 
-            card.Accent.color = accent;
-            card.Footer.color = accent;
-            card.IconPlate.color = Color.Lerp(Color.white, accent, 0.18f);
-            card.Title.color = Color.Lerp(new Color(0.09f, 0.1f, 0.16f), accent, 0.42f);
-            card.Kind.color = Color.Lerp(new Color(0.18f, 0.2f, 0.25f), accent, 0.68f);
+            card.Accent.color = identity;
+            card.Footer.color = quality;
+            card.IconPlate.color = Color.Lerp(Color.white, identity, 0.18f);
+            card.Title.color = Color.Lerp(new Color(0.09f, 0.1f, 0.16f), identity, 0.42f);
+            card.Kind.color = Color.Lerp(new Color(0.18f, 0.2f, 0.25f), quality, 0.68f);
 
             string iconKey = offer.Kind == CardKind.Equipment ? offer.DefId : offer.Id;
             Sprite sprite = UIPrefabCatalog.CardIcon(iconKey);
@@ -112,35 +117,35 @@ namespace OfficeHell.UI
             card.IconFallback.text = IconFallback(iconKey);
 
             card.RecommendBadge.SetActive(offer.Kind == CardKind.Equipment);
-            card.NewBadge.SetActive(offer.Kind == CardKind.Skill);
+            card.NewBadge.SetActive(offer.Kind == CardKind.Skill && !offer.IsUpgrade);
         }
 
+        /// <summary>
+        /// The description already carries the rolled amount, because the value and the sentence
+        /// describing it come out of one template. Appending the number again is how this line used
+        /// to render 攻击力 +6 as "攻击力 +6 +6".
+        /// </summary>
         static string Primary(CardOffer offer)
         {
-            if (offer.Kind != CardKind.Stat)
-            {
-                return offer.Desc;
-            }
-
-            string sign = offer.Value >= 0f ? "+" : string.Empty;
-            string amount = offer.Percent
-                ? sign + offer.Value.ToString("0.#") + "%"
-                : sign + offer.Value.ToString("0.##");
-
-            return offer.Desc.Length > 0 ? offer.Desc + " " + amount : amount;
+            return offer.Desc;
         }
 
         static string Description(CardOffer offer)
         {
-            switch (offer.Kind)
+            if (offer.Kind == CardKind.Equipment)
             {
-                case CardKind.Stat: return "基础属性永久提升";
-                case CardKind.Skill: return "本局永久生效";
-                default: return QualityName(offer.Quality) + "品质装备";
+                return QualityName(offer.Quality) + "品质装备";
             }
+
+            if (offer.IsUpgrade)
+            {
+                return QualityName(offer.OwnedQuality) + " → " + QualityName(offer.Quality) + " 升级";
+            }
+
+            return offer.Kind == CardKind.Stat ? "基础属性永久提升" : "本局永久生效";
         }
 
-        Color Accent(UICardView card, CardOffer offer)
+        Color Identity(UICardView card, CardOffer offer)
         {
             if (offer.Kind == CardKind.Equipment)
             {
@@ -178,8 +183,8 @@ namespace OfficeHell.UI
         {
             switch (offer.Kind)
             {
-                case CardKind.Stat: return "基础成长";
-                case CardKind.Skill: return "强化摸鱼";
+                case CardKind.Stat: return QualityName(offer.Quality) + "品质 · 基础成长";
+                case CardKind.Skill: return QualityName(offer.Quality) + "品质 · 强化摸鱼";
                 default: return QualityName(offer.Quality) + "品质 · 高效输出";
             }
         }
@@ -189,9 +194,9 @@ namespace OfficeHell.UI
             switch (quality)
             {
                 case Quality.Blue: return "蓝色";
-                case Quality.Yellow: return "黄色";
+                case Quality.Purple: return "紫色";
                 case Quality.Orange: return "橙色";
-                default: return "白色";
+                default: return "绿色";
             }
         }
 

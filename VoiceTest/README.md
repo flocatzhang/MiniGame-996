@@ -56,12 +56,16 @@
 
 这四个是定稿素材，**脚本原样拷贝，不去静音、不归一化、不重采样**，拷完做过 MD5 校验，与源文件逐字节一致。
 
+> **品质阶梯已从 白/蓝/黄/橙 改名为 绿/蓝/紫/橙**，文件一并改了名（`sfx_drop_white` → `sfx_drop_green`，
+> `sfx_drop_yellow` → `sfx_drop_purple`），**素材本身逐字节未动**。下面这一节以后的文字是交付当时的记录，
+> 里面的"白"就是现在的绿、"黄"就是现在的紫；测量值挂在素材上，不跟着档位名走。
+
 | 源文件 | 档位 | 时长 | 声道 | 采样率 | 响度 | 真峰值 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `drop_white.wav` | 白 | 2.259s | 立体声 | 48000 | −8.3 LUFS | +0.39 dBTP |
-| `drop_blue.wav` | 蓝 | 2.020s | 立体声 | **11025** | 未测 | 未测 |
-| `drop_yellow.wav` | 黄 | 2.276s | 立体声 | **11025** | −12.2 LUFS | +0.33 dBTP |
-| `drop_orange.wav` | 橙 | 3.305s | 立体声 | 48000 | −8.0 LUFS | +0.03 dBTP |
+| `drop_white.wav` → `sfx_drop_green.wav` | 绿（原白） | 2.259s | 立体声 | 48000 | −8.3 LUFS | +0.39 dBTP |
+| `drop_blue.wav` → `sfx_drop_blue.wav` | 蓝 | 2.020s | 立体声 | **11025** | 未测 | 未测 |
+| `drop_yellow.wav` → `sfx_drop_purple.wav` | 紫（原黄） | 2.276s | 立体声 | **11025** | −12.2 LUFS | +0.33 dBTP |
+| `drop_orange.wav` → `sfx_drop_orange.wav` | 橙 | 3.305s | 立体声 | 48000 | −8.0 LUFS | +0.03 dBTP |
 
 白与蓝在二次交付里换过一轮：**原来的蓝色素材现在是白色档**（所以白色那行的响度就是原蓝色的 −8.3 LUFS），蓝色换成了一条新的 11025 Hz 素材。第四节那组 volume 是照着交付前的白蓝配的，换过之后白蓝两档的响度阶梯是反的，数值见该节末尾。
 
@@ -254,10 +258,10 @@ public class AudioLibrary : ScriptableObject
 
 | AudioKey | volume | 相当于 | 调整后响度 |
 | --- | --- | --- | --- |
-| `DropWhite` | **0.50** | −6.0 dB | ≈ −18 LUFS |
-| `DropBlue` | **0.46** | −6.7 dB | ≈ −15 LUFS |
-| `DropYellow` | **1.00** | 0 dB | ≈ −12 LUFS |
-| `DropOrange` | **0.90** | −1.0 dB | ≈ −9 LUFS |
+| `sfx_drop_green`（原 `DropWhite`） | **0.50** | −6.0 dB | ≈ −18 LUFS |
+| `sfx_drop_blue` | **0.46** | −6.7 dB | ≈ −15 LUFS |
+| `sfx_drop_purple`（原 `DropYellow`） | **1.00** | 0 dB | ≈ −12 LUFS |
+| `sfx_drop_orange` | **0.90** | −1.0 dB | ≈ −9 LUFS |
 
 **蓝色的 volume 比白色还低，这看着反直觉但是对的。** 素材里蓝色本来就比白色响了近 4 dB，要让它只比白色高一档，就得先把这 4 dB 压回去再加。黄色只能留 1.0，因为它是四档里最轻的一条而真峰值已经顶到 0 dBFS 以上——**它没有往上调的空间，整个阶梯只能靠把其余三条往下压来搭**。
 

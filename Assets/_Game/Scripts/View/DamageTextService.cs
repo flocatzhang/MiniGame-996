@@ -195,8 +195,18 @@ namespace OfficeHell.View
 
         void OnPlayerHealed(EvtArg arg)
         {
+            int amount = Mathf.RoundToInt(arg.F0);
+
+            // A heal against a nearly full bar is a real heal of a fraction of a point, and printing
+            // it renders "+0" over the player's head. The skill fires itself on a cooldown, so at
+            // full sanity that is a green zero every twelve seconds for the rest of the run.
+            if (amount <= 0)
+            {
+                return;
+            }
+
             Push(AboveHead(arg.P0, PlayerViewId, 0.22f),
-                "+" + Mathf.RoundToInt(arg.F0), new Color(0.4f, 1f, 0.5f), 1f);
+                "+" + amount, new Color(0.4f, 1f, 0.5f), 1f);
         }
 
         void OnLootPicked(EvtArg arg)

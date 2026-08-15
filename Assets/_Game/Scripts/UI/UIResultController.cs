@@ -230,9 +230,9 @@ namespace OfficeHell.UI
             switch (quality)
             {
                 case Quality.Blue: return "蓝色";
-                case Quality.Yellow: return "黄色";
+                case Quality.Purple: return "紫色";
                 case Quality.Orange: return "橙色";
-                default: return "白色";
+                default: return "绿色";
             }
         }
 

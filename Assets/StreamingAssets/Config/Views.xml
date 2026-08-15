@@ -50,6 +50,13 @@
   <View id="v_warn_kpi"    shape="Circle" color="#FF4A3A" scale="1.00" />
 
   <!--
+    Yellow slipper's coffee trail. Same brown as the coffee drop and deliberately so: the mark is the
+    spilled version of the thing the player has been picking up all week. It is the only ground ring
+    that is not a warning, which is exactly why it must not be in the warning palette.
+  -->
+  <View id="v_stain" shape="Circle" color="#7A5236" scale="1.00" />
+
+  <!--
     Drops. Coffee is the only brown thing on screen so it never has to be identified, only noticed.
     Gear keeps its own shape and takes its colour from the quality tier at bind time, which is why
     these rows are deliberately neutral.

@@ -19,11 +19,19 @@
   ramp is how much busier the end of a window is than its start. 2 means the 21:00 rate is twice the
   09:00 rate, with the same total in between. Monday and Saturday are flat on purpose and say why.
 
-  The week now releases 923 trash mobs against the 475 it used to. The multiplier is not flat: Monday
-  takes 1.70 and Friday 4.30 against their old 1.00 and 2.03, because the days are not equally able to
-  absorb a crowd. Contact damage is capped per invulnerability frame rather than per body, so twenty
-  mails and forty mails cost the same sanity once the player is already surrounded, and the day that
-  breaks first is always the one fought with one weapon rather than six.
+  The week releases 699 trash mobs. That is two moves from the 475 it used to: doubled to 923, then
+  taken back down by a quarter because 923 read as a wall rather than as a crowd. The shape of the
+  first move survives the second, since the same quarter came off every day: the multiplier against
+  the old table is still not flat, Monday sitting at 1.28 where Friday sits at 3.23, because the days
+  are not equally able to absorb a crowd. Contact damage is capped per invulnerability frame rather
+  than per body, so twenty mails and forty mails cost the same sanity once the player is already
+  surrounded, and the day that breaks first is always the one fought with one weapon rather than six.
+
+  concurrentMax came down by the same quarter. It is a cap, so leaving it high would have cost nothing
+  mechanically, but the number the player actually feels is how many bodies are on screen at once and
+  that is what this bounds. Scaling both by one factor also keeps the headroom between the arrival
+  rate and the cap where it was: a cap that starts binding turns the overflow into debt, and debt that
+  is still owed at the closing bell is culled rather than fought.
 
   Every day but Saturday now draws from a wider roster than the day before, and the debut schedule has
   become a spotlight schedule: BUG still owns Tuesday and 周报 still owns Wednesday, but they own it by
@@ -82,11 +90,15 @@
     Wednesday and Friday still own teaching what those two actually do. 周报 in particular is held to
     single digits because it is the only ranged unit and Monday is fought at 99 sanity with one weapon.
 
-    density 1.70 rather than the 2.00 the midweek takes. Monday is the day with the thinnest loadout
+    density 1.28 rather than the 1.50 the midweek takes. Monday is the day with the thinnest loadout
     and the crowd it can absorb is correspondingly smaller.
+
+    Check the opening window first whenever this number moves. 35 percent of 52 is 18 mails across
+    twelve flat seconds, and the first upgrade costs six of them, so the promise is met around the
+    four second mark with room to spare. It stops being met somewhere below density 0.9.
   -->
   <Day index="1" label="怎么周末又结束了，不想上班" weekday="周一"
-       duration="40" offWork="3" density="1.70" concurrentMax="50">
+       duration="40" offWork="3" density="1.28" concurrentMax="38">
     <Spawner from="0" to="12" interval="1.5" groupSize="3" budgetPct="35" ramp="1">
       <Pick enemyId="mail" weight="1" />
     </Spawner>
@@ -107,7 +119,7 @@
     week was balanced against.
   -->
   <Day index="2" label="线上怎么又出 BUG 了" weekday="周二"
-       duration="50" offWork="3" density="2.00" concurrentMax="66">
+       duration="50" offWork="3" density="1.50" concurrentMax="50">
     <Spawner interval="1.5" groupSize="3" budgetPct="100" ramp="2">
       <Pick enemyId="mail" weight="10" />
       <Pick enemyId="deadline" weight="4" />
@@ -127,7 +139,7 @@
     and Thursday is where it becomes the subject, so a dozen of them today is the introduction.
   -->
   <Day index="3" label="周报还没写，需求又改了" weekday="周三"
-       duration="60" offWork="3" density="2.60" concurrentMax="86">
+       duration="60" offWork="3" density="1.95" concurrentMax="65">
     <Spawner interval="1.5" groupSize="3" budgetPct="100" ramp="2">
       <Pick enemyId="mail" weight="10" />
       <Pick enemyId="deadline" weight="4" />
@@ -139,7 +151,7 @@
   </Day>
 
   <Day index="4" label="怎么那么多新需求" weekday="周四"
-       duration="70" offWork="3" density="3.35" concurrentMax="110">
+       duration="70" offWork="3" density="2.51" concurrentMax="83">
     <Spawner interval="1.5" groupSize="4" budgetPct="100" ramp="2">
       <Pick enemyId="mail" weight="8" />
       <Pick enemyId="deadline" weight="4" />
@@ -161,7 +173,7 @@
     doubling the week actually worked.
   -->
   <Day index="5" label="周五周五，敲锣打鼓" weekday="周五"
-       duration="80" offWork="3" density="4.30" concurrentMax="136">
+       duration="80" offWork="3" density="3.23" concurrentMax="102">
     <Spawner interval="1.5" groupSize="4" budgetPct="100" ramp="2">
       <Pick enemyId="mail" weight="4" />
       <Pick enemyId="deadline" weight="3" />
@@ -185,10 +197,13 @@
     Flat, and the only day whose spawning is meant to stop early. Saturday's escalation is the boss's
     three phases, and trash still arriving at 21:00 would be arriving through the final bar.
 
-    It is also the one day left out of doubling the week, and the auto lock is the whole reason. The
-    other five days get harder when the screen fills up; this one stops being a boss fight, because
-    forty extra mails means six slots spend the duel shooting mail while 9999 x 3 stands untouched.
-    The count here is a boss pacing number that happens to be written in the spawn table.
+    It is the one day left out of both times the week was rescaled, and the auto lock is the whole
+    reason. The other five days get harder when the screen fills up; this one stops being a boss
+    fight, because forty extra mails means six slots spend the duel shooting mail while 9999 x 3
+    stands untouched. The count here is a boss pacing number that happens to be written in the spawn
+    table, so it does not follow density up and it does not follow density down either. concurrentMax
+    stays at 40 with it for the same reason: it is sized against the two phase transitions dumping 20
+    apiece, not against an arrival rate.
   -->
   <Day index="6" label="忘了周六要加班赶进度" weekday="周六"
        duration="120" offWork="0" totalSpawn="20" concurrentMax="40">

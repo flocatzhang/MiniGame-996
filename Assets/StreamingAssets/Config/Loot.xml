@@ -14,30 +14,37 @@
     for orange the music itself drops behind a low pass. One channel per tier would read as a slightly
     different colour; all of them together is what makes a legendary land as an event.
 
-    autoMagnet is the mechanical difference, not decoration. White and blue snap in so walking is never
-    interrupted; yellow and orange have to be stepped on, and that short detour is the payoff beat.
+    autoMagnet is the mechanical difference, not decoration. Green and blue snap in so walking is never
+    interrupted; purple and orange have to be stepped on, and that short detour is the payoff beat.
+
+    The four hues are the ladder every other looter already taught the player, which is the whole reason
+    to use them: the tier has to be legible from a beam colour at the edge of the screen, with no label
+    and no time to read one. Green is muted on purpose so it never competes with the healing text.
   -->
-  <Quality id="white" weight="62" affixCount="0" color="#B9BEC6"
+  <Quality id="green" weight="62" affixCount="0" color="#6FB86B"
            beam="none" hitStop="0" shake="0" label="false" autoMagnet="true"
-           sfx="sfx_drop_white" />
+           sfx="sfx_drop_green" />
 
   <Quality id="blue" weight="27" affixCount="1" color="#4A9BFF"
            beam="thin" hitStop="0.02" shake="0.10" label="false" autoMagnet="true"
            sfx="sfx_drop_blue" />
 
-  <Quality id="yellow" weight="11" affixCount="2" color="#FFD24A"
+  <Quality id="purple" weight="11" affixCount="2" color="#A45BFF"
            beam="medium" hitStop="0.06" shake="0.28" label="true" autoMagnet="false"
-           sfx="sfx_drop_yellow" bgmLowPass="0.3" dropLine="有点东西" />
+           sfx="sfx_drop_purple" bgmLowPass="0.3" dropLine="有点东西" />
 
   <Quality id="orange" weight="0" affixCount="3" color="#FF7A29"
            beam="thick" hitStop="0.14" shake="0.55" label="true" autoMagnet="false"
            sfx="sfx_drop_orange" bgmLowPass="1.2" dropLine="这波不亏" />
 
   <!--
-    Later days weight yellow up. Without it a day six drop feels identical to a day one drop, and the
+    Later days weight purple up. Without it a day six drop feels identical to a day one drop, and the
     growth curve stops being visible in the one place the player is looking.
+
+    Matched against the tier's enum name, so a stale spelling here does not fail, it just stops applying.
+    ConfigValidator resolves every entry and reports the ones that match nothing.
   -->
-  <LateBonus applyTo="yellow,orange" perDay="0.25" />
+  <LateBonus applyTo="purple,orange" perDay="0.25" />
 
   <!--
     Independent timers, not a kill counter. Tied to kills, a player who is struggling waits longer for

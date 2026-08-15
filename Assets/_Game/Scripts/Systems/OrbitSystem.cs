@@ -77,7 +77,7 @@ namespace OfficeHell.Systems
         }
 
         /// <summary>
-        /// Phases are divided by the live card total, never by slot index, so six white badges from
+        /// Phases are divided by the live card total, never by slot index, so six green badges from
         /// six slots still form an even ring instead of clumping wherever the slots happen to be.
         /// </summary>
         void RebuildIfNeeded()

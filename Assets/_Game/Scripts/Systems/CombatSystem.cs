@@ -15,6 +15,18 @@ namespace OfficeHell.Systems
         /// <summary>How far the orange headphone shield throws a body when it shatters, in units.</summary>
         const float SonicPushDistance = 2.25f;
 
+        /// <summary>Blue hoodie. Percent of the incoming hit sent back, and how far it reaches to find a body.</summary>
+        const float ReflectPct = 20f;
+        const float ReflectRadius = 2f;
+
+        /// <summary>Orange hoodie. Hits taken before one is refused outright, and the shove that comes with it.</summary>
+        const int GuardEveryHits = 5;
+        const float GuardRadius = 3.2f;
+        const float GuardPushDistance = 2.6f;
+
+        /// <summary>Orange slipper. How far a successful dodge carries the player along their facing.</summary>
+        const float DodgeBlinkDistance = 1.6f;
+
         readonly GameContext _ctx;
         readonly List<int> _scratch = new List<int>(128);
 
@@ -257,9 +269,34 @@ namespace OfficeHell.Systems
 
             if (CombatFormula.RollDodge(p.Stats.Get(StatType.Dodge), ctx.Cfg.Player.DodgeCap))
             {
+                Vector2 from = p.Pos;
+
+                // Orange slipper. Sidestepping in place still leaves the player inside the pack that
+                // just swung at them, so the dodge only reads as an escape if it moves them.
+                if (p.QualityOf(EquipSlot.Feet) >= Quality.Orange)
+                {
+                    p.Pos = ctx.Cfg.Arena.Clamp(p.Pos + p.Facing.normalized * DodgeBlinkDistance, p.Radius);
+                }
+
+                // P0 is where the player ended up, not where they were hit: the dodge label anchors to
+                // the player sprite, and after a blink the old spot is empty ground.
                 EvtArg d = new EvtArg();
                 d.P0 = p.Pos;
+                d.P1 = from;
                 ctx.Bus.Dispatch(EventID.PlayerDodged, d);
+                return;
+            }
+
+            p.HitsSinceGuard++;
+
+            // Orange hoodie. Refusing the fifth hit rather than reducing every hit means the item has
+            // a moment the player can see, which is the whole reason armour effects are triggered
+            // rather than passive.
+            if (p.QualityOf(EquipSlot.Body) >= Quality.Orange && p.HitsSinceGuard >= GuardEveryHits)
+            {
+                p.HitsSinceGuard = 0;
+                p.InvulnUntil = now + ctx.Cfg.Player.InvulnAfterHit;
+                GuardShove(ctx, p, now);
                 return;
             }
 
@@ -290,13 +327,15 @@ namespace OfficeHell.Systems
             a.P1 = fromPos;
             ctx.Bus.Dispatch(EventID.PlayerDamaged, a);
 
+            Reflect(ctx, p, rawDamage, fromPos);
+
             if (p.San > 0f)
             {
                 return;
             }
 
-            // Orange headphone: one save per day. Checked here rather than in the flow so no code
-            // path can reach the fail state without passing through it.
+            // Orange headphone: one save for the whole run. Checked here rather than in the flow so no
+            // code path can reach the fail state without passing through it.
             if (p.DeathSaveReady)
             {
                 p.DeathSaveReady = false;
@@ -313,6 +352,74 @@ namespace OfficeHell.Systems
             p.San = 0f;
             p.Alive = false;
             ctx.Bus.Dispatch(EventID.PlayerDied);
+        }
+
+        /// <summary>
+        /// Blue hoodie. Sends a slice of the hit back into the nearest body.
+        ///
+        /// It targets by position rather than by attacker because two of the three ways the player
+        /// can be hurt, an enemy projectile and a boss telegraph, have no attacker left to reflect
+        /// into by the time the damage lands. Contact damage, which is nearly all of it, resolves to
+        /// exactly the enemy that touched the player anyway.
+        /// </summary>
+        static void Reflect(GameContext ctx, PlayerModel p, float rawDamage, Vector2 fromPos)
+        {
+            if (p.QualityOf(EquipSlot.Body) < Quality.Blue || rawDamage <= 0f)
+            {
+                return;
+            }
+
+            RunModel run = ctx.Run;
+            EnemyModel best = null;
+            float bestSqr = ReflectRadius * ReflectRadius;
+
+            for (int i = 0; i < run.Enemies.Count; i++)
+            {
+                EnemyModel en = run.Enemies[i];
+                if (en.IsDead)
+                {
+                    continue;
+                }
+
+                float sqr = (en.Pos - fromPos).sqrMagnitude;
+                if (sqr <= bestSqr)
+                {
+                    bestSqr = sqr;
+                    best = en;
+                }
+            }
+
+            if (best != null)
+            {
+                DealDamageToEnemy(ctx, best, rawDamage * ReflectPct * 0.01f, p.Pos);
+            }
+        }
+
+        /// <summary>Orange hoodie. The refused hit buys room as well, or it is only a smaller number.</summary>
+        static void GuardShove(GameContext ctx, PlayerModel p, float now)
+        {
+            EvtArg s = new EvtArg();
+            s.F0 = GuardRadius;
+            s.P0 = p.Pos;
+            ctx.Bus.Dispatch(EventID.PlayerGuarded, s);
+
+            RunModel run = ctx.Run;
+            for (int i = 0; i < run.Enemies.Count; i++)
+            {
+                EnemyModel en = run.Enemies[i];
+                if (en.IsDead)
+                {
+                    continue;
+                }
+
+                Vector2 delta = en.Pos - p.Pos;
+                if (delta.sqrMagnitude > GuardRadius * GuardRadius)
+                {
+                    continue;
+                }
+
+                en.ForceKnockback(delta, GuardPushDistance, now);
+            }
         }
 
         /// <summary>Orange headphone answers the broken shield with a shove instead of nothing.</summary>

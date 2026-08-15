@@ -11,11 +11,16 @@ namespace OfficeHell.Config
         Boss = 2,
     }
 
+    /// <summary>
+    /// Green to orange rather than the older white to yellow. The ladder is the one piece of language
+    /// this game does not invent, so it should be the one every other looter already taught the player.
+    /// Order is what matters in code: every tier gate is a >= comparison, never a name.
+    /// </summary>
     public enum Quality
     {
-        White = 0,
+        Green = 0,
         Blue = 1,
-        Yellow = 2,
+        Purple = 2,
         Orange = 3,
     }
 
@@ -219,7 +224,7 @@ namespace OfficeHell.Config
 
     /// <summary>
     /// Everything a quality tier changes about one weapon. Unspecified fields inherit from the tier
-    /// below, so xml only states the delta and "white plus three deltas" stays readable.
+    /// below, so xml only states the delta and "green plus three deltas" stays readable.
     /// </summary>
     public sealed class WeaponTierDef
     {
@@ -342,9 +347,9 @@ namespace OfficeHell.Config
 
     public sealed class QualityCoefDef
     {
-        public float White = 1.0f;
+        public float Green = 1.0f;
         public float Blue = 1.25f;
-        public float Yellow = 1.6f;
+        public float Purple = 1.6f;
         public float Orange = 2.1f;
 
         public float Get(Quality q)
@@ -352,9 +357,9 @@ namespace OfficeHell.Config
             switch (q)
             {
                 case Quality.Blue: return Blue;
-                case Quality.Yellow: return Yellow;
+                case Quality.Purple: return Purple;
                 case Quality.Orange: return Orange;
-                default: return White;
+                default: return Green;
             }
         }
     }
@@ -373,10 +378,10 @@ namespace OfficeHell.Config
         public float Luck;
         public float InvulnAfterHit = 0.6f;
 
-        /// <summary>Magnet radius: white, blue and coffee fly in. Wide enough to catch on a walk by.</summary>
+        /// <summary>Magnet radius: green, blue and coffee fly in. Wide enough to catch on a walk by.</summary>
         public float PickupRadius = 1.6f;
 
-        /// <summary>Step radius: yellow and orange have to be walked over. That run is the payoff beat.</summary>
+        /// <summary>Step radius: purple and orange have to be walked over. That run is the payoff beat.</summary>
         public float StepPickupRadius = 0.6f;
 
         public float Radius = 0.4f;
@@ -519,7 +524,7 @@ namespace OfficeHell.Config
     public sealed class LootDef
     {
         public readonly QualityDef[] Qualities = new QualityDef[4];
-        public string LateBonusApplyTo = "yellow,orange";
+        public string LateBonusApplyTo = "purple,orange";
         public float LateBonusPerDay = 0.25f;
 
         /// <summary>The first legendary has to land inside the three minute window.</summary>
@@ -548,6 +553,14 @@ namespace OfficeHell.Config
         Skill = 2,
     }
 
+    /// <summary>
+    /// Value and Value2 are the green tier. Higher qualities multiply by the shared quality
+    /// coefficient rather than listing four numbers per card, because a second ladder would be a
+    /// second thing to keep in sync with Weapons.xml and it would drift.
+    ///
+    /// Desc is a template: {v} and {v2} are substituted with the rolled amounts. Spelling the number
+    /// out in the string instead is how "攻击力 +6" survived three retunes of value="6".
+    /// </summary>
     public sealed class CardDef
     {
         public string Id;
@@ -561,8 +574,9 @@ namespace OfficeHell.Config
         public float Value;
         public bool Percent;
 
-        // Skill cards
+        // Skill cards. Value2 covers the one passive that moves two numbers at once.
         public string Passive;
+        public float Value2;
     }
 
     /// <summary>
@@ -576,8 +590,17 @@ namespace OfficeHell.Config
         public float EquipWeight = 30f;
         public float SkillWeight = 25f;
 
-        /// <summary>Index 1..6 by day. The one growth line the player can actually predict.</summary>
-        public readonly Quality[] EquipQualityByDay = new Quality[7];
+        /// <summary>
+        /// Index 1..6 by day. The one growth line the player can actually predict, and it now sets
+        /// the floor for all three card kinds rather than equipment alone.
+        /// </summary>
+        public readonly Quality[] QualityByDay = new Quality[7];
+
+        /// <summary>
+        /// Percent chance a single card rolls one tier above the day's floor. Without it every card
+        /// in a hand is the same colour, and a quality the player can never compare is decoration.
+        /// </summary>
+        public readonly float[] UpgradeChanceByDay = new float[7];
 
         public readonly List<CardDef> Cards = new List<CardDef>(24);
     }

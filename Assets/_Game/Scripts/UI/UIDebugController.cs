@@ -243,7 +243,7 @@ namespace OfficeHell.UI
 
                 if (GUILayout.Button(def.Name))
                 {
-                    p.Equip(_slotCursor, def, Quality.White);
+                    p.Equip(_slotCursor, def, Quality.Green);
                     _slotCursor = (_slotCursor + 1) % PlayerModel.WeaponSlots;
                 }
             }
@@ -323,9 +323,9 @@ namespace OfficeHell.UI
             switch (q)
             {
                 case Quality.Blue: return "蓝";
-                case Quality.Yellow: return "黄";
+                case Quality.Purple: return "紫";
                 case Quality.Orange: return "橙";
-                default: return "白";
+                default: return "绿";
             }
         }
     }

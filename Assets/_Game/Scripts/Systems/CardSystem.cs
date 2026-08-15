@@ -16,6 +16,7 @@ namespace OfficeHell.Systems
 
         public StatKey Stat;
         public float Value;
+        public float Value2;
         public bool Percent;
 
         public string Passive;
@@ -23,6 +24,13 @@ namespace OfficeHell.Systems
         public Quality Quality;
         public bool IsWeapon;
         public string DefId;
+
+        /// <summary>
+        /// Set when this card is a higher tier of something already owned, so the panel can say
+        /// 升级 rather than offering what looks like a duplicate.
+        /// </summary>
+        public bool IsUpgrade;
+        public Quality OwnedQuality;
     }
 
     /// <summary>
@@ -38,7 +46,13 @@ namespace OfficeHell.Systems
         readonly List<CardOffer> _offers = new List<CardOffer>(4);
         readonly List<float> _kindWeights = new List<float>(3);
         readonly List<int> _pool = new List<int>(24);
-        readonly HashSet<string> _takenStats = new HashSet<string>();
+
+        /// <summary>
+        /// Highest tier of each stat card already taken. A taken card used to leave the pool for good,
+        /// which was correct while there was one version of it and wrong the moment there are four:
+        /// a green 攻击力 on Monday would lock the orange one out for the rest of the week.
+        /// </summary>
+        readonly Dictionary<string, Quality> _takenStats = new Dictionary<string, Quality>(16);
 
         public CardSystem(GameContext ctx, LootSystem loot)
         {
@@ -99,11 +113,11 @@ namespace OfficeHell.Systems
             {
                 case CardKind.Stat:
                     Apply(p, offer);
-                    _takenStats.Add(offer.Id);
+                    _takenStats[offer.Id] = offer.Quality;
                     break;
 
                 case CardKind.Skill:
-                    p.Passives |= PassiveOf(offer.Passive);
+                    p.GrantPassive(PassiveOf(offer.Passive), offer.Quality, offer.Value, offer.Value2);
                     break;
 
                 case CardKind.Equipment:
@@ -186,10 +200,31 @@ namespace OfficeHell.Systems
 
         bool HasStatCard()
         {
+            return HasRoom(CardKind.Stat, BestQualityToday());
+        }
+
+        bool HasPassive()
+        {
+            return HasRoom(CardKind.Skill, BestQualityToday());
+        }
+
+        /// <summary>
+        /// Whether any card of this kind can still be handed out at or below the best tier today.
+        /// Checked against the ceiling rather than the floor, because a card that only the upgrade
+        /// roll can reach is still a card the pool can produce.
+        /// </summary>
+        bool HasRoom(CardKind kind, Quality ceiling)
+        {
             List<CardDef> cards = _ctx.Cfg.Cards.Cards;
             for (int i = 0; i < cards.Count; i++)
             {
-                if (cards[i].Kind == CardKind.Stat && !_takenStats.Contains(cards[i].Id))
+                if (cards[i].Kind != kind)
+                {
+                    continue;
+                }
+
+                Quality had;
+                if (!Owned(cards[i], out had) || had < ceiling)
                 {
                     return true;
                 }
@@ -198,26 +233,57 @@ namespace OfficeHell.Systems
             return false;
         }
 
-        bool HasPassive()
+        /// <summary>True when the card is already taken, with the tier it was taken at.</summary>
+        bool Owned(CardDef c, out Quality had)
         {
-            SlackPassive owned = _ctx.Run.Player.Passives;
-            List<CardDef> cards = _ctx.Cfg.Cards.Cards;
+            had = Quality.Green;
 
-            for (int i = 0; i < cards.Count; i++)
+            if (c.Kind == CardKind.Stat)
             {
-                if (cards[i].Kind != CardKind.Skill)
-                {
-                    continue;
-                }
-
-                SlackPassive flag = PassiveOf(cards[i].Passive);
-                if (flag != SlackPassive.None && (owned & flag) == 0)
-                {
-                    return true;
-                }
+                return _takenStats.TryGetValue(c.Id, out had);
             }
 
-            return false;
+            SlackPassive flag = PassiveOf(c.Passive);
+            if (flag == SlackPassive.None)
+            {
+                // An unmapped passive can never be granted, so treat it as permanently taken.
+                had = Quality.Orange;
+                return true;
+            }
+
+            if ((_ctx.Run.Player.Passives & flag) == 0)
+            {
+                return false;
+            }
+
+            had = _ctx.Run.Player.PassiveQuality(flag);
+            return true;
+        }
+
+        Quality BestQualityToday()
+        {
+            CardPoolDef pool = _ctx.Cfg.Cards;
+            int day = Mathf.Clamp(_ctx.Run.DayIndex, 1, pool.QualityByDay.Length - 1);
+            Quality floor = pool.QualityByDay[day];
+            return pool.UpgradeChanceByDay[day] > 0f ? Raise(floor) : floor;
+        }
+
+        /// <summary>
+        /// The day sets the floor and a per card roll can lift it one tier. Three cards in one colour
+        /// makes quality a restatement of the day counter, and then the tiering only shows up in the
+        /// numbers rather than in the choice between them.
+        /// </summary>
+        Quality RollQuality()
+        {
+            CardPoolDef pool = _ctx.Cfg.Cards;
+            int day = Mathf.Clamp(_ctx.Run.DayIndex, 1, pool.QualityByDay.Length - 1);
+            Quality q = pool.QualityByDay[day];
+            return Rng.ChancePercent(pool.UpgradeChanceByDay[day]) ? Raise(q) : q;
+        }
+
+        static Quality Raise(Quality q)
+        {
+            return q >= Quality.Orange ? Quality.Orange : (Quality)((int)q + 1);
         }
 
         CardOffer Build(CardKind kind)
@@ -233,7 +299,7 @@ namespace OfficeHell.Systems
         CardOffer BuildFromPool(CardKind kind)
         {
             List<CardDef> cards = _ctx.Cfg.Cards.Cards;
-            SlackPassive owned = _ctx.Run.Player.Passives;
+            Quality q = RollQuality();
 
             _pool.Clear();
             for (int i = 0; i < cards.Count; i++)
@@ -244,18 +310,10 @@ namespace OfficeHell.Systems
                     continue;
                 }
 
-                if (kind == CardKind.Stat && _takenStats.Contains(c.Id))
+                Quality had;
+                if (Owned(c, out had) && had >= q)
                 {
                     continue;
-                }
-
-                if (kind == CardKind.Skill)
-                {
-                    SlackPassive flag = PassiveOf(c.Passive);
-                    if (flag == SlackPassive.None || (owned & flag) != 0)
-                    {
-                        continue;
-                    }
                 }
 
                 _pool.Add(i);
@@ -268,28 +326,64 @@ namespace OfficeHell.Systems
 
             CardDef def = cards[_pool[Random.Range(0, _pool.Count)]];
 
+            Quality ownedAt;
+            bool upgrade = Owned(def, out ownedAt);
+            float coef = _ctx.Cfg.WeaponQuality.Get(q);
+
             CardOffer offer = new CardOffer();
             offer.Kind = def.Kind;
+
+            // Deliberately not tier qualified. Offer() dedupes on this, and two tiers of 攻击力 in one
+            // hand is not a choice, it is the same card next to a strictly better copy of itself.
             offer.Id = def.Id;
             offer.Title = def.Name;
-            offer.Desc = def.Desc;
             offer.Stat = def.Stat;
-            offer.Value = def.Value;
+            offer.Value = Round(def.Value * coef);
+            offer.Value2 = Round(def.Value2 * coef);
             offer.Percent = def.Percent;
             offer.Passive = def.Passive;
+            offer.Quality = q;
+            offer.IsUpgrade = upgrade;
+            offer.OwnedQuality = ownedAt;
+            offer.Desc = Fill(def.Desc, offer.Value, offer.Value2);
             return offer;
         }
 
         /// <summary>
-        /// Quality follows the day: white on Monday, blue by Wednesday, yellow Friday, orange Saturday.
+        /// One decimal, and the applied value is rounded the same way the card prints it. A card that
+        /// says +9.6 and grants 9.5999999 is a card that lies, just not by enough to notice.
+        /// </summary>
+        static float Round(float v)
+        {
+            return Mathf.Round(v * 10f) * 0.1f;
+        }
+
+        static string Fill(string template, float v, float v2)
+        {
+            if (string.IsNullOrEmpty(template))
+            {
+                return string.Empty;
+            }
+
+            return template
+                .Replace("{v2}", v2.ToString("0.##"))
+                .Replace("{v}", v.ToString("0.##"));
+        }
+
+        /// <summary>
+        /// Quality follows the day: green on Monday, blue by Wednesday, purple Friday, orange Saturday.
         /// It is the one growth line a player can predict, and a single predictable line is what keeps
         /// an otherwise fully random loot game from feeling arbitrary.
+        ///
+        /// The upgrade roll that stat and skill cards get is deliberately not applied here. Those two
+        /// only move numbers, while a tier of equipment also unlocks a behaviour, so an early roll up
+        /// would hand out a mechanic days before the rest of the table is tuned against it.
         /// </summary>
         CardOffer BuildEquipment()
         {
             CardPoolDef pool = _ctx.Cfg.Cards;
-            int day = Mathf.Clamp(_ctx.Run.DayIndex, 1, pool.EquipQualityByDay.Length - 1);
-            Quality q = pool.EquipQualityByDay[day];
+            int day = Mathf.Clamp(_ctx.Run.DayIndex, 1, pool.QualityByDay.Length - 1);
+            Quality q = pool.QualityByDay[day];
 
             bool weapon = Rng.ChancePercent(60f);
 
@@ -410,13 +504,27 @@ namespace OfficeHell.Systems
                 sb.Append(StatWord(def.Mains[i].Stat));
             }
 
-            if (def.Slot == EquipSlot.Head && q >= Quality.Yellow)
+            // Only the top unlocked effect is named. Listing all three makes the orange card three
+            // lines long, and the player is reading these under a timer with the field still moving.
+            switch (def.Slot)
             {
-                sb.Append(" · 护盾期间免疫控制");
-            }
-            else if (def.Slot == EquipSlot.Head && q >= Quality.Blue)
-            {
-                sb.Append(" · 每 10s 获得护盾");
+                case EquipSlot.Head:
+                    if (q >= Quality.Orange) sb.Append(" · 护盾破碎音波反击 · 整局免死一次");
+                    else if (q >= Quality.Purple) sb.Append(" · 护盾期间免疫控制");
+                    else if (q >= Quality.Blue) sb.Append(" · 每 10s 获得 5s 护盾");
+                    break;
+
+                case EquipSlot.Body:
+                    if (q >= Quality.Orange) sb.Append(" · 每 5 次受击免伤并击退");
+                    else if (q >= Quality.Purple) sb.Append(" · SAN 低于 33% 时防御翻倍");
+                    else if (q >= Quality.Blue) sb.Append(" · 受击反弹 20% 伤害");
+                    break;
+
+                case EquipSlot.Feet:
+                    if (q >= Quality.Orange) sb.Append(" · 闪避成功向前位移");
+                    else if (q >= Quality.Purple) sb.Append(" · 留下咖啡渍减速敌人");
+                    else if (q >= Quality.Blue) sb.Append(" · 拾取范围 +50%");
+                    break;
             }
 
             return sb.ToString();
@@ -444,9 +552,9 @@ namespace OfficeHell.Systems
             switch (q)
             {
                 case Quality.Blue: return "蓝色";
-                case Quality.Yellow: return "黄色";
+                case Quality.Purple: return "紫色";
                 case Quality.Orange: return "橙色";
-                default: return "普通";
+                default: return "绿色";
             }
         }
 

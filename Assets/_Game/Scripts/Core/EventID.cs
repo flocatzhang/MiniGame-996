@@ -21,6 +21,9 @@ namespace OfficeHell.Core
         PlayerHealed,
         PlayerShielded,
         PlayerShieldBroken,
+
+        /// <summary>Orange hoodie refused a hit outright. F0 is the shove radius.</summary>
+        PlayerGuarded,
         PlayerDied,
         PlayerLevelUp,
         PlayerRankUp,

@@ -43,7 +43,7 @@ namespace OfficeHell.Model
         /// </summary>
         public float ContactArmedAt;
 
-        /// <summary>Keyboard yellow slows what it hits, so the slow lives on the target not the weapon.</summary>
+        /// <summary>Keyboard blue slows what it hits, so the slow lives on the target not the weapon.</summary>
         public float SlowUntil;
 
         public float SlowPct;
@@ -290,7 +290,7 @@ namespace OfficeHell.Model
 
     /// <summary>
     /// One badge on the orbit. Phase is assigned from the global card total, not from the slot, so
-    /// six white badges from six slots still form an even ring.
+    /// six green badges from six slots still form an even ring.
     /// </summary>
     public sealed class OrbitCardModel
     {
@@ -445,7 +445,7 @@ namespace OfficeHell.Model
 
         public readonly List<string> AffixNames = new List<string>(4);
 
-        /// <summary>White, blue and coffee fly in. Yellow and orange have to be walked over.</summary>
+        /// <summary>Green, blue and coffee fly in. Purple and orange have to be walked over.</summary>
         public bool AutoMagnet
         {
             get { return Kind == LootKind.Coffee || Quality <= Quality.Blue; }
@@ -455,7 +455,7 @@ namespace OfficeHell.Model
         {
             Id = 0;
             Kind = LootKind.Coffee;
-            Quality = Quality.White;
+            Quality = Quality.Green;
             Name = null;
             ViewId = null;
             SourceDefId = null;
@@ -514,7 +514,7 @@ namespace OfficeHell.Model
         {
             DefId = null;
             Def = null;
-            Quality = Quality.White;
+            Quality = Quality.Green;
             NextFireAt = 0f;
             LastFiredAt = 0f;
             WaitingForTarget = false;
@@ -541,7 +541,7 @@ namespace OfficeHell.Model
         {
             DefId = null;
             Def = null;
-            Quality = Quality.White;
+            Quality = Quality.Green;
             Name = null;
             SourceId = 0;
         }

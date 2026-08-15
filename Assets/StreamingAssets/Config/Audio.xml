@@ -28,11 +28,11 @@
        throttleSeconds="0" pitchJitter="0" />
 
   <!-- The SFX bus keeps 3dB of headroom; drops take it back after their authored quality volumes. -->
-  <Sfx id="sfx_drop_white" clip="Drop/sfx_drop_white"
+  <Sfx id="sfx_drop_green" clip="Drop/sfx_drop_green"
        synth="Chime" freq="880" dur="0.10" volume="0.36" gainDb="3" maxConcurrent="2" pitchJitter="0" />
   <Sfx id="sfx_drop_blue" clip="Drop/sfx_drop_blue"
        synth="Chime" freq="1040" dur="0.20" volume="0.52" gainDb="3" maxConcurrent="2" pitchJitter="0" />
-  <Sfx id="sfx_drop_yellow" clip="Drop/sfx_drop_yellow"
+  <Sfx id="sfx_drop_purple" clip="Drop/sfx_drop_purple"
        synth="Bell" freq="1175" dur="0.45" volume="1.00" gainDb="3" maxConcurrent="1"
        pitchJitter="0" duckExempt="true" />
   <Sfx id="sfx_drop_orange" clip="Drop/sfx_drop_orange"

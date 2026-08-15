@@ -100,13 +100,39 @@ namespace OfficeHell.Systems
             }
 
             int count = Mathf.Max(1, (int)e.Def.Param.GetFloat("splitCount", 2f));
-            float spread = e.Def.Param.GetFloat("splitSpread", 0.5f);
+            float spread = e.Def.Param.GetFloat("splitSpread", 1.15f);
+            float arc = e.Def.Param.GetFloat("splitArc", 110f) * Mathf.Deg2Rad;
+            float invuln = e.Def.Param.GetFloat("splitInvuln", 0.2f);
+
+            // Thrown away from the player rather than spaced evenly around the corpse. Even spacing
+            // put half of every brood on the near side, which is inside the orbiting badges: they
+            // were deleted on the frame they appeared and the split read as not having happened.
+            Vector2 away = e.Pos - ctx.Run.Player.Pos;
+            float baseAngle = away.sqrMagnitude > 0.0001f
+                ? Mathf.Atan2(away.y, away.x)
+                : Rng.Range(0f, Mathf.PI * 2f);
+
+            float now = GameClock.Now;
 
             for (int i = 0; i < count; i++)
             {
-                float angle = Mathf.PI * 2f / count * i + Rng.Range(-0.3f, 0.3f);
-                Vector2 pos = e.Pos + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * spread;
-                ctx.Spawner.Spawn(child, pos, null);
+                // Fanned across the arc rather than placed at a shared angle, so two children never
+                // overlap into what looks like one body.
+                float offset = count > 1 ? (float)i / (count - 1) - 0.5f : 0f;
+                float angle = baseAngle + offset * arc + Rng.Range(-0.12f, 0.12f);
+                float dist = spread * Rng.Range(0.8f, 1.2f);
+
+                Vector2 pos = e.Pos + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * dist;
+                EnemyModel spawned = ctx.Spawner.Spawn(child, pos, null);
+
+                // Distance alone is not enough at six slots: the badges sweep, the keyboard lands in
+                // an area and the stapler retargets within the frame. A fifth of a second is too short
+                // to defend anything and just long enough for the player to register that two things
+                // came out of the one they killed, which is the entire point of this enemy.
+                if (invuln > 0f)
+                {
+                    spawned.InvulnUntil = now + invuln;
+                }
             }
         }
     }

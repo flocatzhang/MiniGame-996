@@ -6,55 +6,80 @@
   choices="3". Four would make the pause long enough to break the flow at the exact moment the player
   is being killed, and two makes the choice feel like a coin flip.
 
-  Weights are per kind, drawn before the individual card. Equipment at 30 exists so a level up can
-  hand over a behaviour and not just a bigger number. Stat cards are never offered twice: a taken id
-  leaves the pool permanently, which is what stops six level ups from all being 攻击力 +4.
+  Weights are per kind, drawn before the individual card.
+
+  Every card carries a quality. value= is the GREEN amount and the other three tiers are that number
+  times the quality coefficient in Weapons.xml (1.0 / 1.25 / 1.6 / 2.1). A second ladder here would
+  be a second thing to keep in sync with the weapon table, and it would drift within a patch.
+
+  desc= is a template. {v} and {v2} are replaced with the amount actually rolled, so a card can never
+  print a number the pick does not deliver. Writing the value into the string is how "攻击力 +6"
+  outlived two retunes of value="6".
 -->
 <Cards choices="3">
 
   <Weights stat="45" equipment="30" skill="25" />
 
   <!--
-    The one growth line the player can predict. Monday hands out white, Saturday hands out orange, and
-    everything random in this game becomes tolerable because this one line is not.
+    The one growth line the player can predict. Monday hands out green, Saturday hands out orange, and
+    everything random in this game becomes tolerable because this one line is not. It sets the floor
+    for all three card kinds, not just equipment.
+
+    upgradeChance is rolled per card, one tier above the floor. It exists because a hand of three
+    identical colours makes quality a recolour of the day counter instead of something to weigh: the
+    point of tiering the numbers is that the player sometimes has to choose between a green 防御 and a
+    blue 攻速. Saturday is already orange so its chance is dead weight and stays at 0.
   -->
-  <EquipQuality day="1" quality="white" />
-  <EquipQuality day="2" quality="white" />
-  <EquipQuality day="3" quality="blue" />
-  <EquipQuality day="4" quality="blue" />
-  <EquipQuality day="5" quality="yellow" />
-  <EquipQuality day="6" quality="orange" />
+  <CardQuality day="1" quality="green"  upgradeChance="12" />
+  <CardQuality day="2" quality="green"  upgradeChance="20" />
+  <CardQuality day="3" quality="blue"   upgradeChance="18" />
+  <CardQuality day="4" quality="blue"   upgradeChance="26" />
+  <CardQuality day="5" quality="purple" upgradeChance="22" />
+  <CardQuality day="6" quality="orange" upgradeChance="0" />
 
   <!--
     Flat where the stat starts at zero, percentage where it starts high. Flat ATK reads as nothing once
     ATK passes 40, and a percentage DEF card on a build with 0 DEF reads as a wasted pick.
+
+    Green sits at four fifths of the old single value, so blue lands on the number these cards used to
+    hand out and the tiering is roughly power neutral across a run rather than a blanket buff.
+
+    A stat card that has been taken can only come back at a strictly higher quality, and the second
+    pick stacks on the first. The old rule removed it from the pool forever, which was the right answer
+    when there was one version of each card and the wrong one the moment there are four.
   -->
-  <Card id="c_atk"      name="加班加薪"   kind="Stat" weight="12" stat="Atk"        value="6"    desc="攻击力 +6" />
-  <Card id="c_atk_pct"  name="绩效上调"   kind="Stat" weight="8"  stat="Atk"        value="15" percent="true" desc="攻击力 +15%" />
-  <Card id="c_haste"    name="催进度"     kind="Stat" weight="10" stat="Haste"      value="18"   desc="攻速 +18" />
-  <Card id="c_crit"     name="灵光一现"   kind="Stat" weight="9"  stat="CritChance" value="7"    desc="暴击率 +7%" />
-  <Card id="c_critdmg"  name="一击毙命"   kind="Stat" weight="7"  stat="CritMulti"  value="35"   desc="暴击伤害 +35%" />
-  <Card id="c_def"      name="心如止水"   kind="Stat" weight="10" stat="Def"        value="20"   desc="防御 +20" />
-  <Card id="c_dodge"    name="见缝插针"   kind="Stat" weight="8"  stat="Dodge"      value="8"    desc="闪避 +8%" />
-  <Card id="c_san"      name="心理建设"   kind="Stat" weight="9"  stat="MaxSan"     value="15"   desc="SAN 上限 +15，并立即回复等量" />
-  <Card id="c_speed"    name="早退五分钟" kind="Stat" weight="8"  stat="MoveSpeed"  value="0.4"  desc="移速 +0.4" />
-  <Card id="c_luck"     name="祈祷"       kind="Stat" weight="6"  stat="Luck"       value="12"   desc="幸运 +12，提升掉落品质" />
-  <Card id="c_magnet"   name="顺手带走"   kind="Stat" weight="6"  stat="PickupRadius" value="0.4" desc="拾取范围 +0.4" />
+  <Card id="c_atk"      name="加班加薪"   kind="Stat" weight="12" stat="Atk"          value="5"    desc="攻击力 +{v}" />
+  <Card id="c_atk_pct"  name="绩效上调"   kind="Stat" weight="8"  stat="Atk"          value="12"   percent="true" desc="攻击力 +{v}%" />
+  <Card id="c_haste"    name="催进度"     kind="Stat" weight="10" stat="Haste"        value="14"   desc="攻速 +{v}" />
+  <Card id="c_crit"     name="灵光一现"   kind="Stat" weight="9"  stat="CritChance"   value="5.5"  desc="暴击率 +{v}%" />
+  <Card id="c_critdmg"  name="一击毙命"   kind="Stat" weight="7"  stat="CritMulti"    value="28"   desc="暴击伤害 +{v}%" />
+  <Card id="c_def"      name="心如止水"   kind="Stat" weight="10" stat="Def"          value="16"   desc="防御 +{v}" />
+  <Card id="c_dodge"    name="见缝插针"   kind="Stat" weight="8"  stat="Dodge"        value="6"    desc="闪避 +{v}%" />
+  <Card id="c_san"      name="心理建设"   kind="Stat" weight="9"  stat="MaxSan"       value="12"   desc="SAN 上限 +{v}，并立即回复等量" />
+  <Card id="c_speed"    name="早退五分钟" kind="Stat" weight="8"  stat="MoveSpeed"    value="0.3"  desc="移速 +{v}" />
+  <Card id="c_luck"     name="祈祷"       kind="Stat" weight="6"  stat="Luck"         value="10"   desc="幸运 +{v}，提升掉落品质" />
+  <Card id="c_magnet"   name="顺手带走"   kind="Stat" weight="6"  stat="PickupRadius" value="0.3"  desc="拾取范围 +{v}" />
 
   <!--
     Five passives, each modifying the one active skill in a different direction: duration, cooldown,
     damage, healing, area. Every one of them is read off PlayerModel by SkillSystem, so the pool can
     grow without adding a branch.
+
+    Unlike a stat card a passive does not stack: taking a higher tier of one already owned replaces
+    the magnitude. Two of these are additive seconds and three are percentages, and adding a green
+    roll on top of an orange one would read as a downgrade the moment the numbers were compared.
+
+    集体摸鱼 is the only card that moves two numbers, which is what value2 exists for.
   -->
-  <Card id="s_deep"    name="深度摸鱼"   kind="Skill" weight="10" passive="deepslack"
-        desc="摸鱼无敌时间 +0.8s" />
-  <Card id="s_paid"    name="带薪休息"   kind="Skill" weight="10" passive="paidbreak"
-        desc="摸鱼冷却 -3s" />
-  <Card id="s_reverse" name="反向 PUA"   kind="Skill" weight="9"  passive="reversepua"
-        desc="摸鱼对范围内敌人造成一次攻击力伤害" />
-  <Card id="s_extra"   name="养生朋克"   kind="Skill" weight="9"  passive="extralife"
-        desc="摸鱼回复的 SAN 翻倍" />
-  <Card id="s_mass"    name="集体摸鱼"   kind="Skill" weight="8"  passive="massslack"
-        desc="摸鱼范围翻倍，并眩晕 1s" />
+  <Card id="s_deep"    name="深度摸鱼"   kind="Skill" weight="10" passive="deepslack"  value="0.6"
+        desc="摸鱼无敌时间 +{v}s" />
+  <Card id="s_paid"    name="带薪休息"   kind="Skill" weight="10" passive="paidbreak"  value="2.4"
+        desc="摸鱼冷却 -{v}s" />
+  <Card id="s_reverse" name="反向 PUA"   kind="Skill" weight="9"  passive="reversepua" value="80"
+        desc="摸鱼对范围内敌人造成 {v}% 攻击力伤害" />
+  <Card id="s_extra"   name="养生朋克"   kind="Skill" weight="9"  passive="extralife"  value="80"
+        desc="摸鱼回复的 SAN +{v}%" />
+  <Card id="s_mass"    name="集体摸鱼"   kind="Skill" weight="8"  passive="massslack"  value="60" value2="0.6"
+        desc="摸鱼范围 +{v}%，并眩晕 {v2}s" />
 
 </Cards>

@@ -29,9 +29,9 @@ SFX = (
 )
 
 DROP = (
-    "sfx_drop_white.wav",
+    "sfx_drop_green.wav",
     "sfx_drop_blue.wav",
-    "sfx_drop_yellow.wav",
+    "sfx_drop_purple.wav",
     "sfx_drop_orange.wav",
 )
 

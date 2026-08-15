@@ -410,25 +410,32 @@ namespace OfficeHell.Config
             Band = band;
         }
 
+        /// <summary>
+        /// The tier names were white/blue/yellow/orange before the ladder moved to green/blue/purple/
+        /// orange. Both spellings are accepted: an unrecognised tier does not fail loudly, it lands on
+        /// some other tier, and a whole config quietly one step off is worse than the rename itself.
+        /// </summary>
         Quality ParseQuality(XElement e, string raw)
         {
             switch (raw.ToLowerInvariant())
             {
+                case "green":
                 case "white":
                 case "common":
-                    return Quality.White;
+                    return Quality.Green;
                 case "blue":
                 case "magic":
                     return Quality.Blue;
+                case "purple":
                 case "yellow":
                 case "rare":
-                    return Quality.Yellow;
+                    return Quality.Purple;
                 case "orange":
                 case "legendary":
                     return Quality.Orange;
                 default:
-                    XmlRead.Add(Report, "<" + e.Name + "> unknown quality '" + raw + "', treated as yellow");
-                    return Quality.Yellow;
+                    XmlRead.Add(Report, "<" + e.Name + "> unknown quality '" + raw + "', treated as purple");
+                    return Quality.Purple;
             }
         }
 
@@ -468,9 +475,12 @@ namespace OfficeHell.Config
                 XElement q = doc.Root.Element("Quality");
                 if (q != null)
                 {
-                    coef.White = XmlRead.Num(q, "white", coef.White, Report);
+                    // Pre-rename spellings feed the new ones as their fallback. This table is the only
+                    // scaling ladder in the game and cards read it too, so a config that misses it
+                    // does not degrade, it silently flattens every tier to the compiled defaults.
+                    coef.Green = XmlRead.Num(q, "green", XmlRead.Num(q, "white", coef.Green, Report), Report);
                     coef.Blue = XmlRead.Num(q, "blue", coef.Blue, Report);
-                    coef.Yellow = XmlRead.Num(q, "yellow", coef.Yellow, Report);
+                    coef.Purple = XmlRead.Num(q, "purple", XmlRead.Num(q, "yellow", coef.Purple, Report), Report);
                     coef.Orange = XmlRead.Num(q, "orange", coef.Orange, Report);
                 }
             }
@@ -742,9 +752,9 @@ namespace OfficeHell.Config
         void ParseCards(string text)
         {
             CardPoolDef pool = new CardPoolDef();
-            for (int i = 0; i < pool.EquipQualityByDay.Length; i++)
+            for (int i = 0; i < pool.QualityByDay.Length; i++)
             {
-                pool.EquipQualityByDay[i] = Quality.White;
+                pool.QualityByDay[i] = Quality.Green;
             }
 
             XDocument doc = XmlRead.Doc(text, FileCards, Report);
@@ -760,13 +770,23 @@ namespace OfficeHell.Config
                     pool.SkillWeight = XmlRead.Num(w, "skill", pool.SkillWeight, Report);
                 }
 
-                foreach (XElement e in doc.Root.Elements("EquipQuality"))
+                // EquipQuality is the pre-tier name for the same table. Still read so a config left
+                // next to an older exe keeps its growth line instead of collapsing to all green.
+                IEnumerable<XElement> tiers = doc.Root.Elements("CardQuality");
+                if (doc.Root.Element("CardQuality") == null)
+                {
+                    tiers = doc.Root.Elements("EquipQuality");
+                }
+
+                foreach (XElement e in tiers)
                 {
                     int day = XmlRead.Int(e, "day", 0, Report);
                     string q = XmlRead.Required(e, "quality", Report);
-                    if (day >= 1 && day < pool.EquipQualityByDay.Length && q != null)
+                    if (day >= 1 && day < pool.QualityByDay.Length && q != null)
                     {
-                        pool.EquipQualityByDay[day] = ParseQuality(e, q);
+                        pool.QualityByDay[day] = ParseQuality(e, q);
+                        pool.UpgradeChanceByDay[day] =
+                            Mathf.Clamp(XmlRead.Num(e, "upgradeChance", 0f, Report), 0f, 100f);
                     }
                 }
 
@@ -788,16 +808,18 @@ namespace OfficeHell.Config
                     d.Value = XmlRead.Num(e, "value", 0f, Report);
                     d.Percent = XmlRead.Bool(e, "percent", false, Report);
                     d.Passive = XmlRead.Str(e, "passive", null, Report);
+                    d.Value2 = XmlRead.Num(e, "value2", 0f, Report);
                     pool.Cards.Add(d);
                 }
             }
 
-            // Any day the designer forgot inherits the previous day's tier rather than dropping to white.
-            for (int i = 2; i < pool.EquipQualityByDay.Length; i++)
+            // Any day the designer forgot inherits the previous day's tier rather than dropping to green.
+            for (int i = 2; i < pool.QualityByDay.Length; i++)
             {
-                if (pool.EquipQualityByDay[i] < pool.EquipQualityByDay[i - 1])
+                if (pool.QualityByDay[i] < pool.QualityByDay[i - 1])
                 {
-                    pool.EquipQualityByDay[i] = pool.EquipQualityByDay[i - 1];
+                    pool.QualityByDay[i] = pool.QualityByDay[i - 1];
+                    pool.UpgradeChanceByDay[i] = pool.UpgradeChanceByDay[i - 1];
                 }
             }
 

@@ -418,7 +418,7 @@ namespace OfficeHell.Core
 
             if (def != null)
             {
-                Ctx.Run.Player.Equip(0, def, Quality.White);
+                Ctx.Run.Player.Equip(0, def, Quality.Green);
             }
         }
     }

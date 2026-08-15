@@ -69,10 +69,8 @@ namespace OfficeHell.Systems
             }
 
             float radius = p.SkillPushRadius(def);
-            bool stun = (p.Passives & SlackPassive.MassSlack) != 0;
-            float damage = (p.Passives & SlackPassive.ReversePua) != 0
-                ? p.Stats.Get(StatType.Atk)
-                : 0f;
+            float stunSeconds = p.SkillStunSeconds();
+            float damage = p.Stats.Get(StatType.Atk) * p.SkillDamagePct() * 0.01f;
 
             _ctx.Grid.QueryCircle(p.Pos, radius, _scratch);
             for (int i = 0; i < _scratch.Count; i++)
@@ -98,9 +96,9 @@ namespace OfficeHell.Systems
 
                 e.ForceKnockback(away, def.PushForce, now);
 
-                if (stun)
+                if (stunSeconds > 0f)
                 {
-                    e.StunUntil = Mathf.Max(e.StunUntil, now + 1f);
+                    e.StunUntil = Mathf.Max(e.StunUntil, now + stunSeconds);
                 }
 
                 if (damage > 0f)

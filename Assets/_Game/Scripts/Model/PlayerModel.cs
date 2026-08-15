@@ -54,6 +54,20 @@ namespace OfficeHell.Model
         public SlackPassive Passives;
 
         /// <summary>
+        /// Rolled magnitude per passive, written once when the card is picked. The quality is kept
+        /// alongside so a later hand can tell an upgrade from a duplicate.
+        ///
+        /// The amount is stored rather than the tier because resolving a tier needs the card table,
+        /// and a model that reaches into Config to answer "how long is my invulnerability" is a
+        /// dependency pointing the wrong way.
+        /// </summary>
+        const int PassiveKinds = 5;
+
+        readonly float[] _passiveValue = new float[PassiveKinds];
+        readonly float[] _passiveValue2 = new float[PassiveKinds];
+        readonly Quality[] _passiveQuality = new Quality[PassiveKinds];
+
+        /// <summary>
         /// Aura contributions for this frame, one slot per channel. Systems write with Max, never with
         /// +=, so five PPTs still only slow by 25 percent. Cleared at the head of every frame.
         /// </summary>
@@ -70,13 +84,38 @@ namespace OfficeHell.Model
         /// <summary>Headphone blue: a shield every ten seconds. Zero means no headphone is worn.</summary>
         public float NextShieldAt;
 
+        /// <summary>
+        /// When the current shield lapses on its own. The shield used to sit there until something
+        /// broke it, which made the purple tier's control immunity permanent rather than a window,
+        /// and turned three enemy types into decoration for anyone wearing a purple headphone.
+        /// </summary>
+        public float ShieldUntil;
+
         public float ShieldPeak;
 
         /// <summary>Body orange counts hits, so the counter has to survive across days.</summary>
         public int HitCount;
 
-        /// <summary>Headphone orange grants one death save per day.</summary>
+        /// <summary>Hits taken since the body orange guard last fired.</summary>
+        public int HitsSinceGuard;
+
+        /// <summary>Headphone orange grants one death save per run.</summary>
         public bool DeathSaveReady;
+
+        /// <summary>
+        /// Purple slipper. Coffee marks dropped behind the player, oldest overwritten first.
+        ///
+        /// A fixed ring rather than a pooled entity: the count has a hard ceiling, no stain needs an
+        /// identity, and they belong to the player rather than to the run. A pool exists to absorb
+        /// unbounded churn and there is none here.
+        /// </summary>
+        public const int StainSlots = 10;
+
+        readonly Vector2[] _stainPos = new Vector2[StainSlots];
+        readonly float[] _stainUntil = new float[StainSlots];
+        int _stainNext;
+
+        public float NextStainAt;
 
         /// <summary>Debug only, driven from the validation panel.</summary>
         public bool GodMode;
@@ -105,12 +144,12 @@ namespace OfficeHell.Model
         }
 
         /// <summary>
-        /// Yellow headphone. The three control effects in the game (PPT slow, veteran attack slow,
+        /// Purple headphone. The three control effects in the game (PPT slow, veteran attack slow,
         /// boss global slow) are all answered by this one line, which is the point of the item.
         /// </summary>
         public bool ImmuneToControl
         {
-            get { return HasShield && QualityOf(EquipSlot.Head) >= Quality.Yellow; }
+            get { return HasShield && QualityOf(EquipSlot.Head) >= Quality.Purple; }
         }
 
         public bool IsInvulnerable(float now)
@@ -175,14 +214,14 @@ namespace OfficeHell.Model
         }
 
         /// <summary>
-        /// Body yellow doubles defence below a third of sanity. Read here rather than folded into the
+        /// Body purple doubles defence below a third of sanity. Read here rather than folded into the
         /// stat sheet so it tracks current sanity without a modifier rebuild every frame.
         /// </summary>
         public float EffectiveDef()
         {
             float def = Stats.Get(StatType.Def);
             float max = MaxSan;
-            if (QualityOf(EquipSlot.Body) >= Quality.Yellow && max > 0f && San < max * 0.33f)
+            if (QualityOf(EquipSlot.Body) >= Quality.Purple && max > 0f && San < max * 0.33f)
             {
                 def *= 2f;
             }
@@ -205,54 +244,110 @@ namespace OfficeHell.Model
             }
         }
 
-        public float SkillInvulnSeconds(SkillDef def)
+        /// <summary>
+        /// Records a passive at the rolled amount. A repeat pick replaces rather than stacks: these
+        /// are five different shapes of the same skill, and two magnitudes for one shape would need
+        /// an answer for whether a green roll on top of an orange one is a downgrade.
+        /// </summary>
+        public void GrantPassive(SlackPassive flag, Quality q, float value, float value2)
         {
-            float s = def.InvulnDuration;
-            if ((Passives & SlackPassive.DeepSlack) != 0)
+            int i = PassiveIndex(flag);
+            if (i < 0)
             {
-                s += 0.8f;
+                return;
             }
 
-            return s;
+            Passives |= flag;
+            _passiveQuality[i] = q;
+            _passiveValue[i] = value;
+            _passiveValue2[i] = value2;
+        }
+
+        public void DropStain(Vector2 at, float expiresAt)
+        {
+            _stainPos[_stainNext] = at;
+            _stainUntil[_stainNext] = expiresAt;
+            _stainNext = (_stainNext + 1) % StainSlots;
+        }
+
+        public Vector2 StainPos(int i)
+        {
+            return _stainPos[i];
+        }
+
+        /// <summary>Zero or a time already past means the slot is empty.</summary>
+        public float StainUntil(int i)
+        {
+            return _stainUntil[i];
+        }
+
+        /// <summary>Zero when the passive is not owned, which is what makes every getter below a no-op.</summary>
+        public float PassiveValue(SlackPassive flag)
+        {
+            int i = PassiveIndex(flag);
+            return i >= 0 && (Passives & flag) != 0 ? _passiveValue[i] : 0f;
+        }
+
+        public float PassiveValue2(SlackPassive flag)
+        {
+            int i = PassiveIndex(flag);
+            return i >= 0 && (Passives & flag) != 0 ? _passiveValue2[i] : 0f;
+        }
+
+        public Quality PassiveQuality(SlackPassive flag)
+        {
+            int i = PassiveIndex(flag);
+            return i >= 0 ? _passiveQuality[i] : Quality.Green;
+        }
+
+        static int PassiveIndex(SlackPassive flag)
+        {
+            switch (flag)
+            {
+                case SlackPassive.DeepSlack: return 0;
+                case SlackPassive.PaidBreak: return 1;
+                case SlackPassive.ReversePua: return 2;
+                case SlackPassive.ExtraLife: return 3;
+                case SlackPassive.MassSlack: return 4;
+                default: return -1;
+            }
+        }
+
+        public float SkillInvulnSeconds(SkillDef def)
+        {
+            return def.InvulnDuration + PassiveValue(SlackPassive.DeepSlack);
         }
 
         public float SkillCd(SkillDef def)
         {
-            float cd = def.Cd;
-            if ((Passives & SlackPassive.PaidBreak) != 0)
-            {
-                cd -= 3f;
-            }
-
-            return Mathf.Max(1f, cd);
+            return Mathf.Max(1f, def.Cd - PassiveValue(SlackPassive.PaidBreak));
         }
 
         public float SkillHealPct(SkillDef def)
         {
-            float pct = def.HealPctMaxSan;
-            if ((Passives & SlackPassive.ExtraLife) != 0)
-            {
-                pct *= 2f;
-            }
-
-            return pct;
+            return def.HealPctMaxSan * (1f + PassiveValue(SlackPassive.ExtraLife) * 0.01f);
         }
 
         public float SkillPushRadius(SkillDef def)
         {
-            float r = def.PushRadius;
-            if ((Passives & SlackPassive.MassSlack) != 0)
-            {
-                r *= 2f;
-            }
+            return def.PushRadius * (1f + PassiveValue(SlackPassive.MassSlack) * 0.01f);
+        }
 
-            return r;
+        /// <summary>Percent of ATK dealt inside the push radius. Zero unless 反向 PUA is owned.</summary>
+        public float SkillDamagePct()
+        {
+            return PassiveValue(SlackPassive.ReversePua);
+        }
+
+        public float SkillStunSeconds()
+        {
+            return PassiveValue2(SlackPassive.MassSlack);
         }
 
         public Quality QualityOf(EquipSlot slot)
         {
             ArmorRuntime rt = Armor(slot);
-            return rt != null && !rt.IsEmpty ? rt.Quality : Quality.White;
+            return rt != null && !rt.IsEmpty ? rt.Quality : Quality.Green;
         }
 
         public ArmorRuntime Armor(EquipSlot slot)
@@ -279,9 +374,19 @@ namespace OfficeHell.Model
             San = def.MaxSan;
             Shield = 0f;
             ShieldPeak = 0f;
+            ShieldUntil = 0f;
             NextShieldAt = 0f;
             HitCount = 0;
+            HitsSinceGuard = 0;
             DeathSaveReady = false;
+            NextStainAt = 0f;
+            _stainNext = 0;
+            for (int i = 0; i < StainSlots; i++)
+            {
+                _stainPos[i] = Vector2.zero;
+                _stainUntil[i] = 0f;
+            }
+
             Pos = Vector2.zero;
             MoveIntent = Vector2.zero;
             Facing = Vector2.right;
@@ -296,6 +401,13 @@ namespace OfficeHell.Model
             SkillReadyAt = 0f;
             SelectAllReadyAt = 0f;
             Passives = SlackPassive.None;
+            for (int i = 0; i < PassiveKinds; i++)
+            {
+                _passiveValue[i] = 0f;
+                _passiveValue2[i] = 0f;
+                _passiveQuality[i] = Quality.Green;
+            }
+
             ClearAuras();
             GlobalSlowUntil = 0f;
             GlobalSlowPct = 0f;

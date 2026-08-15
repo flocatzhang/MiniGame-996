@@ -96,7 +96,7 @@ namespace OfficeHell.Model
             int tier = (int)q.Q;
             float w = q.Weight * (1f + luck * 0.01f * tier);
 
-            if (tier >= (int)Quality.Yellow && !string.IsNullOrEmpty(loot.LateBonusApplyTo) &&
+            if (tier >= (int)Quality.Purple && !string.IsNullOrEmpty(loot.LateBonusApplyTo) &&
                 loot.LateBonusApplyTo.IndexOf(q.Q.ToString(), System.StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 w *= 1f + loot.LateBonusPerDay * (day - 1);

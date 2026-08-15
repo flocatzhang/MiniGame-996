@@ -30,11 +30,20 @@
   <!--
     Killing one makes two, so clearing faster puts more on screen instead of less. It is the only
     enemy whose pressure scales with the player's own damage.
+
+    The brood is thrown backwards, away from the player, across splitArc degrees. splitSpread was
+    0.55 with the children placed opposite each other, which meant one of the two always landed
+    between the corpse and the player: inside the badge orbit, inside the keyboard blast, and dead
+    before it was drawn. The joke of this enemy is watching one become two, and it does not survive
+    the second one never being seen.
+
+    splitInvuln buys that look. It is short enough to defend nothing and long enough to be read.
   -->
   <Enemy id="bug" name="BUG" reportVerb="修复 BUG" reportUnit="个"
          hp="10" speed="2.8" contactDamage="5" exp="2" radius="0.33"
          viewId="v_bug" tier="Normal"
-         behavior="SplitOnDeath" behaviorParam="splitInto=bug_small;splitCount=2;splitSpread=0.55" />
+         behavior="SplitOnDeath"
+         behaviorParam="splitInto=bug_small;splitCount=2;splitSpread=1.15;splitArc=110;splitInvuln=0.2" />
 
   <!-- Zero exp: 修 BUG 不算 KPI. It is also what stops splitting from wrecking the exp curve. -->
   <Enemy id="bug_small" name="小 BUG" reportVerb="修复 BUG" reportUnit="个"

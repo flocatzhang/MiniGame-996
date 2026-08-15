@@ -200,6 +200,10 @@ namespace OfficeHell.View
             _bus.Register(EventID.BossSpawned, OnBossSpawned);
             _bus.Register(EventID.BossPhaseChanged, OnBossPhase);
             _bus.Register(EventID.PlayerShieldBroken, OnShieldBroken);
+
+            // Shares the shield clip. The delivered set has no guard sound, and both events are the
+            // same beat to the player: armour just stopped something.
+            _bus.Register(EventID.PlayerGuarded, OnShieldBroken);
         }
 
         public void Dispose()
@@ -228,6 +232,7 @@ namespace OfficeHell.View
             _bus.Unregister(EventID.BossSpawned, OnBossSpawned);
             _bus.Unregister(EventID.BossPhaseChanged, OnBossPhase);
             _bus.Unregister(EventID.PlayerShieldBroken, OnShieldBroken);
+            _bus.Unregister(EventID.PlayerGuarded, OnShieldBroken);
         }
 
         // ---------- playback ----------

@@ -57,7 +57,7 @@ namespace OfficeHell.Model
 
         public bool AnyLegendaryDropped;
 
-        public Quality BestQuality = Quality.White;
+        public Quality BestQuality = Quality.Green;
         public string BestLootName = "-";
         public bool AnyLootPicked;
 
@@ -194,7 +194,7 @@ namespace OfficeHell.Model
             CombatSeconds = 0f;
             SecondsSinceLastLegendary = 0f;
             AnyLegendaryDropped = false;
-            BestQuality = Quality.White;
+            BestQuality = Quality.Green;
             BestLootName = "-";
             AnyLootPicked = false;
             Ending = Ending.None;
@@ -215,9 +215,6 @@ namespace OfficeHell.Model
             SpawnedToday = 0;
             KilledToday = 0;
             SpawnDebt = 0;
-
-            // The orange headphone promises one save per day, so the day boundary is where it refills.
-            Player.DeathSaveReady = Player.QualityOf(EquipSlot.Head) >= Quality.Orange;
         }
 
         // ---------- entity allocation ----------

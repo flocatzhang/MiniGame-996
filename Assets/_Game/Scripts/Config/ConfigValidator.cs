@@ -358,6 +358,12 @@ namespace OfficeHell.Config
                            "from <Fixed> guarantees and the pity timer, so weight is expected to be 0.");
             }
 
+            // applyTo is matched against the tier's enum name at roll time, so a spelling that resolves
+            // to nothing does not fail, it just stops applying and the late day drops quietly stay at
+            // day one odds. The white/yellow to green/purple rename makes that a live hazard for any
+            // config file that outlived it.
+            ValidateLateBonusTiers(cfg.Loot.LateBonusApplyTo, report);
+
             if (cfg.Loot.Affixes.Count == 0)
             {
                 report.Add("Loot.xml produced no <Affix> rows, dropped equipment will grant nothing");
@@ -388,6 +394,40 @@ namespace OfficeHell.Config
             }
         }
 
+        static void ValidateLateBonusTiers(string applyTo, List<string> report)
+        {
+            if (string.IsNullOrEmpty(applyTo))
+            {
+                return;
+            }
+
+            string[] parts = applyTo.Split(',');
+            for (int i = 0; i < parts.Length; i++)
+            {
+                string name = parts[i].Trim();
+                if (name.Length == 0)
+                {
+                    continue;
+                }
+
+                bool known = false;
+                for (int q = 0; q <= (int)Quality.Orange; q++)
+                {
+                    if (string.Equals(name, ((Quality)q).ToString(), System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        known = true;
+                    }
+                }
+
+                if (!known)
+                {
+                    report.Add("LateBonus applyTo lists '" + name + "', which is not a quality tier. " +
+                               "The later day weighting silently does nothing for it. " +
+                               "Tiers are green / blue / purple / orange.");
+                }
+            }
+        }
+
         static void ValidateCards(ConfigManager cfg, List<string> report)
         {
             CardPoolDef pool = cfg.Cards;
@@ -411,6 +451,41 @@ namespace OfficeHell.Config
                     {
                         report.Add("Card '" + c.Id + "' is a skill card with no passive id");
                     }
+
+                    if (Mathf.Abs(c.Value) < 0.0001f)
+                    {
+                        report.Add("Card '" + c.Id + "' is a skill card with value 0, the passive would do nothing");
+                    }
+                }
+
+                if (c.Kind == CardKind.Equipment)
+                {
+                    continue;
+                }
+
+                // The amount is only in the card face because the template put it there. Without the
+                // placeholder the tiers are invisible and every quality reads as the same card.
+                if (c.Desc != null && c.Desc.IndexOf("{v}") < 0)
+                {
+                    report.Add("Card '" + c.Id + "' desc has no {v} placeholder, its quality tier cannot be read");
+                }
+
+                bool hasSecond = c.Desc != null && c.Desc.IndexOf("{v2}") >= 0;
+                bool setsSecond = Mathf.Abs(c.Value2) > 0.0001f;
+                if (hasSecond != setsSecond)
+                {
+                    report.Add("Card '" + c.Id + "' disagrees about value2: desc " +
+                               (hasSecond ? "uses" : "omits") + " {v2} while the value is " + c.Value2);
+                }
+            }
+
+            // Saturday is already the top tier, so a chance to go above it silently does nothing.
+            for (int d = 1; d < pool.QualityByDay.Length; d++)
+            {
+                if (pool.QualityByDay[d] >= Quality.Orange && pool.UpgradeChanceByDay[d] > 0f)
+                {
+                    report.Add("day " + d + " is already orange but carries upgradeChance " +
+                               pool.UpgradeChanceByDay[d] + ", which can never apply");
                 }
             }
 
@@ -530,7 +605,7 @@ namespace OfficeHell.Config
                 "sfx_weapon_stapler_fire", "sfx_weapon_stapler_hit",
                 "sfx_enemy_email_death", "sfx_enemy_bug_split",
                 "sfx_player_hurt", "sfx_player_death", "sfx_player_lowsan_loop",
-                "sfx_drop_white", "sfx_drop_blue", "sfx_drop_yellow", "sfx_drop_orange",
+                "sfx_drop_green", "sfx_drop_blue", "sfx_drop_purple", "sfx_drop_orange",
                 "sfx_drop_pickup", "sfx_drop_convert_xp", "sfx_coffee_drop", "sfx_coffee_drink",
                 "sfx_growth_levelup", "sfx_growth_card_appear", "sfx_ui_clockin", "sfx_flow_dayend",
                 "sfx_dodge", "sfx_shield_break", "sfx_skill", "sfx_slam", "sfx_select_all",

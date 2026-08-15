@@ -78,6 +78,7 @@ namespace OfficeHell.View
             _bus.Register(EventID.SelectAll, OnSelectAll);
             _bus.Register(EventID.BossPhaseChanged, OnBossPhaseChanged);
             _bus.Register(EventID.PlayerShieldBroken, OnShieldBroken);
+            _bus.Register(EventID.PlayerGuarded, OnGuarded);
             _bus.Register(EventID.RunStarted, OnRunStarted);
             _bus.Register(EventID.GameStateChanged, OnGameStateChanged);
         }
@@ -95,6 +96,7 @@ namespace OfficeHell.View
             _bus.Unregister(EventID.SelectAll, OnSelectAll);
             _bus.Unregister(EventID.BossPhaseChanged, OnBossPhaseChanged);
             _bus.Unregister(EventID.PlayerShieldBroken, OnShieldBroken);
+            _bus.Unregister(EventID.PlayerGuarded, OnGuarded);
             _bus.Unregister(EventID.RunStarted, OnRunStarted);
             _bus.Unregister(EventID.GameStateChanged, OnGameStateChanged);
         }
@@ -289,12 +291,12 @@ namespace OfficeHell.View
 
             FxPriority priority = q == Quality.Orange
                 ? FxPriority.Legendary
-                : q == Quality.Yellow ? FxPriority.Elite : FxPriority.Trash;
+                : q == Quality.Purple ? FxPriority.Elite : FxPriority.Trash;
 
             RequestHitStop(def.HitStop, priority);
             RequestShake(def.Shake * 0.02f);
 
-            if (q >= Quality.Yellow)
+            if (q >= Quality.Purple)
             {
                 RequestFlash(def.Color, q == Quality.Orange ? 0.55f : 0.18f);
                 SpawnPulse(arg.P0, q == Quality.Orange ? 3.2f : 1.8f, def.Color, 0.5f);
@@ -312,7 +314,7 @@ namespace OfficeHell.View
 
             Quality q = (Quality)arg.I1;
             QualityDef def = _cfg.QualityOf(q);
-            RequestFlash(def.Color, q >= Quality.Yellow ? 0.25f : 0.06f);
+            RequestFlash(def.Color, q >= Quality.Purple ? 0.25f : 0.06f);
         }
 
         void OnEnemyKilled(EvtArg arg)
@@ -368,9 +370,14 @@ namespace OfficeHell.View
             }
         }
 
+        /// <summary>
+        /// Pale warm rather than green, to stay in key with the sweep ViewBinder runs over the player
+        /// for the rest of the immunity. Near white keeps it apart from the slam pulse below, which is
+        /// the saturated amber: those two fire often enough in the same second to need telling apart.
+        /// </summary>
         void OnSkillCast(EvtArg arg)
         {
-            SpawnPulse(arg.P0, Mathf.Max(0.5f, arg.F0), new Color(0.5f, 1f, 0.8f, 0.9f), 0.35f);
+            SpawnPulse(arg.P0, Mathf.Max(0.5f, arg.F0), new Color(1f, 0.97f, 0.76f, 0.85f), 0.35f);
             RequestShake(0.05f);
         }
 
@@ -404,6 +411,17 @@ namespace OfficeHell.View
         {
             SpawnPulse(arg.P0, Mathf.Max(0.5f, arg.F0), new Color(0.45f, 0.85f, 1f, 0.9f), 0.4f);
             RequestFlash(new Color(0.45f, 0.85f, 1f), 0.2f);
+        }
+
+        /// <summary>
+        /// Orange hoodie. Warm rather than the shield's blue, because this one refused the hit instead
+        /// of absorbing it, and no screen flash: it fires every fifth hit, which is often enough that
+        /// a full screen wash would be strobing by Friday.
+        /// </summary>
+        void OnGuarded(EvtArg arg)
+        {
+            SpawnPulse(arg.P0, Mathf.Max(0.5f, arg.F0), new Color(1f, 0.82f, 0.45f, 0.85f), 0.32f);
+            RequestShake(0.08f);
         }
     }
 }
