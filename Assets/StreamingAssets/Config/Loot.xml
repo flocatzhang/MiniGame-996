@@ -21,20 +21,26 @@
     to use them: the tier has to be legible from a beam colour at the edge of the screen, with no label
     and no time to read one. Green keeps a short visible beam so it still reads as loot, while staying
     muted enough that it never competes with the healing text or the higher-tier drop celebrations.
+
+    rankName is the tier's word inside an item name: 词缀 + rankName + 底板, as in 卷王的资深格子衬衫.
+    It is a job title rather than the colour because the colour is already saying itself three times
+    over in the beam, the border and the label, and because the gear climbing the same promotion track
+    as the player is the one joke this system can make for free. The four have to stay distinct or two
+    tiers arrive under the same name; ConfigValidator checks that.
   -->
-  <Quality id="green" weight="62" affixCount="0" color="#6FB86B"
+  <Quality id="green" weight="62" affixCount="0" color="#6FB86B" rankName="初级"
            beam="soft" hitStop="0" shake="0" label="false" autoMagnet="true"
            sfx="sfx_drop_green" />
 
-  <Quality id="blue" weight="27" affixCount="1" color="#4A9BFF"
+  <Quality id="blue" weight="27" affixCount="1" color="#4A9BFF" rankName="高级"
            beam="thin" hitStop="0.02" shake="0.10" label="false" autoMagnet="true"
            sfx="sfx_drop_blue" />
 
-  <Quality id="purple" weight="11" affixCount="2" color="#A45BFF"
+  <Quality id="purple" weight="11" affixCount="2" color="#A45BFF" rankName="资深"
            beam="medium" hitStop="0.06" shake="0.28" label="true" autoMagnet="false"
            sfx="sfx_drop_purple" bgmLowPass="0.3" dropLine="有点东西" />
 
-  <Quality id="orange" weight="0" affixCount="3" color="#FF7A29"
+  <Quality id="orange" weight="0" affixCount="3" color="#FF7A29" rankName="专家"
            beam="thick" hitStop="0.14" shake="0.55" label="true" autoMagnet="false"
            sfx="sfx_drop_orange" bgmLowPass="1.2" dropLine="这波不亏" />
 

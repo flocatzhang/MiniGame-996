@@ -481,6 +481,34 @@ namespace OfficeHell.Config
         public bool AutoMagnet = true;
         public float BgmLowPass;
         public string DropLine;
+
+        string _rankName;
+
+        /// <summary>
+        /// The tier's word inside an item name: 词缀 + 这个 + 底板, as in 卷王的资深格子衬衫. Deliberately
+        /// not the colour word. The colour is already carried by the beam, the border and the label, so
+        /// spending the name on it too says one thing twice; a job title ladder instead makes the tier
+        /// read as the same promotion track the player is climbing.
+        ///
+        /// Falls back rather than returning empty: a missing word would drop the tier out of every name
+        /// at once, which reads as "these two items are the same" instead of as a broken config.
+        /// </summary>
+        public string RankName
+        {
+            get { return string.IsNullOrEmpty(_rankName) ? DefaultRankName(Q) : _rankName; }
+            set { _rankName = value; }
+        }
+
+        static string DefaultRankName(Quality q)
+        {
+            switch (q)
+            {
+                case Quality.Blue: return "高级";
+                case Quality.Purple: return "资深";
+                case Quality.Orange: return "专家";
+                default: return "初级";
+            }
+        }
     }
 
     /// <summary>value = base * qualityCoef * Random(0.85, 1.15), one formula for mains and affixes.</summary>

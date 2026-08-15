@@ -163,13 +163,17 @@ namespace OfficeHell.Systems
         /// The card hands the item straight over instead of dropping it on the floor. A reward the
         /// player has to walk to could be missed, and a missed level up reward is the worst possible
         /// outcome for the one decision in the game.
+        ///
+        /// DefId is passed through because the spawners otherwise roll their own base: the card named
+        /// 专家订书机 and then granted whichever of the three weapons came up, so two picks in three
+        /// handed over something the player never chose.
         /// </summary>
         void Grant(CardOffer offer)
         {
             Vector2 at = _ctx.Run.Player.Pos;
             LootModel l = offer.IsWeapon
-                ? _loot.SpawnWeapon(at, offer.Quality)
-                : _loot.SpawnArmor(at, offer.Quality);
+                ? _loot.SpawnWeapon(at, offer.Quality, offer.DefId)
+                : _loot.SpawnArmor(at, offer.Quality, offer.DefId);
 
             _loot.CollectNow(l);
         }
@@ -408,7 +412,7 @@ namespace OfficeHell.Systems
 
                 offer.Id = "equip_" + def.Id + "_" + q;
                 offer.DefId = def.Id;
-                offer.Title = QualityWord(q) + def.Name;
+                offer.Title = _ctx.Cfg.QualityOf(q).RankName + def.Name;
 
                 // The card states the unlocked behaviour, not the damage number. Players pick these
                 // for the effect, so a card that only shows numbers is selling the wrong thing.
@@ -425,7 +429,7 @@ namespace OfficeHell.Systems
                 ArmorBaseDef def = bases[Random.Range(0, bases.Count)];
                 offer.Id = "equip_" + def.Id + "_" + q;
                 offer.DefId = def.Id;
-                offer.Title = QualityWord(q) + def.Name;
+                offer.Title = _ctx.Cfg.QualityOf(q).RankName + def.Name;
                 offer.Desc = ArmorBlurb(def, q);
             }
 
@@ -544,17 +548,6 @@ namespace OfficeHell.Systems
                 case StatKey.Luck: return "幸运";
                 case StatKey.PickupRadius: return "拾取范围";
                 default: return key.ToString();
-            }
-        }
-
-        static string QualityWord(Quality q)
-        {
-            switch (q)
-            {
-                case Quality.Blue: return "蓝色";
-                case Quality.Purple: return "紫色";
-                case Quality.Orange: return "橙色";
-                default: return "绿色";
             }
         }
 

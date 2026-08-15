@@ -155,13 +155,28 @@ namespace OfficeHell.Systems
 
         public LootModel SpawnWeapon(Vector2 from, Quality quality)
         {
+            return SpawnWeapon(from, quality, null);
+        }
+
+        /// <summary>
+        /// defId pins the base so a level up card can hand over the item it named. Floor drops pass
+        /// null and roll their own: the card is the only place in the game where the promise and the
+        /// reward are written down next to each other, so it is the only place that has to match.
+        /// </summary>
+        public LootModel SpawnWeapon(Vector2 from, Quality quality, string defId)
+        {
             List<string> order = _ctx.Cfg.WeaponOrder;
             if (order.Count == 0)
             {
                 return SpawnCoffee(from);
             }
 
-            WeaponDef def = _ctx.Cfg.Weapon(order[Random.Range(0, order.Count)]);
+            WeaponDef def = defId == null ? null : _ctx.Cfg.Weapon(defId);
+            if (def == null)
+            {
+                def = _ctx.Cfg.Weapon(order[Random.Range(0, order.Count)]);
+            }
+
             if (def == null)
             {
                 return SpawnCoffee(from);
@@ -173,7 +188,7 @@ namespace OfficeHell.Systems
             l.Slot = EquipSlot.Weapon;
             l.SourceDefId = def.Id;
             l.ViewId = def.ViewId;
-            l.Name = QualityWord(quality) + def.Name;
+            l.Name = _ctx.Cfg.QualityOf(quality).RankName + def.Name;
 
             Dispatch(EventID.LootDropped, l);
             return l;
@@ -181,13 +196,18 @@ namespace OfficeHell.Systems
 
         public LootModel SpawnArmor(Vector2 from, Quality quality)
         {
+            return SpawnArmor(from, quality, null);
+        }
+
+        public LootModel SpawnArmor(Vector2 from, Quality quality, string defId)
+        {
             List<ArmorBaseDef> bases = _ctx.Cfg.Loot.ArmorBases;
             if (bases.Count == 0)
             {
                 return SpawnWeapon(from, quality);
             }
 
-            ArmorBaseDef def = bases[Random.Range(0, bases.Count)];
+            ArmorBaseDef def = ArmorBase(bases, defId);
             QualityDef qd = _ctx.Cfg.QualityOf(quality);
             float coef = _ctx.Cfg.WeaponQuality.Get(quality);
 
@@ -206,11 +226,30 @@ namespace OfficeHell.Systems
                 AddMod(l, (StatType)(int)m.Stat, m.Base, coef, m.Percent, sourceId, null);
             }
 
+            // 词缀 + 品质 + 底板. The tier word used to be dropped whenever an affix rolled, so a 资深
+            // and a 专家 item that happened to share a prefix arrived under the same name, and the one
+            // number the player is comparing was missing from the only place they read.
             string firstAffix = RollAffixes(l, qd.AffixCount, coef, sourceId);
-            l.Name = (firstAffix != null ? firstAffix : QualityWord(quality)) + def.Name;
+            l.Name = (firstAffix == null ? "" : firstAffix) + qd.RankName + def.Name;
 
             Dispatch(EventID.LootDropped, l);
             return l;
+        }
+
+        static ArmorBaseDef ArmorBase(List<ArmorBaseDef> bases, string defId)
+        {
+            if (defId != null)
+            {
+                for (int i = 0; i < bases.Count; i++)
+                {
+                    if (bases[i].Id == defId)
+                    {
+                        return bases[i];
+                    }
+                }
+            }
+
+            return bases[Random.Range(0, bases.Count)];
         }
 
         /// <summary>
@@ -290,17 +329,6 @@ namespace OfficeHell.Systems
                 case StatType.Luck: return "幸运";
                 case StatType.PickupRadius: return "拾取范围";
                 default: return stat.ToString();
-            }
-        }
-
-        static string QualityWord(Quality q)
-        {
-            switch (q)
-            {
-                case Quality.Blue: return "蓝色";
-                case Quality.Purple: return "紫色";
-                case Quality.Orange: return "橙色";
-                default: return "绿色";
             }
         }
 

@@ -128,6 +128,7 @@ namespace OfficeHell.EditorTools
             TestSpawnGeometry(report, cfg);
             TestSpawnBandKeepsDistance(report, cfg);
             TestCardQualityTiers(report, cfg);
+            TestEquipmentNaming(report, cfg);
             TestArmorSlotEffects(report, cfg);
             TestSkillHealIsSilentAtFullSanity(report, cfg);
             TestCoffeeTuning(report, cfg);
@@ -240,6 +241,91 @@ namespace OfficeHell.EditorTools
                 "upgrading a passive did not record the new tier");
 
             report.Line("card tiers scale off the shared quality coefficient and upgrade rather than lock out");
+            h.Dispose();
+        }
+
+        /// <summary>
+        /// 装备名 = 词缀 + 品质 + 底板. Two halves of that used to be false: the tier word was dropped
+        /// whenever an affix rolled, and an equipment card re-rolled its own base on pick, so the item
+        /// that arrived was usually not the one named on the card. Neither errors, both just leave the
+        /// player unable to trust what they read.
+        /// </summary>
+        static void TestEquipmentNaming(Report report, ConfigManager cfg)
+        {
+            // Only distinctness is worth asserting: RankName falls back per tier, so it is never empty,
+            // but nothing stops two rows in Loot.xml from carrying the same word.
+            for (int i = 0; i < cfg.Loot.Qualities.Length; i++)
+            {
+                QualityDef q = cfg.Loot.Qualities[i];
+                for (int j = 0; j < i; j++)
+                {
+                    report.Require(cfg.Loot.Qualities[j].RankName != q.RankName,
+                        "qualities '" + q.Q + "' and '" + cfg.Loot.Qualities[j].Q + "' share rankName '" +
+                        q.RankName + "', so two tiers arrive under one name");
+                }
+            }
+
+            if (cfg.Loot.ArmorBases.Count == 0)
+            {
+                report.Require(false, "no armour bases, equipment naming was never exercised");
+                return;
+            }
+
+            Harness h = Harness.Create(cfg);
+            h.Driver.Flow.StartRun();
+
+            // Pinning the base is what makes the expected string exact. Orange rolls the most affixes,
+            // which is the tier that used to lose its word.
+            ArmorBaseDef armorBase = cfg.Loot.ArmorBases[0];
+            string orangeTail = cfg.QualityOf(Quality.Orange).RankName + armorBase.Name;
+            string greenName = cfg.QualityOf(Quality.Green).RankName + armorBase.Name;
+
+            LootModel orange = h.Driver.Loot.SpawnArmor(h.Player.Pos, Quality.Orange, armorBase.Id);
+            report.Require(orange.Name.EndsWith(orangeTail),
+                "orange armour is named '" + orange.Name + "', expected it to end with '" + orangeTail + "'");
+            report.Require(orange.Name.Length > orangeTail.Length,
+                "orange armour is named '" + orange.Name + "' with no affix in front of the tier word");
+
+            LootModel green = h.Driver.Loot.SpawnArmor(h.Player.Pos, Quality.Green, armorBase.Id);
+            report.Require(green.Name == greenName,
+                "green armour is named '" + green.Name + "', expected '" + greenName + "'");
+
+            // Saturday, so every card is orange and the hand is guaranteed to contain equipment.
+            h.Run.BeginDay(6, cfg);
+
+            LootModel granted = null;
+            System.Action<EvtArg> onDrop = delegate(EvtArg a) { granted = a.O0 as LootModel; };
+            h.Ctx.Bus.Register(EventID.LootDropped, onDrop);
+
+            bool sawEquipment = false;
+            for (int attempt = 0; attempt < 60 && !sawEquipment; attempt++)
+            {
+                h.Driver.Cards.Offer();
+                for (int i = 0; i < h.Driver.Cards.Offers.Count; i++)
+                {
+                    CardOffer o = h.Driver.Cards.Offers[i];
+                    if (o.Kind != CardKind.Equipment)
+                    {
+                        continue;
+                    }
+
+                    granted = null;
+                    h.Driver.Cards.Pick(i);
+                    sawEquipment = true;
+
+                    string got = granted == null ? "nothing" : granted.Name;
+                    report.Require(granted != null && granted.SourceDefId == o.DefId,
+                        "card '" + o.Title + "' granted '" + got + "', which is not the base it named");
+                    report.Require(granted != null && granted.Name.EndsWith(o.Title),
+                        "card '" + o.Title + "' granted '" + got + "', the name has to end with the card title");
+                    break;
+                }
+            }
+
+            h.Ctx.Bus.Unregister(EventID.LootDropped, onDrop);
+            report.Require(sawEquipment, "no equipment card appeared in 60 hands, the grant match was not checked");
+
+            report.Line("item names read 词缀 + 品质 + 底板 and equipment cards grant the base they name");
             h.Dispose();
         }
 

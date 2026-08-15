@@ -680,6 +680,7 @@ namespace OfficeHell.Config
                     d.AutoMagnet = XmlRead.Bool(e, "autoMagnet", true, Report);
                     d.BgmLowPass = XmlRead.Num(e, "bgmLowPass", 0f, Report);
                     d.DropLine = XmlRead.Str(e, "dropLine", null, Report);
+                    d.RankName = XmlRead.Str(e, "rankName", null, Report);
                     loot.Qualities[(int)q] = d;
                 }
 

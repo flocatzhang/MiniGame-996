@@ -344,6 +344,19 @@ namespace OfficeHell.Config
                 {
                     report.Add("Quality '" + q.Q + "' references missing sfx id '" + q.Sfx + "'");
                 }
+
+                // rankName is the only part of an item name that carries the tier, so two tiers sharing
+                // a word means two different items arrive under one name. Nothing errors, the player
+                // just loses the ability to tell an upgrade from a sidegrade by reading it.
+                for (int j = 0; j < i; j++)
+                {
+                    if (cfg.Loot.Qualities[j].RankName == q.RankName)
+                    {
+                        report.Add("Quality '" + q.Q + "' and '" + cfg.Loot.Qualities[j].Q +
+                                   "' share rankName '" + q.RankName +
+                                   "', so both tiers produce the same item name");
+                    }
+                }
             }
 
             if (randomWeight <= 0f)
