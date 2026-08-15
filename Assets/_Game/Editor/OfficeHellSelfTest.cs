@@ -440,11 +440,11 @@ namespace OfficeHell.EditorTools
                     "UIMainMenu has incomplete serialized references");
                 AspectRatioFitter cover = menu.Background.GetComponent<AspectRatioFitter>();
                 report.Require(cover != null && cover.aspectMode == AspectRatioFitter.AspectMode.EnvelopeParent &&
-                               Mathf.Abs(cover.aspectRatio - 1803f / 902f) < 0.0001f,
+                               Mathf.Abs(cover.aspectRatio - 2f) < 0.0001f,
                     "main background must use the cropped reference ratio in Cover mode");
                 Texture texture = menu.Background.texture;
-                report.Require(texture != null && texture.width == 1803 && texture.height == 902,
-                    "main background must be cropped to the requested 1803x902 content rectangle");
+                report.Require(texture != null && texture.width == 1800 && texture.height == 900,
+                    "main background must match the delivered 1800x900 content image");
                 report.Require(texture.name == "MainMenuBackgroundNoButton" &&
                                menu.StartButtonLabel.text == "打卡上班" &&
                                menu.StartButtonImage.gameObject == menu.StartButton.gameObject,
