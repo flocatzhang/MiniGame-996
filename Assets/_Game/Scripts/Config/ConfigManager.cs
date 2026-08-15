@@ -287,6 +287,7 @@ namespace OfficeHell.Config
                     d.Radius = XmlRead.Num(e, "radius", 0.35f, Report);
                     d.ViewId = XmlRead.Str(e, "viewId", null, Report);
                     d.Tier = XmlRead.Enm(e, "tier", EnemyTier.Normal, Report);
+                    d.KnockbackCd = XmlRead.Num(e, "knockbackCd", 1.2f, Report);
                     d.IgnoreScaling = XmlRead.Bool(e, "ignoreScaling", false, Report);
                     d.Behavior = XmlRead.Str(e, "behavior", null, Report);
                     d.Param = KvBag.Parse(XmlRead.Str(e, "behaviorParam", null, Report));
@@ -362,6 +363,7 @@ namespace OfficeHell.Config
                         s.From = XmlRead.Num(se, "from", 0f, Report);
                         s.To = XmlRead.Num(se, "to", w.Duration, Report);
                         s.BudgetPct = XmlRead.Num(se, "budgetPct", 100f, Report);
+                        s.Ramp = Mathf.Max(0.05f, XmlRead.Num(se, "ramp", 2f, Report));
 
                         foreach (XElement pe in se.Elements("Pick"))
                         {
@@ -516,7 +518,11 @@ namespace OfficeHell.Config
                     tier.Slams = Mathf.Max(1, XmlRead.Int(row, "slams", tier.Slams, Report));
                     tier.SecondSlamPct = XmlRead.Num(row, "secondSlamPct", tier.SecondSlamPct, Report);
                     tier.SlowPct = XmlRead.Num(row, "slowPct", tier.SlowPct, Report);
+                    tier.SlowSeconds = XmlRead.Num(row, "slowSeconds", tier.SlowSeconds, Report);
                     tier.SelectAllEvery = XmlRead.Int(row, "selectAllEvery", tier.SelectAllEvery, Report);
+                    tier.SelectAllPct = XmlRead.Num(row, "selectAllPct", tier.SelectAllPct, Report);
+                    tier.SelectAllRadius = XmlRead.Num(row, "selectAllRadius", tier.SelectAllRadius, Report);
+                    tier.SelectAllSharedCd = XmlRead.Num(row, "selectAllSharedCd", tier.SelectAllSharedCd, Report);
                     tier.OrbitCount = Mathf.Max(1, XmlRead.Int(row, "orbitCount", tier.OrbitCount, Report));
                     tier.OrbitRadius = XmlRead.Num(row, "orbitRadius", tier.OrbitRadius, Report);
                     tier.OrbitDegPerSec = XmlRead.Num(row, "orbitDegPerSec", tier.OrbitDegPerSec, Report);

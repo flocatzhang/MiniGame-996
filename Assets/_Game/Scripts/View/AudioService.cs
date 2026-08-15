@@ -771,10 +771,21 @@ namespace OfficeHell.View
             Play(SfxStaplerHit);
         }
 
+        /// <summary>
+        /// The split layers on top of the death rather than replacing it. A body coming apart is two
+        /// events, and swapping one clip for the other spent a whole enemy type's audio on a single
+        /// low clip that never cut through. Keyed on the behavior, not on the "bug" id, so a second
+        /// splitting enemy is a config change rather than another string compare here.
+        /// </summary>
         void OnEnemyKilled(EvtArg arg)
         {
+            Play(SfxEnemyDeath);
+
             EnemyModel enemy = arg.O0 as EnemyModel;
-            Play(enemy != null && enemy.DefId == "bug" ? SfxBugSplit : SfxEnemyDeath);
+            if (enemy != null && enemy.Def != null && enemy.Def.Behavior == "SplitOnDeath")
+            {
+                Play(SfxBugSplit);
+            }
         }
 
         void OnPlayerDamaged(EvtArg arg)

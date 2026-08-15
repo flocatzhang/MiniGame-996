@@ -18,10 +18,18 @@ namespace OfficeHell.View
         TextMesh _label;
 
         Color _baseColor = Color.white;
+        Color _hitColor = Color.white;
+        Color _tintColor = Color.white;
+        float _tintAmount;
         float _baseScale = 1f;
         float _baseBodyY;
-        float _bodyOffsetY;
+        Vector2 _bodyOffset;
         float _scaleMultiplier = 1f;
+        float _squashX = 1f;
+        float _squashY = 1f;
+        float _bodyRoll;
+        float _flashAmount;
+        float _alpha = 1f;
         float _visualTop = 0.5f;
         float _decorationGap = 0.28f;
 
@@ -54,8 +62,14 @@ namespace OfficeHell.View
             _animationFrame = 0;
             _animationElapsed = 0f;
             _animationFrameSeconds = 1f / Mathf.Max(0.1f, def.AnimationFps);
-            _bodyOffsetY = 0f;
+            _bodyOffset = Vector2.zero;
             _scaleMultiplier = 1f;
+            _squashX = 1f;
+            _squashY = 1f;
+            _bodyRoll = 0f;
+            _flashAmount = 0f;
+            _tintAmount = 0f;
+            _alpha = 1f;
             _hasTrackedPosition = false;
 
             if (_animationFrames != null)
@@ -63,7 +77,7 @@ namespace OfficeHell.View
                 Body.sprite = _animationFrames[0];
                 _baseColor = Color.white;
 
-                float desiredHeight = def.SpriteHeight > 0f ? def.SpriteHeight : def.Scale;
+                float desiredHeight = SpriteHeightOf(def);
                 float sourceHeight = Mathf.Max(0.01f, Body.sprite.bounds.size.y);
                 _baseScale = desiredHeight / sourceHeight;
                 _baseBodyY = desiredHeight * 0.5f;
@@ -80,9 +94,46 @@ namespace OfficeHell.View
                 _decorationGap = 0.28f;
             }
 
-            Body.color = _baseColor;
+            _hitColor = HitColorFor(_baseColor);
             Body.flipX = false;
+            ApplyBodyColor();
             ApplyBodyTransform();
+        }
+
+        static float SpriteHeightOf(ViewDef def)
+        {
+            return def.SpriteHeight > 0f ? def.SpriteHeight : def.Scale;
+        }
+
+        /// <summary>
+        /// Height of the drawn body above the entity origin, for anything that wants to sit over an
+        /// entity's head. Character art is anchored at the feet while a primitive is centred on the
+        /// origin, so no caller can assume one or the other. Mirrors what Bind does for _visualTop
+        /// and is only valid for the callers that bind without a shape override, which is every
+        /// character in the game.
+        /// </summary>
+        public static float VisualTopOf(ViewDef def)
+        {
+            if (def == null)
+            {
+                return 0.5f;
+            }
+
+            Sprite[] frames = ArtCatalog.Frames(def.SpriteSet);
+            bool animated = frames != null && frames.Length > 0;
+            return animated ? SpriteHeightOf(def) : def.Scale * 0.5f;
+        }
+
+        /// <summary>
+        /// A SpriteRenderer tint multiplies, so tinting white character art towards white is a no-op
+        /// and the hit would read as nothing at all. Bright bodies shift hue instead. Deliberately a
+        /// washed out red rather than a saturated one: at full strength this covers the whole body,
+        /// and a pure red body reads as an alarm state rather than as "that landed".
+        /// </summary>
+        static Color HitColorFor(Color baseColor)
+        {
+            float luminance = baseColor.r * 0.299f + baseColor.g * 0.587f + baseColor.b * 0.114f;
+            return luminance > 0.72f ? new Color(1f, 0.52f, 0.47f, baseColor.a) : Color.white;
         }
 
         public void SetWorldPosition(Vector2 pos)
@@ -148,28 +199,80 @@ namespace OfficeHell.View
 
         public void SetBodyOffset(float y)
         {
-            _bodyOffsetY = y;
+            _bodyOffset = new Vector2(0f, y);
+            ApplyBodyTransform();
+        }
+
+        /// <summary>
+        /// Every part of a hit or death pose in one call. Setting them one at a time would rebuild the
+        /// body transform four times per corpse per frame, and late game there are dozens of corpses.
+        /// </summary>
+        public void SetBodyPose(Vector2 offset, float scaleMultiplier, float squashX, float squashY, float roll)
+        {
+            _bodyOffset = offset;
+            _scaleMultiplier = scaleMultiplier;
+            _squashX = squashX;
+            _squashY = squashY;
+            _bodyRoll = roll;
             ApplyBodyTransform();
         }
 
         void ApplyBodyTransform()
         {
-            Body.transform.localScale = Vector3.one * (_baseScale * _scaleMultiplier);
+            float scale = _baseScale * _scaleMultiplier;
+            Body.transform.localScale = new Vector3(scale * _squashX, scale * _squashY, 1f);
+
+            // The pivot sits at the feet for character art, so squashing has to pull the body down with
+            // it or a flattened enemy would appear to hover.
             Body.transform.localPosition = new Vector3(
-                0f,
-                _baseBodyY * _scaleMultiplier + _bodyOffsetY,
+                _bodyOffset.x,
+                _baseBodyY * _scaleMultiplier * _squashY + _bodyOffset.y,
                 0f);
+
+            Body.transform.localRotation = Quaternion.Euler(0f, 0f, _bodyRoll);
         }
 
-        public void SetFlash(bool on)
+        public void SetFlashAmount(float amount)
         {
-            Body.color = on ? Color.white : _baseColor;
+            _flashAmount = Mathf.Clamp01(amount);
+            ApplyBodyColor();
         }
 
         public void SetAlpha(float a)
         {
-            Color c = Body.color;
-            c.a = a;
+            _alpha = a;
+            ApplyBodyColor();
+        }
+
+        /// <summary>
+        /// A steady colour for a state that lasts, held apart from the hit flash so that a buff cannot
+        /// be mistaken for damage. The flash is layered over the top, so getting hit while buffed still
+        /// reads as getting hit.
+        /// </summary>
+        public void SetTint(Color color, float amount)
+        {
+            _tintColor = color;
+            _tintAmount = Mathf.Clamp01(amount);
+            ApplyBodyColor();
+        }
+
+        /// <summary>Loot takes its colour from the quality tier, which has to become the new base.</summary>
+        public void SetBaseColor(Color color)
+        {
+            _baseColor = color;
+            _hitColor = HitColorFor(color);
+            ApplyBodyColor();
+        }
+
+        void ApplyBodyColor()
+        {
+            Color c = _tintAmount > 0f ? Color.Lerp(_baseColor, _tintColor, _tintAmount) : _baseColor;
+            if (_flashAmount > 0f)
+            {
+                c = Color.Lerp(c, _hitColor, _flashAmount);
+            }
+
+            c.a = _baseColor.a * _alpha;
             Body.color = c;
         }
 
@@ -318,10 +421,16 @@ namespace OfficeHell.View
             _animationElapsed = 0f;
             _hasTrackedPosition = false;
             _scaleMultiplier = 1f;
-            _bodyOffsetY = 0f;
+            _bodyOffset = Vector2.zero;
+            _squashX = 1f;
+            _squashY = 1f;
+            _bodyRoll = 0f;
+            _flashAmount = 0f;
+            _tintAmount = 0f;
+            _alpha = 1f;
             ApplyBodyTransform();
+            ApplyBodyColor();
             Body.enabled = true;
-            Body.color = _baseColor;
             Body.flipX = false;
             transform.localRotation = Quaternion.identity;
         }

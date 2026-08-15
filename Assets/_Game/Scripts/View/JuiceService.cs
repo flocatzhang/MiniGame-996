@@ -380,9 +380,15 @@ namespace OfficeHell.View
             RequestShake(0.04f);
         }
 
+        /// <summary>
+        /// The full screen flash is down to a tint and the ring carries the weight instead. The sweep
+        /// has an edge now, and a wash over the whole frame claims a reach it no longer has: an enemy
+        /// standing at the screen edge would flash blue and then walk in untouched.
+        /// </summary>
         void OnSelectAll(EvtArg arg)
         {
-            RequestFlash(new Color(0.45f, 0.7f, 1f), 0.35f);
+            SpawnPulse(arg.P0, Mathf.Max(0.5f, arg.F0), new Color(0.45f, 0.7f, 1f, 0.9f), 0.4f);
+            RequestFlash(new Color(0.45f, 0.7f, 1f), 0.14f);
             RequestShake(0.12f);
         }
 

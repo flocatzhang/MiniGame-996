@@ -37,6 +37,7 @@
   <View id="v_slam"  shape="Quad"     color="#CFE3FF" scale="0.70" />
   <View id="v_orbit" shape="Quad"     color="#A0E8FF" scale="0.34" />
   <View id="v_eproj" shape="Diamond"  color="#FF7A7A" scale="0.30" />
+  <!-- Unreferenced since the boss's KPI throw became marked ground. Kept for a decorative folder. -->
   <View id="v_kpi"   shape="Quad"     color="#FF4A3A" scale="0.42" />
 
   <!--

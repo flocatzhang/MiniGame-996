@@ -45,7 +45,13 @@
 **硬指标**：首次升级必须落在开局 **10 秒内**（实测 7.9s）。这条依赖刷怪密度而非天长度。
 
 **老板**：三条 **9999** 血条，三阶段。阶段转换 2 秒无敌 + 召 20 只小怪。
-`ignoreScaling="true"`，逐天成长公式不得触碰它的数值。
+`ignoreScaling="true"`，逐天成长公式不得触碰它的数值。**代价是伤害也一起被冻住**：这个标记只为让 9999 照字面读出来，
+但它同时让老板错过了 `dmgPerDay`，而周六的 `dmgScale` 是 2.6，一度出现 Deadline 打 31 而老板只打 20 的局面。
+老板只在周六出现，所以 `contactDamage` 直接按周六的值手写（当前 52 = 20 × 2.6）；**改 `dmgPerDay` 必须回来重算这个数**。
+
+老板的远程是 **KPI 甩锅**：在玩家周围标地面预警圈，0.8 秒后结算，不是飞行物。
+飞行文件夹打不中任何会走路的玩家——瞄的是投掷瞬间的坐标，速度 8 对玩家 4.5，跨越 6 格要飞 0.75 秒，
+而那段时间玩家已经走出 3.5 格、爆炸半径只有 2.2，任意方向都是躲，包括朝老板跑。
 
 ---
 
@@ -170,6 +176,10 @@ GameApp.LateUpdate:
 - 敌人速度必须 < 玩家 4.5：压迫感只能来自被包围，不能来自被追上
 - **椭圆环带必须完整包住相机矩形**：`(halfW/semiX)² + (halfH/semiY)² <= 1`。逐轴比较是错的，会让敌人在四个对角线角落凭空出现
 - 环带最大触及范围（半轴 + 外推 + 边距）必须落在场地内，否则上下扇区每次放置都失败，方向权重会悄悄失效
+- **刷怪窗口必须铺满整天**：非 `totalSpawn` 覆盖的天，最晚的 `Spawner.To` 不得早于 `duration`，否则收工前那段没有任何敌人到达
+- **`knockbackCd > 0`**：归零等于恢复每次命中都击退，六个槽位一起打足以把怪永久顶在身前
+- **`slowSeconds` 必须短于武器攻击间隔 `1/rate`**：否则下一次命中在减速失效前就续上，减速不再是减速而是敌人的真实速度
+- `selectAllEvery > 0` 时 `selectAllPct` 不得为 0（Ctrl+A 一击不掉血）、`selectAllRadius` 必须大于 `blastRadius`（否则大招覆盖还不如它替掉的那一击）、`selectAllSharedCd` 必须 > 0（否则六个槽位同时扫）
 - `orange` 权重必须为 0：橙装只走保底与脚本通道
 - 武器档位不得回退（如高品质 `projCount` 比低品质小）
 - `weaponShare + armorShare == 100`；防具必须覆盖三个槽位
@@ -222,15 +232,15 @@ GameApp.LateUpdate:
 | 系统 | 职责 | 扩展点 |
 | --- | --- | --- |
 | `GameFlowFsm` | 6 状态机 + `GameClock.Scale` 闸门 | 状态：`MainMenu` `DayStart` `Battle` `LevelUp` `OffWork` `Result` |
-| `SpawnSystem` | 按天预算刷怪、同屏上限欠账、`Fixed` 定时刷、精英登场 | 密度公式 `ceil(density * duration)`，`totalSpawn` 仅周六覆盖 |
+| `SpawnSystem` | 按天预算刷怪、同屏上限欠账、`Fixed` 定时刷、精英登场 | 密度公式 `ceil(density * duration)`，`totalSpawn` 仅周六覆盖。预算按**累计进度表**释放而非按固定组量抽干：`interval` / `groupSize` 只决定节奏，窗口一定铺满到收工。`ramp` 是窗口末尾相对开头的到达倍率（默认 2），只改分布不改总量 |
 | `SpawnBand` | 椭圆环带取点：24 扇区轮转 + 左右权重 + 外推 + 间距校验 + 边界回退 | 取点失败**回退到最近可用扇区而非跳过**：贴墙让怪停刷会在一局内被玩家发现并利用 |
 | `EnemyAiSystem` | 直线追击 + 委派 `IEnemyBehavior` | `EnemyBehaviorRegistry` 字符串→实例映射 |
 | `EnemyBehaviors` | 7 种行为 | `SuicideOnContact` `SplitOnDeath` `AuraMoveSlow` `AuraAttackSlow` `AuraHaste` `RangedKeepDistance` `BossSkills` |
 | `WeaponSystem` | 6 槽 CD 与相位错开，委派 `IWeaponBehavior` | 无目标时**不消耗 CD**，0.12s 后重试，否则空场地白烧攻速 |
 | `WeaponBehaviors` | 2 种发射行为 | `ProjectileLauncher` `GroundAoe`。**`Orbit` 不在此处**：轨道卡随装备常驻，由 `OrbitSystem` 独占，`Get(Orbit)` 返回 null |
-| `SlamSystem` | `GroundAoe` 落点延迟结算、全屏 Ctrl+A | |
+| `SlamSystem` | `GroundAoe` 落点延迟结算 | 所有落点走同一个圆判定，**Ctrl+A 不再是全屏**：以玩家为心扫 `selectAllRadius`（6.0，相机半展 9.78×5.5，纵向盖满、横向留活口），按 `selectAllPct` 打折且不带击退与减速。全屏满伤 + 全屏控制是三个效果收一份钱，会把场地清空到其余五个槽位没有目标。`selectAllSharedCd` 是**跨槽位共享**的，存在 `PlayerModel.SelectAllReadyAt`：单把键盘约 7.7s 才轮到一次，永远碰不到这个 CD；六把同时到点会在两秒内扫六次，那就不是大招而是环境光。被挡下的槽位**不推进 `AttackCount`**，下一击重试而不是作废整轮 |
 | `OrbitSystem` | 环绕卡位置、同目标 CD、橙品质 tether | |
-| `TelegraphSystem` | 地面预警圈到期后生成实体，`SummonDrop` 携带保证掉落 | |
+| `TelegraphSystem` | 地面预警圈到期后结算伤害、生成实体，`SummonDrop` 携带保证掉落 | 老板的三种落地攻击（甩锅 / 开会 / 落雨）全部走这里，敌方投射物只剩周报一种，且只做接触判定 |
 | `CombatSystem` | 投射物命中、接触伤害、无敌帧、闪避、护盾 | 无敌帧触发帧取所有接触敌人的 **max(contactDamage)** |
 | `LootSystem` | 咖啡 / 装备掉落、词缀 roll、保底、磁吸与踩取、自动装备 | |
 | `ProgressionSystem` | 经验、等级、职级变更事件 | |
@@ -262,9 +272,9 @@ GameApp.LateUpdate:
 
 `JuiceService` 内置 **0.25s 顿帧节流**且只接受 `>= Elite` 优先级：后期每秒十几次击杀，逐次顿帧会退化成幻灯片。
 
-`AudioService` 有 SFX / UI / BGM 三条代码式逻辑总线：24 个池化 SFX Source、两个 0.5 秒交叉淡化 BGM Source、一个低 SAN Loop Source。节流与并发按播放 key 统计，不能改回 `AudioClip.name`。四档掉落使用独立立体声 Clip，配置音量为 `0.50 / 0.46 / 1.00 / 0.90`；SFX 总线留 3dB 余量，四档掉落以 `gainDb=3` 单项取回。主菜单/战斗/Boss/结算分别播放 `bgm_login/battle/boss/result`；战斗曲每天升调 0.04，Boss 三阶段调整低通、音高和音量。黄/橙奖励音不衰减，其余 SFX 与 BGM duck -6dB，恢复时回到当前 Boss 阶段基线。
+`AudioService` 有 SFX / UI / BGM 三条代码式逻辑总线：24 个池化 SFX Source、两个 0.5 秒交叉淡化 BGM Source、一个低 SAN Loop Source。节流与并发按播放 key 统计，不能改回 `AudioClip.name`。四档掉落使用独立立体声 Clip，配置音量为 `0.36 / 0.52 / 1.00 / 0.90`；这组值是按素材实测响度反推的补偿而非阶梯本身，换掉任何一档素材都必须重算；SFX 总线留 3dB 余量，四档掉落以 `gainDb=3` 单项取回。主菜单/战斗/Boss/结算分别播放 `bgm_login/battle/boss/result`；战斗曲每天升调 0.04，Boss 三阶段调整低通、音高和音量。黄/橙奖励音不衰减，其余 SFX 与 BGM duck -6dB，恢复时回到当前 Boss 阶段基线。
 
-`VoiceTest/` 保留 23 个交付源，不参与构建运行。`Tools/Audio/prepare_audio.py` 校验固定清单并生成 `Assets/_Game/Audio/Resources/Audio/{SFX,Drop,Loop,BGM}`；只裁派生版邮件死亡到 0.30 秒并淡出 0.05 秒。`OfficeHellAudioImporter` 固定 SFX 为 PCM/Decompress On Load，Drop 为 Vorbis 80/Decompress On Load/立体声，Loop 为 Vorbis 70/Compressed In Memory，BGM 为 Vorbis 65/Streaming。黄色 Drop 源为 11025Hz，Unity Vorbis 运行时会报告 11000Hz；其余三档是 48000Hz。Release 已嵌入这些资源，不依赖 `VoiceTest/`。
+`VoiceTest/` 保留 23 个交付源，不参与构建运行。`Tools/Audio/prepare_audio.py` 校验固定清单并生成 `Assets/_Game/Audio/Resources/Audio/{SFX,Drop,Loop,BGM}`；只裁派生版邮件死亡到 0.30 秒并淡出 0.05 秒。`OfficeHellAudioImporter` 固定 SFX 为 PCM/Decompress On Load，Drop 为 Vorbis 80/Decompress On Load/立体声，Loop 为 Vorbis 70/Compressed In Memory，BGM 为 Vorbis 65/Streaming。蓝色与黄色 Drop 源为 11025Hz，Unity Vorbis 运行时会报告 11000Hz；白色与橙色是 48000Hz。Release 已嵌入这些资源，不依赖 `VoiceTest/`。
 
 相机分两级：`CameraRig` 持有 z=-10 的跟随位置，`Camera` 作为子节点本地 z=0 只承载抖动偏移。混在一层会让抖动破坏正交投影距离。
 
@@ -307,11 +317,24 @@ HUD 布局：左上 SAN + 职级，中上时钟 + 星期，右上 KPI 条，左�
 
 首次升级 7.9s，结局 `Clear`，`hpScale` 终值 5.00，同屏峰值 30，累计发卡 8 张。
 
-### 两处刻意偏离策划案
+> **这张表已作废两轮，尚未重测。** 第一轮是刷怪改为进度表释放（预算不再在 55% 处抽干，窗口铺满全天），
+> 第二轮是刷怪总量翻倍：475 → 923，同时每天的怪物种类拓宽。**下面所有派生数字都是推算值，不是实测值。**
+>
+> 翻倍不是均匀的。周一 1.00 → 1.70、周五 2.03 → 4.30，因为接触伤害按无敌帧封顶而不是按敌人数封顶，
+> 二十只和四十只在被围住之后收同样的 SAN，先崩的永远是只有一把武器的那天。周六 `totalSpawn` 保持 20 不动：
+> 武器自动锁最近目标，多加 40 只小怪等于六个槽位整场在打邮件，老板站着不掉血。
+>
+> **跑第 3 道闸门后按实测值订正本表与下面两个锚点。**四个要盯的输出：`first level up` 是否仍 < 10s、
+> `last rank on day` 是否仍为 6、`kpi peaked` 是否到 99、`peak alive` 是否顶到了 `concurrentMax`
+> （顶到了说明欠账在吞增量，得继续抬 `concurrentMax` 而不是抬 `density`）。
 
-**`expCoef = 12`（策划案写 10）**。策划案正文公式推出到 9 级累计 920 点，但表格写 1162——表格把当前级花费也算进了累计列，整体错位一级。按 920 实测，玩家在周五 2/3 处就满级，最后一天半没有任何升级。策划案散文明确写「玩家正好在周六升到 CEO」，取 12 后累计 1103，落在周五/周六交界。
+### 三处刻意偏离策划案
 
-**`kpiTargetKills = 640`（策划案未给）**。满周实测 681 具，640 使 KPI 条在周六中段撞上 99 并卡住。取更高则永远停在 98，上限读不出是上限；取更低则周四就贴住 99，上限会被读成满条。
+**`expCoef = 12` / `expPower = 1.95`（策划案写 coef 10、power 1.55）**。策划案正文公式推出到 9 级累计 920 点，但表格写 1162——表格把当前级花费也算进了累计列，整体错位一级。按 920 实测，玩家在周五 2/3 处就满级，最后一天半没有任何升级。策划案散文明确写「玩家正好在周六升到 CEO」。
+
+刷怪翻倍后经验供给同步翻倍（约 1230 → 2480），曲线必须跟着翻，否则周三就满级。**抬的是 `power` 不是 `coef`**：1 级花费恒等于 `coef`，而「首次升级 10 秒内」是这张表里唯一对玩家的承诺，翻 `coef` 等于把它从 6 只邮件变成 12 只。`power` 1.55 → 1.95 让 1 级停在 12 点不动，把全部增量压到 5-9 级——也正是多出来的经验实际到账的地方。累计 1103 → 约 2240，每一级晋升落在的天数与翻倍前一致。`OfficeHellSelfTest` 有一条 `firstLevel <= 16` 的硬断言专门守这个，动 `coef` 会直接红。
+
+**`kpiTargetKills = 1120`（策划案未给）**。翻倍前是 640 对满周实测 681 具。翻倍后预计约 1200 具，取其 94%。取更高则永远停在 98，上限读不出是上限；取更低则周四就贴住 99，上限会被读成满条。**这个数按自测的 `total kills` × 0.94 订正。**
 
 ### 几何耦合关系
 
@@ -380,7 +403,10 @@ dotnet build Tools/Verify/Verify.csproj
 - 写 `Time.timeScale` —— 顿帧会连带冻住 UI 与特效
 - 在 `Compact()` 之外移除实体 —— 会让本帧已发出的网格下标失效
 - 用 `+=` 累加光环 —— 五个 PPT 会把玩家减速到 0
+- 直接写 `EnemyModel.Knockback` —— 绕过内置 CD，六个槽位的击退会叠起来把怪永久顶住；一律走 `TryKnockback`，参数是**距离**不是冲量
 - 给系统之间加直接引用 —— 应走 `EventBus` 或 `GameContext`
+- 在表现层写死预警圈颜色 —— 四种 `v_warn_*` 的色相是配置里唯一区分"这个圈会打你"和"这个圈只是仪式"的手段，一律取 `ViewDef.Color`。精英登场圈 `Damage` 恒为 0，画成红色等于让玩家躲一个不存在的攻击
+- 表现层按内容 id 分派（`DefId == "bug"`）—— 按行为名或 def 字段判定，否则新增同类敌人时音效与特效会静默漏掉
 - 用 `EvtArg` 的整数字段复用多重语义 —— 传模型引用放 `O0`
 - 为品质差异新开代码路径 —— 品质只应改参数
 - 掉落改成全自动吸取 —— 走过去捡黄橙的那两秒是期待感本身

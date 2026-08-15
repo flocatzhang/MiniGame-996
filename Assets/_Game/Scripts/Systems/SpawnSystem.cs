@@ -17,7 +17,8 @@ namespace OfficeHell.Systems
         readonly SpawnBand _band;
         readonly List<float> _weights = new List<float>(8);
         readonly List<float> _nextAt = new List<float>(4);
-        readonly List<int> _quota = new List<int>(4);
+        readonly List<int> _budget = new List<int>(4);
+        readonly List<int> _released = new List<int>(4);
         readonly List<EnemyDef> _debt = new List<EnemyDef>(32);
         readonly HashSet<int> _firedFixed = new HashSet<int>();
 
@@ -30,7 +31,8 @@ namespace OfficeHell.Systems
         public void OnDayBegin()
         {
             _nextAt.Clear();
-            _quota.Clear();
+            _budget.Clear();
+            _released.Clear();
             _debt.Clear();
             _firedFixed.Clear();
 
@@ -47,7 +49,8 @@ namespace OfficeHell.Systems
 
                 // First group arrives quickly so the day never opens on an empty screen.
                 _nextAt.Add(sp.From + 0.25f);
-                _quota.Add(Mathf.CeilToInt(total * Mathf.Max(0f, sp.BudgetPct) * 0.01f));
+                _budget.Add(Mathf.CeilToInt(total * Mathf.Max(0f, sp.BudgetPct) * 0.01f));
+                _released.Add(0);
             }
         }
 
@@ -116,9 +119,7 @@ namespace OfficeHell.Systems
             float reach = _ctx.Cfg.Camera.OrthographicSize * 0.8f;
 
             float angle = Random.value * Mathf.PI * 2f;
-            Vector2 pos = run.Player.Pos + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * reach;
-            pos.x = Mathf.Clamp(pos.x, -arena.HalfWidth + 1f, arena.HalfWidth - 1f);
-            pos.y = Mathf.Clamp(pos.y, -arena.HalfHeight + 1f, arena.HalfHeight - 1f);
+            Vector2 pos = arena.Clamp(run.Player.Pos + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * reach, 1f);
 
             TelegraphModel t = run.RentTelegraph();
             t.Pos = pos;
@@ -143,20 +144,43 @@ namespace OfficeHell.Systems
             for (int s = 0; s < day.Spawners.Count; s++)
             {
                 SpawnerDef sp = day.Spawners[s];
-                if (run.DayElapsed < _nextAt[s] || run.DayElapsed > sp.To || _quota[s] <= 0)
+                if (run.DayElapsed < _nextAt[s] || run.DayElapsed > sp.To)
                 {
                     continue;
                 }
 
                 _nextAt[s] = _nextAt[s] + sp.Interval;
 
-                // Enemies arrive in groups every couple of seconds. An even drip reads as sparse no
-                // matter how many spawn in total, and being swamped is the only pressure this has.
+                int owed = Owed(sp, s, run.DayElapsed);
+
+                if (_released[s] == 0)
+                {
+                    // The day must never open on an empty screen, so the opening release always pays a
+                    // whole group even before the schedule has accrued one. It is borrowed rather than
+                    // added: nothing is owed again until the schedule catches up, and the window still
+                    // spends exactly its budget.
+                    owed = Mathf.Max(owed, sp.GroupSize);
+                }
+                else if (owed < sp.GroupSize && _released[s] + owed < _budget[s])
+                {
+                    // Enemies arrive in groups. An even drip reads as sparse no matter how many arrive
+                    // in total, and being swamped is the only pressure this game has, so the schedule
+                    // is allowed to run behind until it can pay a whole group at once. That is also
+                    // what makes the ramp show up as shorter gaps rather than a thickening trickle.
+                    continue;
+                }
+
+                owed = Mathf.Min(owed, _budget[s] - _released[s]);
+                if (owed <= 0)
+                {
+                    continue;
+                }
+
                 _band.BeginBurst();
 
-                for (int n = 0; n < sp.GroupSize; n++)
+                for (int n = 0; n < owed; n++)
                 {
-                    if (_quota[s] <= 0 || run.SpawnedToday >= day.TotalSpawn)
+                    if (run.SpawnedToday >= day.TotalSpawn)
                     {
                         break;
                     }
@@ -167,7 +191,7 @@ namespace OfficeHell.Systems
                         break;
                     }
 
-                    _quota[s]--;
+                    _released[s]++;
                     run.SpawnedToday++;
 
                     if (alive >= day.ConcurrentMax)
@@ -183,6 +207,38 @@ namespace OfficeHell.Systems
                     alive++;
                 }
             }
+        }
+
+        /// <summary>
+        /// How many enemies this spawner is behind its schedule right now.
+        ///
+        /// The budget used to be drained at a fixed group size every fixed interval, which spends it
+        /// far faster than the day is long: every day ran out of enemies around two thirds through and
+        /// the rest of the shift was spent walking around an empty office waiting for the clock. Paying
+        /// against a cumulative schedule instead spends the budget exactly at the closing bell, for any
+        /// combination of interval, group size and window a designer writes.
+        ///
+        /// The schedule ramps. Arrival rate climbs linearly from 2/(1+ramp) to 2*ramp/(1+ramp) times
+        /// the average, so it integrates to exactly one budget over the window while the last hour is
+        /// the busy one. The rate is what ramps and the count is what stays pinned, never the reverse:
+        /// a ramp applied to the count would quietly change how many enemies a day produces, and the
+        /// exp curve, the KPI target and the drop economy are all solved against that number.
+        /// </summary>
+        int Owed(SpawnerDef sp, int index, float elapsed)
+        {
+            // Read one interval ahead, because a tick pays for the period that follows it rather than
+            // the one behind it. Without the lead the opening tick of every window is owed nothing and
+            // the first group lands one interval late, which on Monday is most of the margin on the
+            // ten second first upgrade.
+            float span = Mathf.Max(0.01f, sp.To - sp.From);
+            float u = Mathf.Clamp01((elapsed - sp.From + sp.Interval) / span);
+
+            float ramp = Mathf.Max(0.05f, sp.Ramp);
+            float startRate = 2f / (1f + ramp);
+            float progress = startRate * u + startRate * (ramp - 1f) * u * u * 0.5f;
+
+            int due = Mathf.RoundToInt(_budget[index] * Mathf.Clamp01(progress));
+            return Mathf.Max(0, due - _released[index]);
         }
 
         void DrainDebt(DayDef day, RunModel run)

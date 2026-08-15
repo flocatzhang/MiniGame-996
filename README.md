@@ -101,11 +101,11 @@ python Tools/Audio/prepare_audio.py
 脚本会校验 14 个普通 SFX、4 个定稿掉落音、1 个低 SAN 循环和 4 段 BGM 是否齐全；只在派生目录中把邮件死亡裁到 0.30 秒并做 0.05 秒淡出，BUG 分裂保持 0.48 秒。`OfficeHellAudioImporter` 自动应用以下导入规则：
 
 - SFX：PCM、Decompress On Load、单声道、预加载。
-- Drop：Vorbis 80、Decompress On Load、立体声、预加载；黄色源文件保留 11025Hz（Unity Vorbis 运行时报告 11000Hz），其余三档为 48000Hz。
+- Drop：Vorbis 80、Decompress On Load、立体声、预加载；蓝色与黄色源文件保留 11025Hz（Unity Vorbis 运行时报告 11000Hz），白色与橙色为 48000Hz。
 - 低 SAN Loop：Vorbis 70、Compressed In Memory、单声道。
 - BGM：Vorbis 65、Streaming、立体声、后台加载。
 
-`AudioService` 用 24 个 SFX Source、2 个交叉淡化 BGM Source 和 1 个低 SAN Loop Source 实现 SFX/UI/BGM 三条逻辑总线。四档掉落使用独立立体声 Clip，音量按 `0.50 / 0.46 / 1.00 / 0.90` 建立由轻到重的阶梯；普通 SFX 留 3dB 余量，掉落单项取回 3dB。卡片登场也使用独立正式 Clip。所有正式 Clip 都保留 Synth 参数作为加载失败回退。
+`AudioService` 用 24 个 SFX Source、2 个交叉淡化 BGM Source 和 1 个低 SAN Loop Source 实现 SFX/UI/BGM 三条逻辑总线。四档掉落使用独立立体声 Clip，音量按 `0.36 / 0.52 / 1.00 / 0.90` 建立由轻到重的阶梯；普通 SFX 留 3dB 余量，掉落单项取回 3dB。卡片登场也使用独立正式 Clip。所有正式 Clip 都保留 Synth 参数作为加载失败回退。
 
 ## 4. 架构
 
@@ -175,6 +175,8 @@ Flow → Camera → [dt 闸门] → Input → Movement → Spawn → EnemyAi →
 | `ConfigManager` | 全部解析非抛异常，问题聚合成一份报告 | XML 丢掉了类型检查，坏行必须能继续跑 |
 | `Scaling` | 成长走全局公式，天行只在破例时覆盖（仅周六） | 6 行手填 `hpScale` 必错，且改公式要改 6 处 |
 | `Day.TotalSpawn` | 由 `density * duration` 推导，不手写 | 改天长度自动得到匹配的怪量，否则每次调时长都要重算 |
+| `SpawnSystem.Owed` | 预算按累计进度表释放，`interval` / `groupSize` 只是节奏 | 固定组量抽预算会在半天内抽干，收工前那段一只怪都不来，玩家只能挂机等下班 |
+| `EnemyModel.TryKnockback` | 每只怪自带击退内置 CD，参数是距离不是冲量 | 六个槽位的击退互相叠加，怪会被永久顶在身前走不过来 |
 
 ## 6. 手动验收清单
 

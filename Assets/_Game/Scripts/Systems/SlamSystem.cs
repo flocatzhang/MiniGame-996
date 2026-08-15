@@ -33,15 +33,7 @@ namespace OfficeHell.Systems
                 }
 
                 s.IsDead = true;
-
-                if (s.SelectAll)
-                {
-                    ResolveSelectAll(s);
-                }
-                else
-                {
-                    ResolveCircle(s);
-                }
+                ResolveCircle(s);
 
                 EvtArg a = new EvtArg();
                 a.I0 = s.Slot;
@@ -49,6 +41,15 @@ namespace OfficeHell.Systems
                 a.F0 = s.Radius;
                 a.P0 = s.Target;
                 _ctx.Bus.Dispatch(EventID.SlamLanded, a);
+
+                if (s.SelectAll)
+                {
+                    EvtArg sa = new EvtArg();
+                    sa.I0 = s.Slot;
+                    sa.F0 = s.Radius;
+                    sa.P0 = s.Target;
+                    _ctx.Bus.Dispatch(EventID.SelectAll, sa);
+                }
             }
         }
 
@@ -81,46 +82,21 @@ namespace OfficeHell.Systems
             }
         }
 
-        /// <summary>
-        /// Ctrl + A. No spatial query at all, just walk the live list once. The joke and the code
-        /// happen to be the same shape, which is the cheapest kind of feature there is.
-        /// </summary>
-        void ResolveSelectAll(SlamModel s)
-        {
-            RunModel run = _ctx.Run;
-            for (int i = 0; i < run.Enemies.Count; i++)
-            {
-                EnemyModel e = run.Enemies[i];
-                if (!e.IsDead)
-                {
-                    Apply(s, e);
-                }
-            }
-
-            EvtArg a = new EvtArg();
-            a.I0 = s.Slot;
-            a.P0 = s.Target;
-            _ctx.Bus.Dispatch(EventID.SelectAll, a);
-        }
-
         void Apply(SlamModel s, EnemyModel e)
         {
-            if (s.SlowPct > 0f)
+            if (s.SlowPct > 0f && s.SlowSeconds > 0f)
             {
                 e.SlowPct = Mathf.Max(e.SlowPct, s.SlowPct);
-                e.SlowUntil = GameClock.Now + 1.5f;
+                e.SlowUntil = Mathf.Max(e.SlowUntil, GameClock.Now + s.SlowSeconds);
             }
 
-            if (s.Knockback > 0f)
+            Vector2 dir = e.Pos - s.Target;
+            if (dir.sqrMagnitude < 0.0001f)
             {
-                Vector2 dir = e.Pos - s.Target;
-                if (dir.sqrMagnitude < 0.0001f)
-                {
-                    dir = Vector2.up;
-                }
-
-                e.Knockback += dir.normalized * s.Knockback;
+                dir = Vector2.up;
             }
+
+            e.TryKnockback(dir, s.Knockback, GameClock.Now);
 
             CombatSystem.DealDamageToEnemy(_ctx, e, s.Damage, s.Target);
         }

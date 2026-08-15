@@ -20,6 +20,27 @@ namespace OfficeHell.View
         const string KeyWarn = "view.warn";
         const string KeyOrbit = "view.orbit";
 
+        /// <summary>
+        /// Recoil runs on unscaled time so a hitstop freezes the world but never the reaction that
+        /// explains it. Short enough that the next hit on the same enemy always restarts it cleanly.
+        /// </summary>
+        const float HitReactSeconds = 0.16f;
+
+        /// <summary>
+        /// Corpses are the only views that outlive their model, so they need their own ceiling.
+        /// A boss phase change kills twenty adds at once and the pool should not spike past that.
+        /// </summary>
+        const int MaxDeathFx = 96;
+
+        /// <summary>Matches the pulse JuiceService throws on SkillCast, so the two read as one effect.</summary>
+        static readonly Color SkillTint = new Color(0.45f, 1f, 0.78f);
+
+        /// <summary>
+        /// Half the player's drawn height, refreshed each frame so a hot reload or a re-export of the
+        /// character art cannot leave the shots hovering. See BodyPlane for what it is for.
+        /// </summary>
+        float _bodyPlaneY;
+
         readonly GameContext _ctx;
         readonly PoolService _pool;
         readonly Transform _root;
@@ -28,19 +49,53 @@ namespace OfficeHell.View
         readonly List<int> _stale = new List<int>(128);
         readonly HashSet<int> _seen = new HashSet<int>();
 
+        readonly Dictionary<int, HitFx> _hits = new Dictionary<int, HitFx>(128);
+        readonly List<DeathFx> _deaths = new List<DeathFx>(64);
+
         EntityView _playerView;
         EntityView _pickupRing;
+
+        float _playerHitAt = -999f;
+        Vector2 _playerHitDir = Vector2.right;
+
+        struct HitFx
+        {
+            public float StartedAt;
+            public Vector2 Dir;
+        }
+
+        struct DeathFx
+        {
+            public EntityView View;
+            public float StartedAt;
+            public float Duration;
+            public Vector2 Dir;
+            public float Grow;
+            public float Spin;
+        }
 
         public ViewBinder(GameContext ctx, PoolService pool, Transform root)
         {
             _ctx = ctx;
             _pool = pool;
             _root = root;
+
+            _ctx.Bus.Register(EventID.EnemyDamaged, OnEnemyDamaged);
+            _ctx.Bus.Register(EventID.EnemyKilled, OnEnemyKilled);
+            _ctx.Bus.Register(EventID.PlayerDamaged, OnPlayerDamaged);
+        }
+
+        public void Dispose()
+        {
+            _ctx.Bus.Unregister(EventID.EnemyDamaged, OnEnemyDamaged);
+            _ctx.Bus.Unregister(EventID.EnemyKilled, OnEnemyKilled);
+            _ctx.Bus.Unregister(EventID.PlayerDamaged, OnPlayerDamaged);
         }
 
         public void Sync(float unscaledDt)
         {
             _seen.Clear();
+            _bodyPlaneY = EntityView.VisualTopOf(_ctx.Cfg.View("v_player")) * 0.5f;
 
             SyncPlayer();
             SyncEnemies();
@@ -50,6 +105,7 @@ namespace OfficeHell.View
             SyncOrbits();
             SyncLoot();
             Prune();
+            TickDeaths();
         }
 
         public void RecycleAll()
@@ -64,6 +120,141 @@ namespace OfficeHell.View
             }
 
             _bound.Clear();
+
+            for (int i = 0; i < _deaths.Count; i++)
+            {
+                EntityView v = _deaths[i].View;
+                if (v != null)
+                {
+                    v.ResetDecorations();
+                    _pool.Recycle(v.gameObject);
+                }
+            }
+
+            _deaths.Clear();
+            _hits.Clear();
+            _playerHitAt = -999f;
+        }
+
+        // ---------- hit and death reactions ----------
+
+        void OnEnemyDamaged(EvtArg arg)
+        {
+            EnemyModel e = arg.O0 as EnemyModel;
+            if (e == null)
+            {
+                return;
+            }
+
+            HitFx fx;
+            fx.StartedAt = Time.unscaledTime;
+            fx.Dir = AwayFrom(e.Pos, _ctx.Run.Player.Pos, e.Id);
+            _hits[e.Id] = fx;
+        }
+
+        void OnPlayerDamaged(EvtArg arg)
+        {
+            _playerHitAt = Time.unscaledTime;
+            _playerHitDir = AwayFrom(arg.P0, arg.P1, 0);
+        }
+
+        /// <summary>
+        /// The model is gone by the time the next Sync runs, so the view is lifted out of the binding
+        /// table here and finishes on its own. Without this an enemy simply stops existing mid frame,
+        /// which is what six hundred kills a run currently look like.
+        /// </summary>
+        void OnEnemyKilled(EvtArg arg)
+        {
+            _hits.Remove(arg.I0);
+
+            EntityView v;
+            if (!_bound.TryGetValue(arg.I0, out v) || v == null)
+            {
+                return;
+            }
+
+            _bound.Remove(arg.I0);
+
+            // The kill lands during Update but the view was last placed in the previous LateUpdate,
+            // so take the position off the event rather than leaving the corpse a frame behind.
+            v.SetWorldPosition(arg.P0);
+            v.HideBar();
+            v.HideLabel();
+            v.HideRing();
+            v.HideBeam();
+
+            if (_deaths.Count >= MaxDeathFx)
+            {
+                EntityView oldest = _deaths[0].View;
+                if (oldest != null)
+                {
+                    oldest.ResetDecorations();
+                    _pool.Recycle(oldest.gameObject);
+                }
+
+                _deaths.RemoveAt(0);
+            }
+
+            EnemyTier tier = (EnemyTier)arg.I1;
+
+            DeathFx fx;
+            fx.View = v;
+            fx.StartedAt = Time.unscaledTime;
+            fx.Duration = tier == EnemyTier.Boss ? 0.85f : tier == EnemyTier.Elite ? 0.45f : 0.24f;
+            fx.Grow = tier == EnemyTier.Boss ? 0.75f : tier == EnemyTier.Elite ? 0.55f : 0.4f;
+            fx.Dir = AwayFrom(arg.P0, _ctx.Run.Player.Pos, arg.I0);
+            fx.Spin = ((arg.I0 & 1) == 0 ? 1f : -1f) * (tier == EnemyTier.Normal ? 34f : 16f);
+            _deaths.Add(fx);
+        }
+
+        void TickDeaths()
+        {
+            float now = Time.unscaledTime;
+
+            for (int i = _deaths.Count - 1; i >= 0; i--)
+            {
+                DeathFx fx = _deaths[i];
+                if (fx.View == null)
+                {
+                    _deaths.RemoveAt(i);
+                    continue;
+                }
+
+                float t = (now - fx.StartedAt) / fx.Duration;
+                if (t >= 1f)
+                {
+                    fx.View.ResetDecorations();
+                    _pool.Recycle(fx.View.gameObject);
+                    _deaths.RemoveAt(i);
+                    continue;
+                }
+
+                // Ease out, so the burst reads as one impact rather than a slow balloon.
+                float ease = 1f - (1f - t) * (1f - t);
+
+                fx.View.SetFlashAmount(1f - Mathf.Clamp01(t * 3f));
+                fx.View.SetAlpha(1f - ease);
+                fx.View.SetBodyPose(
+                    fx.Dir * (0.8f * ease) + new Vector2(0f, 0.3f * ease),
+                    1f + fx.Grow * ease,
+                    1f + 0.16f * ease,
+                    1f - 0.24f * ease,
+                    fx.Spin * ease);
+            }
+        }
+
+        /// <summary>Zero length happens when an enemy dies standing on the player; pick a stable angle.</summary>
+        static Vector2 AwayFrom(Vector2 pos, Vector2 source, int seed)
+        {
+            Vector2 delta = pos - source;
+            float length = delta.magnitude;
+            if (length > 0.0001f)
+            {
+                return delta / length;
+            }
+
+            float angle = seed * 137.5f * Mathf.Deg2Rad;
+            return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
         }
 
         void SyncPlayer()
@@ -88,9 +279,40 @@ namespace OfficeHell.View
                 p.Facing.x,
                 p.MoveIntent.sqrMagnitude > 0.0001f);
 
-            // Invulnerability has to be visible or the frame reads as an unexplained miss.
-            bool invuln = p.IsInvulnerable(GameClock.Now);
-            _playerView.SetFlash(invuln && Mathf.Repeat(Time.unscaledTime * 12f, 1f) > 0.5f);
+            float unscaledNow = Time.unscaledTime;
+            float flash = 0f;
+            float squashX = 1f;
+            float squashY = 1f;
+            Vector2 offset = Vector2.zero;
+
+            float hit = 1f - (unscaledNow - _playerHitAt) / HitReactSeconds;
+            if (hit > 0f)
+            {
+                float snap = hit * hit;
+                flash = hit * 0.75f;
+                offset = _playerHitDir * (0.18f * snap);
+                squashX = 1f + 0.22f * snap;
+                squashY = 1f - 0.16f * snap;
+            }
+
+            float logicalNow = GameClock.Now;
+
+            // Only the i-frames a hit grants are worth blinking about, so this deliberately does not
+            // ask IsInvulnerable: that is also true while slacking off and permanently true in god
+            // mode, and a red strobe over a reward reads as "you are being hurt".
+            if (logicalNow < p.InvulnUntil)
+            {
+                flash = Mathf.Max(flash, Mathf.Repeat(unscaledNow * 9f, 1f) > 0.5f ? 0.5f : 0.08f);
+            }
+
+            // Slacking gets a steady colour of its own instead. Steady because the player chose to be
+            // in this state and it lasts a second and a half; the fade over the last quarter second is
+            // the only warning that the immunity is about to end.
+            float slackLeft = p.SkillInvulnUntil - logicalNow;
+            _playerView.SetTint(SkillTint, slackLeft > 0f ? Mathf.Min(1f, slackLeft * 4f) * 0.55f : 0f);
+
+            _playerView.SetFlashAmount(flash);
+            _playerView.SetBodyPose(offset, 1f, squashX, squashY, 0f);
 
             if (p.HasShield)
             {
@@ -109,6 +331,7 @@ namespace OfficeHell.View
         {
             List<EnemyModel> enemies = _ctx.Run.Enemies;
             float now = GameClock.Now;
+            float unscaledNow = Time.unscaledTime;
 
             for (int i = 0; i < enemies.Count; i++)
             {
@@ -122,20 +345,54 @@ namespace OfficeHell.View
                 EntityView v = Bind(e.Id, KeyEnemy, 20, _ctx.Cfg.View(e.Def.ViewId));
                 Vector2 motion = v.SetTrackedWorldPosition(e.Pos);
                 v.TickAnimation(GameClock.Delta, motion.x, motion.sqrMagnitude > 0.000001f);
-                v.SetFlash(now < e.FlashUntil || now < e.InvulnUntil);
+
+                float flash = 0f;
+                float squashX = 1f;
+                float squashY = 1f;
+                Vector2 offset = Vector2.zero;
+
+                // The model side flash is a 0.06s boolean. Recoil decays instead, so a single hit and
+                // a burst of six hits look different, which is most of what "did that land" means here.
+                HitFx fx;
+                if (_hits.TryGetValue(e.Id, out fx))
+                {
+                    float hit = 1f - (unscaledNow - fx.StartedAt) / HitReactSeconds;
+                    if (hit <= 0f)
+                    {
+                        _hits.Remove(e.Id);
+                    }
+                    else
+                    {
+                        float snap = hit * hit;
+                        flash = hit;
+                        offset = fx.Dir * (0.2f * snap);
+                        squashX = 1f + 0.24f * snap;
+                        squashY = 1f - 0.18f * snap;
+                    }
+                }
+
+                // Boss phase invulnerability lasts two seconds. A steady tint would read as a broken
+                // sprite, a blink reads as "not now".
+                if (now < e.InvulnUntil)
+                {
+                    flash = Mathf.Max(flash, Mathf.Repeat(unscaledNow * 10f, 1f) > 0.5f ? 0.75f : 0.15f);
+                }
+
+                v.SetFlashAmount(flash);
 
                 // The grace window has to be legible, otherwise a split BUG that cannot hurt you yet
                 // looks identical to one that can and the player backs off for no reason.
+                float scaleMultiplier = 1f;
+                float alpha = 1f;
                 if (!e.CanTouch(now))
                 {
                     float t = Mathf.InverseLerp(e.SpawnedAt, e.ContactArmedAt, now);
-                    v.SetAlpha(Mathf.Lerp(0.45f, 1f, t));
-                    v.SetScaleMultiplier(Mathf.Lerp(0.6f, 1f, t));
+                    alpha = Mathf.Lerp(0.45f, 1f, t);
+                    scaleMultiplier = Mathf.Lerp(0.6f, 1f, t);
                 }
-                else
-                {
-                    v.SetScaleMultiplier(1f);
-                }
+
+                v.SetAlpha(alpha);
+                v.SetBodyPose(offset, scaleMultiplier, squashX, squashY, 0f);
 
                 if (e.Def.Tier != EnemyTier.Normal)
                 {
@@ -181,9 +438,19 @@ namespace OfficeHell.View
             }
         }
 
+        /// <summary>
+        /// Everything is solved on the floor plane, including the six muzzle offsets, which is correct
+        /// top down geometry and completely wrong to look at: the two side slots sit level with the
+        /// player's feet and the two lower ones start below them, so half the weapons appear to shoot
+        /// out of the floor. Lifting is done at draw time by one body height rather than by moving the
+        /// muzzles, so every range check, hit test and knockback direction stays in the plane the whole
+        /// game is tuned in. Enemy sprites are drawn from their feet up too, so a shot crossing at this
+        /// height passes through their middle.
+        /// </summary>
         void SyncProjectiles()
         {
             List<ProjectileModel> projectiles = _ctx.Run.Projectiles;
+            Vector2 lift = new Vector2(0f, _bodyPlaneY);
 
             for (int i = 0; i < projectiles.Count; i++)
             {
@@ -195,7 +462,7 @@ namespace OfficeHell.View
 
                 _seen.Add(p.Id);
                 EntityView v = Bind(p.Id, KeyProjectile, 30, _ctx.Cfg.View(p.ViewId));
-                v.SetWorldPosition(p.Pos);
+                v.SetWorldPosition(p.Pos + lift);
 
                 if (p.Vel.sqrMagnitude > 0.01f)
                 {
@@ -227,7 +494,10 @@ namespace OfficeHell.View
                 float t = s.Progress01(now);
                 EntityView v = Bind(s.Id, KeySlam, 34, _ctx.Cfg.View("v_slam"));
 
-                Vector2 air = Vector2.Lerp(s.From, s.Target + Vector2.up * 1.2f, t);
+                // Leaves the hand rather than the floor, and the lift is gone by the time it lands
+                // because the blast itself belongs on the ground.
+                Vector2 from = s.From + new Vector2(0f, _bodyPlaneY);
+                Vector2 air = Vector2.Lerp(from, s.Target + Vector2.up * 1.2f, t);
                 v.SetWorldPosition(Vector2.Lerp(air, s.Target, t * t));
                 v.SetScaleMultiplier(Mathf.Lerp(0.7f, 1.15f, t));
                 v.ShowRing(new Color(1f, 0.85f, 0.4f, 0.35f + 0.3f * t), s.Radius);
@@ -251,16 +521,24 @@ namespace OfficeHell.View
                 _seen.Add(w.Id);
 
                 float t = w.Progress01(now);
-                EntityView v = Bind(w.Id, KeyWarn, 6, _ctx.Cfg.View(w.ViewId));
+                ViewDef def = _ctx.Cfg.View(w.ViewId);
+                EntityView v = Bind(w.Id, KeyWarn, 6, def);
                 v.SetWorldPosition(w.Pos);
                 v.Body.enabled = false;
-                v.ShowRing(new Color(1f, 0.3f, 0.25f, 0.25f + 0.45f * t), w.Radius * Mathf.Lerp(0.6f, 1f, t));
+
+                // Views.xml spends four rows distinguishing these markers and red is reserved there for
+                // "this is about to hurt you". The elite entrance ring deals no damage, so painting every
+                // telegraph red told the player to run from a landing that costs nothing.
+                Color ring = def != null ? def.Color : new Color(1f, 0.3f, 0.25f);
+                ring.a = 0.25f + 0.45f * t;
+                v.ShowRing(ring, w.Radius * Mathf.Lerp(0.6f, 1f, t));
             }
         }
 
         void SyncOrbits()
         {
             List<OrbitCardModel> cards = _ctx.Run.OrbitCards;
+            Vector2 lift = new Vector2(0f, _bodyPlaneY);
 
             for (int i = 0; i < cards.Count; i++)
             {
@@ -268,7 +546,7 @@ namespace OfficeHell.View
                 _seen.Add(c.Id);
 
                 EntityView v = Bind(c.Id, KeyOrbit, 32, _ctx.Cfg.View(c.ViewId));
-                v.SetWorldPosition(c.Pos);
+                v.SetWorldPosition(c.Pos + lift);
                 v.transform.localRotation = Quaternion.Euler(0f, 0f, Time.unscaledTime * 90f);
             }
 
@@ -296,7 +574,7 @@ namespace OfficeHell.View
                 _tether.Body.enabled = false;
             }
 
-            _tether.SetWorldPosition(_ctx.Run.Player.Pos);
+            _tether.SetWorldPosition(_ctx.Run.Player.Pos + new Vector2(0f, _bodyPlaneY));
             _tether.ShowRing(new Color(1f, 0.68f, 0.2f, 0.5f), c.Radius);
         }
 
@@ -329,7 +607,7 @@ namespace OfficeHell.View
 
                 if (gear)
                 {
-                    v.Body.color = qd.Color;
+                    v.SetBaseColor(qd.Color);
                 }
 
                 v.SetWorldPosition(l.Pos);
@@ -431,6 +709,10 @@ namespace OfficeHell.View
                 }
 
                 _bound.Remove(_stale[i]);
+
+                // Clearing the field at day end kills enemies without a kill event, so a recoil that
+                // was still running has no other chance to retire itself.
+                _hits.Remove(_stale[i]);
             }
         }
     }

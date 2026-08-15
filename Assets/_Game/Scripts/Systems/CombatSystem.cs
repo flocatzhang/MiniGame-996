@@ -12,6 +12,9 @@ namespace OfficeHell.Systems
     /// </summary>
     public sealed class CombatSystem
     {
+        /// <summary>How far the orange headphone shield throws a body when it shatters, in units.</summary>
+        const float SonicPushDistance = 2.25f;
+
         readonly GameContext _ctx;
         readonly List<int> _scratch = new List<int>(128);
 
@@ -41,12 +44,6 @@ namespace OfficeHell.Systems
 
                 if (p.FromEnemy)
                 {
-                    // Folders that explode on landing must not also hit on contact.
-                    if (p.ExplodeRadius > 0f)
-                    {
-                        continue;
-                    }
-
                     float reach = p.Radius + player.Radius;
                     if ((player.Pos - p.Pos).sqrMagnitude <= reach * reach)
                     {
@@ -85,10 +82,7 @@ namespace OfficeHell.Systems
                         e.PinUntil = Mathf.Max(e.PinUntil, GameClock.Now + p.PinSeconds);
                     }
 
-                    if (p.Knockback > 0f && p.Vel.sqrMagnitude > 0.0001f)
-                    {
-                        e.Knockback += p.Vel.normalized * p.Knockback;
-                    }
+                    e.TryKnockback(p.Vel, p.Knockback, GameClock.Now);
 
                     DealDamageToEnemy(_ctx, e, p.Damage, p.Pos);
 
@@ -351,11 +345,7 @@ namespace OfficeHell.Systems
                     continue;
                 }
 
-                if (delta.sqrMagnitude > 0.0001f)
-                {
-                    en.Knockback += delta.normalized * 6f;
-                }
-
+                en.ForceKnockback(delta, SonicPushDistance, GameClock.Now);
                 DealDamageToEnemy(ctx, en, damage, p.Pos);
             }
         }

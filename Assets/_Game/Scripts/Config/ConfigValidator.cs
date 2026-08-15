@@ -78,6 +78,14 @@ namespace OfficeHell.Config
                                ", it will outrun the player");
                 }
 
+                // Zero puts knockback back to being applied on every hit that carries it, which with
+                // six slots firing is enough to hold a body off the player for the whole day.
+                if (d.KnockbackCd <= 0f)
+                {
+                    report.Add("Enemy '" + d.Id + "' has knockbackCd " + d.KnockbackCd +
+                               ", it can be knocked back continuously");
+                }
+
                 if (!string.IsNullOrEmpty(d.Behavior) && !Systems.EnemyBehaviorRegistry.Exists(d.Behavior))
                 {
                     report.Add("Enemy '" + d.Id + "' references unknown behavior '" + d.Behavior + "'");
@@ -123,10 +131,15 @@ namespace OfficeHell.Config
                 }
 
                 float budget = 0f;
+                float lastArrival = 0f;
                 for (int s = 0; s < w.Spawners.Count; s++)
                 {
                     SpawnerDef sp = w.Spawners[s];
                     budget += sp.BudgetPct;
+                    if (sp.BudgetPct > 0f)
+                    {
+                        lastArrival = Mathf.Max(lastArrival, Mathf.Min(sp.To, w.Duration));
+                    }
 
                     if (sp.To <= sp.From)
                     {
@@ -161,6 +174,17 @@ namespace OfficeHell.Config
                 {
                     report.Add("Day " + w.Index + " spawner budgetPct sums to " + budget.ToString("0.#") +
                                " instead of 100, the authored totalSpawn " + w.TotalSpawn + " will not be met");
+                }
+
+                // A window that closes early leaves the rest of the shift with nothing arriving, and
+                // an empty office is not read as having cleared the day, it is read as the game having
+                // stopped. Days that author their own total have authored their own pacing with it, so
+                // Saturday is allowed to hand the last two thirds of the fight to the boss.
+                if (w.Spawners.Count > 0 && w.TotalSpawnOverride < 0 && lastArrival < w.Duration - 0.5f)
+                {
+                    report.Add("Day " + w.Index + " stops spawning at " + lastArrival.ToString("0.#") +
+                               "s of " + w.Duration + "s, leaving " + (w.Duration - lastArrival).ToString("0.#") +
+                               "s with nothing arriving");
                 }
 
                 for (int f = 0; f < w.Fixed.Count; f++)
@@ -228,6 +252,43 @@ namespace OfficeHell.Config
                             if (t.LockRange <= 0f)
                             {
                                 report.Add("Weapon '" + w.Id + "' tier " + t.Q + " has lockRange " + t.LockRange);
+                            }
+
+                            // A slow that outlasts the interval that reapplies it is renewed before it
+                            // ever lapses, so it stops being a debuff and becomes the enemy's speed.
+                            // The weapon reads as doing nothing while quietly halving the whole field.
+                            if (t.SlowPct > 0f && w.Rate > 0f && t.SlowSeconds >= 1f / w.Rate)
+                            {
+                                report.Add("Weapon '" + w.Id + "' tier " + t.Q + " slows for " + t.SlowSeconds +
+                                           "s on a " + (1f / w.Rate).ToString("0.##") +
+                                           "s interval, so the slow never lapses");
+                            }
+
+                            if (t.SelectAllEvery > 0 && t.SelectAllPct <= 0f)
+                            {
+                                report.Add("Weapon '" + w.Id + "' tier " + t.Q +
+                                           " fires Ctrl+A every " + t.SelectAllEvery +
+                                           " attacks but selectAllPct is " + t.SelectAllPct + ", it deals nothing");
+                            }
+
+                            // The sweep is the tier's payoff, so it has to out reach the strike it
+                            // replaces. At or below blastRadius it is a normal strike that gave up its
+                            // target lock, its knockback and half its damage for nothing.
+                            if (t.SelectAllEvery > 0 && t.SelectAllRadius <= t.BlastRadius)
+                            {
+                                report.Add("Weapon '" + w.Id + "' tier " + t.Q + " has selectAllRadius " +
+                                           t.SelectAllRadius + " against blastRadius " + t.BlastRadius +
+                                           ", the Ctrl+A pass covers less than the strike it replaces");
+                            }
+
+                            // Six slots reaching their fifth attack independently is six sweeps inside
+                            // two seconds. Without a shared cooldown the tier's set piece degrades into
+                            // the ambient state of the fight, which is invisible rather than powerful.
+                            if (t.SelectAllEvery > 0 && t.SelectAllSharedCd <= 0f)
+                            {
+                                report.Add("Weapon '" + w.Id + "' tier " + t.Q +
+                                           " fires Ctrl+A with no selectAllSharedCd, so six slots can " +
+                                           "sweep at once and the pass stops reading as an event");
                             }
 
                             break;

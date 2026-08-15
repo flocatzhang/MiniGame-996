@@ -16,6 +16,7 @@ namespace OfficeHell.View
         const float Lifetime = 0.7f;
         const float RiseSpeed = 60f;
         const int MaxLive = 48;
+        const string PlayerViewId = "v_player";
 
         readonly EventBus _bus;
         readonly ConfigManager _cfg;
@@ -149,13 +150,33 @@ namespace OfficeHell.View
             return text;
         }
 
+        /// <summary>
+        /// Character art is anchored at the feet, so an event position is the ground the entity stands
+        /// on. Numbers pushed there read as coming out of the floor and are covered by the body.
+        /// </summary>
+        Vector2 AboveHead(Vector2 origin, string viewId, float gap)
+        {
+            origin.y += EntityView.VisualTopOf(_cfg.View(viewId)) + gap;
+            return origin;
+        }
+
         // ---------- event handlers ----------
 
         void OnEnemyDamaged(EvtArg arg)
         {
             bool crit = arg.I1 == 1;
             string content = Mathf.RoundToInt(arg.F0).ToString();
-            Push(arg.P0,
+
+            Vector2 at = arg.P0;
+            Model.EnemyModel e = arg.O0 as Model.EnemyModel;
+            if (e != null && e.Def != null)
+            {
+                // Elites and the boss already carry a health bar and a name plate over their head,
+                // so their numbers start above that stack instead of through it.
+                at = AboveHead(at, e.Def.ViewId, e.Def.Tier == EnemyTier.Normal ? 0.22f : 0.62f);
+            }
+
+            Push(at,
                 crit ? content + "!" : content,
                 crit ? new Color(1f, 0.85f, 0.25f) : new Color(1f, 1f, 1f, 0.92f),
                 crit ? 1.35f : 1f);
@@ -163,17 +184,19 @@ namespace OfficeHell.View
 
         void OnPlayerDamaged(EvtArg arg)
         {
-            Push(arg.P0, "-" + Mathf.RoundToInt(arg.F0), new Color(1f, 0.3f, 0.3f), 1.2f);
+            Push(AboveHead(arg.P0, PlayerViewId, 0.22f),
+                "-" + Mathf.RoundToInt(arg.F0), new Color(1f, 0.3f, 0.3f), 1.2f);
         }
 
         void OnPlayerDodged(EvtArg arg)
         {
-            Push(arg.P0, "已读不回", new Color(0.6f, 0.9f, 1f), 1f);
+            Push(AboveHead(arg.P0, PlayerViewId, 0.22f), "已读不回", new Color(0.6f, 0.9f, 1f), 1f);
         }
 
         void OnPlayerHealed(EvtArg arg)
         {
-            Push(arg.P0, "+" + Mathf.RoundToInt(arg.F0), new Color(0.4f, 1f, 0.5f), 1f);
+            Push(AboveHead(arg.P0, PlayerViewId, 0.22f),
+                "+" + Mathf.RoundToInt(arg.F0), new Color(0.4f, 1f, 0.5f), 1f);
         }
 
         void OnLootPicked(EvtArg arg)
@@ -184,14 +207,16 @@ namespace OfficeHell.View
                 return;
             }
 
+            Vector2 at = AboveHead(arg.P0, loot.ViewId, 0.22f);
+
             if (loot.Kind == Model.LootKind.Coffee)
             {
-                Push(arg.P0, "咖啡", new Color(0.85f, 0.65f, 0.4f), 0.9f);
+                Push(at, "咖啡", new Color(0.85f, 0.65f, 0.4f), 0.9f);
                 return;
             }
 
             QualityDef qd = _cfg.QualityOf(loot.Quality);
-            Push(arg.P0, loot.Name, qd.Color, 1.15f);
+            Push(at, loot.Name, qd.Color, 1.15f);
         }
 
         /// <summary>
@@ -200,12 +225,15 @@ namespace OfficeHell.View
         /// </summary>
         void OnEquipDeclined(EvtArg arg)
         {
-            Push(arg.P0, "折算 +" + arg.I0 + " 经验", new Color(0.75f, 0.78f, 0.82f), 0.95f);
+            Model.LootModel loot = arg.O0 as Model.LootModel;
+            Vector2 at = loot != null ? AboveHead(arg.P0, loot.ViewId, 0.22f) : arg.P0;
+            Push(at, "折算 +" + arg.I0 + " 经验", new Color(0.75f, 0.78f, 0.82f), 0.95f);
         }
 
         void OnLevelUp(EvtArg arg)
         {
-            Push(arg.P0, "升职 " + _cfg.RankOf(arg.I0), new Color(1f, 0.95f, 0.6f), 1.4f);
+            Push(AboveHead(arg.P0, PlayerViewId, 0.22f),
+                "升职 " + _cfg.RankOf(arg.I0), new Color(1f, 0.95f, 0.6f), 1.4f);
         }
     }
 }

@@ -38,36 +38,10 @@ namespace OfficeHell.Systems
                     expired = (p.Pos - p.Origin).sqrMagnitude >= p.MaxDistance * p.MaxDistance;
                 }
 
-                bool outOfBounds = Mathf.Abs(p.Pos.x) > boundX || Mathf.Abs(p.Pos.y) > boundY;
-
-                if (!expired && !outOfBounds)
+                if (expired || Mathf.Abs(p.Pos.x) > boundX || Mathf.Abs(p.Pos.y) > boundY)
                 {
-                    continue;
+                    p.IsDead = true;
                 }
-
-                if (p.ExplodeRadius > 0f && !outOfBounds)
-                {
-                    Explode(p);
-                }
-
-                p.IsDead = true;
-            }
-        }
-
-        /// <summary>Boss KPI folders detonate where they land instead of on contact.</summary>
-        void Explode(ProjectileModel p)
-        {
-            PlayerModel player = _ctx.Run.Player;
-
-            EvtArg a = new EvtArg();
-            a.F0 = p.ExplodeRadius;
-            a.P0 = p.Pos;
-            _ctx.Bus.Dispatch(EventID.BossTelegraph, a);
-
-            float reach = p.ExplodeRadius + player.Radius;
-            if ((player.Pos - p.Pos).sqrMagnitude <= reach * reach)
-            {
-                CombatSystem.DealDamageToPlayer(_ctx, p.Damage, p.Pos);
             }
         }
     }

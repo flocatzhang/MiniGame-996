@@ -9,6 +9,29 @@
   Spawn counts are derived from density, never authored. A designer changing a day's length gets the
   matching enemy count for free, which is the whole reason the count is not six hard numbers.
   Day six is the single exception and says so with totalSpawn.
+
+  interval and groupSize are the cadence, not the amount. The day's budget is released against a
+  schedule that always finishes at the closing bell, so a spawner cannot run dry early no matter what
+  those two say. It used to: group size over interval was roughly twice the rate the budget could
+  afford, every day stopped producing enemies around 17:00 and the last four hours were spent walking
+  around an empty office waiting for the clock.
+
+  ramp is how much busier the end of a window is than its start. 2 means the 21:00 rate is twice the
+  09:00 rate, with the same total in between. Monday and Saturday are flat on purpose and say why.
+
+  The week now releases 923 trash mobs against the 475 it used to. The multiplier is not flat: Monday
+  takes 1.70 and Friday 4.30 against their old 1.00 and 2.03, because the days are not equally able to
+  absorb a crowd. Contact damage is capped per invulnerability frame rather than per body, so twenty
+  mails and forty mails cost the same sanity once the player is already surrounded, and the day that
+  breaks first is always the one fought with one weapon rather than six.
+
+  Every day but Saturday now draws from a wider roster than the day before, and the debut schedule has
+  become a spotlight schedule: BUG still owns Tuesday and 周报 still owns Wednesday, but they own it by
+  weight rather than by being the only new shape on screen. The types outside the day's theme sit at
+  four to eight percent, which is enough to break up the silhouette and too few to teach anything.
+  老油条 and PPT are the two that stay pinned low everywhere: both are health sponges, every weapon
+  auto locks the nearest target, and a field of sponges is a field where the six slots never reach
+  anything else.
 -->
 <Days>
 
@@ -45,69 +68,101 @@
              graceRadius="3" graceSeconds="0.5" />
 
   <!--
-    Teaching day. Two enemies, not one: forty seconds of nothing but mail teaches "walk away" and
-    nothing else, so the first Deadline on Tuesday would read as the game cheating. Mail alone for
-    twenty seconds, then the contrast arrives while the lesson is still fresh.
+    Teaching day. The opening window is the one place in the game that may not ramp: the hard
+    requirement is that the first upgrade lands inside ten seconds, it is paid for by the mails that
+    arrive in the first six, and a rate that starts low and builds spends exactly that margin.
+
+    That window is twelve seconds rather than twenty. Twenty seconds of nothing but mail was the
+    lesson at the old density; at this one it is the same lesson delivered thirty times, so the roster
+    opens the moment the first upgrade is banked rather than at the halfway mark. Deadline still
+    arrives as the contrast while the lesson is fresh.
+
+    周报 and 老油条 sit at one weight in twelve, which is three or four of each across the day. That is
+    a silhouette the player has not seen and a question they cannot answer yet, which is the intent:
+    Wednesday and Friday still own teaching what those two actually do. 周报 in particular is held to
+    single digits because it is the only ranged unit and Monday is fought at 99 sanity with one weapon.
+
+    density 1.70 rather than the 2.00 the midweek takes. Monday is the day with the thinnest loadout
+    and the crowd it can absorb is correspondingly smaller.
   -->
   <Day index="1" label="怎么周末又结束了，不想上班" weekday="周一"
-       duration="40" offWork="3" density="0.82" concurrentMax="30">
-    <Spawner from="0" to="20" interval="2.0" groupSize="3" budgetPct="75">
+       duration="40" offWork="3" density="1.70" concurrentMax="50">
+    <Spawner from="0" to="12" interval="1.5" groupSize="3" budgetPct="35" ramp="1">
       <Pick enemyId="mail" weight="1" />
     </Spawner>
-    <Spawner from="20" to="40" interval="2.5" groupSize="3" budgetPct="25">
-      <Pick enemyId="mail" weight="3" />
-      <Pick enemyId="deadline" weight="2" />
+    <Spawner from="12" to="40" interval="1.5" groupSize="3" budgetPct="65" ramp="2">
+      <Pick enemyId="mail" weight="6" />
+      <Pick enemyId="deadline" weight="4" />
+      <Pick enemyId="report" weight="1" />
+      <Pick enemyId="veteran" weight="1" />
     </Spawner>
   </Day>
 
   <!--
     First elite lands here rather than on Thursday. Tuesday ends at the 93 second mark, so both the
     elite fight and its guaranteed yellow fall inside the three minute window a judge actually watches.
+
+    BUG owns the label so it keeps its share of the pool. The weights are the old 5 / 2 / 3 doubled to
+    10 / 4 / 6 purely to make room for 周报 and 老油条 underneath without disturbing the ratio the
+    week was balanced against.
   -->
   <Day index="2" label="线上怎么又出 BUG 了" weekday="周二"
-       duration="50" offWork="3" density="1.01" concurrentMax="36">
-    <Spawner interval="2.2" groupSize="4" budgetPct="100">
-      <Pick enemyId="mail" weight="5" />
-      <Pick enemyId="deadline" weight="2" />
-      <Pick enemyId="bug" weight="3" />
+       duration="50" offWork="3" density="2.00" concurrentMax="66">
+    <Spawner interval="1.5" groupSize="3" budgetPct="100" ramp="2">
+      <Pick enemyId="mail" weight="10" />
+      <Pick enemyId="deadline" weight="4" />
+      <Pick enemyId="bug" weight="6" />
+      <Pick enemyId="report" weight="2" />
+      <Pick enemyId="veteran" weight="1" />
     </Spawner>
     <Fixed enemyId="leader" count="1" atSecond="38" entrance="true" guaranteeDrop="yellow" />
   </Day>
 
   <!--
-    周报 moved up from Friday. It is the only unit that punishes standing still, and if it first
-    appears at second 232 the demo we show a judge is one where circling forever wins.
+    周报 is the day's subject. It is the only unit that punishes standing still, and Monday's three of
+    them are a glimpse rather than a lesson, so this is still where circling forever stops winning.
+    Its share doubles against Tuesday's, which is what makes the day read as being about it.
+
+    PPT joins here at two in twenty seven. It is the first health sponge the player meets in numbers
+    and Thursday is where it becomes the subject, so a dozen of them today is the introduction.
   -->
   <Day index="3" label="周报还没写，需求又改了" weekday="周三"
-       duration="60" offWork="3" density="1.24" concurrentMax="44">
-    <Spawner interval="2.2" groupSize="5" budgetPct="100">
-      <Pick enemyId="mail" weight="5" />
-      <Pick enemyId="deadline" weight="2" />
-      <Pick enemyId="bug" weight="3" />
-      <Pick enemyId="report" weight="2" />
+       duration="60" offWork="3" density="2.60" concurrentMax="86">
+    <Spawner interval="1.5" groupSize="3" budgetPct="100" ramp="2">
+      <Pick enemyId="mail" weight="10" />
+      <Pick enemyId="deadline" weight="4" />
+      <Pick enemyId="bug" weight="6" />
+      <Pick enemyId="report" weight="4" />
+      <Pick enemyId="ppt" weight="2" />
+      <Pick enemyId="veteran" weight="1" />
     </Spawner>
   </Day>
 
   <Day index="4" label="怎么那么多新需求" weekday="周四"
-       duration="70" offWork="3" density="1.53" concurrentMax="54">
-    <Spawner interval="2.0" groupSize="6" budgetPct="100">
-      <Pick enemyId="mail" weight="4" />
-      <Pick enemyId="deadline" weight="2" />
-      <Pick enemyId="bug" weight="3" />
-      <Pick enemyId="report" weight="2" />
-      <Pick enemyId="ppt" weight="2" />
+       duration="70" offWork="3" density="3.35" concurrentMax="110">
+    <Spawner interval="1.5" groupSize="4" budgetPct="100" ramp="2">
+      <Pick enemyId="mail" weight="8" />
+      <Pick enemyId="deadline" weight="4" />
+      <Pick enemyId="bug" weight="6" />
+      <Pick enemyId="report" weight="4" />
+      <Pick enemyId="ppt" weight="4" />
+      <Pick enemyId="veteran" weight="1" />
     </Spawner>
     <Fixed enemyId="leader" count="1" atSecond="46" entrance="true" guaranteeDrop="yellow" />
   </Day>
 
   <!--
-    The pressure peak, and the sheet understates it: 老油条 debuts here and its attack slow drags the
-    real damage output below what the clear requirement assumes. Friday is not hard to win, it is hard
-    to last through.
+    The pressure peak, and the sheet understates it: 老油条 finally arrives in numbers here, and its
+    attack slow drags the real damage output below what the clear requirement assumes. Friday is not
+    hard to win, it is hard to last through.
+
+    The one day whose weights are untouched. Every type is already on the board and the mix was solved
+    against this composition, so Friday scales by density alone and is the cleanest read on whether
+    doubling the week actually worked.
   -->
   <Day index="5" label="周五周五，敲锣打鼓" weekday="周五"
-       duration="80" offWork="3" density="1.88" concurrentMax="64">
-    <Spawner interval="1.9" groupSize="7" budgetPct="100">
+       duration="80" offWork="3" density="4.30" concurrentMax="136">
+    <Spawner interval="1.5" groupSize="4" budgetPct="100" ramp="2">
       <Pick enemyId="mail" weight="4" />
       <Pick enemyId="deadline" weight="3" />
       <Pick enemyId="bug" weight="3" />
@@ -126,10 +181,18 @@
 
     That is not only pacing. Every weapon auto locks the nearest target, so leaving trash on the field
     means six weapons spend the whole fight shooting mail while the boss stands untouched.
+
+    Flat, and the only day whose spawning is meant to stop early. Saturday's escalation is the boss's
+    three phases, and trash still arriving at 21:00 would be arriving through the final bar.
+
+    It is also the one day left out of doubling the week, and the auto lock is the whole reason. The
+    other five days get harder when the screen fills up; this one stops being a boss fight, because
+    forty extra mails means six slots spend the duel shooting mail while 9999 x 3 stands untouched.
+    The count here is a boss pacing number that happens to be written in the spawn table.
   -->
   <Day index="6" label="忘了周六要加班赶进度" weekday="周六"
        duration="120" offWork="0" totalSpawn="20" concurrentMax="40">
-    <Spawner from="0" to="12" interval="2.0" groupSize="4" budgetPct="100">
+    <Spawner from="0" to="12" interval="2.0" groupSize="4" budgetPct="100" ramp="1">
       <Pick enemyId="mail" weight="4" />
       <Pick enemyId="deadline" weight="2" />
       <Pick enemyId="bug" weight="2" />

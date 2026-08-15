@@ -33,5 +33,6 @@
 *.aab
 *.unitypackage
 *.app
+*.zip
 crashlytics-build.properties
 sysinfo.txt

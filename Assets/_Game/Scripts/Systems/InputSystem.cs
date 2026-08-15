@@ -12,13 +12,15 @@ namespace OfficeHell.Systems
     {
         public Vector2 PointerWorld;
         public bool PointerValid;
+
+        /// <summary>Physical cursor motion or a click, not a world position change from camera follow.</summary>
+        public bool PointerMoved;
         public Vector2 Axis;
     }
 
     /// <summary>
-    /// Turns raw input into a bounded move intent. Mouse follow is the primary scheme, the
-    /// keyboard axis is only a convenience for playtesting and maps to the same intent vector,
-    /// so a touch drag can be dropped in later without touching movement.
+    /// Turns raw input into a bounded move intent. Mouse follow and the keyboard axis are two schemes
+    /// for one intent vector, so a touch drag can be dropped in later without touching movement.
     /// </summary>
     public sealed class InputSystem
     {
@@ -27,6 +29,7 @@ namespace OfficeHell.Systems
 
         readonly GameContext _ctx;
         bool _pointerFollowActive;
+        bool _keyboardActive;
 
         public InputSnapshot Snapshot;
 
@@ -38,17 +41,31 @@ namespace OfficeHell.Systems
         public void Reset()
         {
             _pointerFollowActive = false;
+            _keyboardActive = false;
             Snapshot = new InputSnapshot();
         }
 
         public void Tick(float dt)
         {
             PlayerModel p = _ctx.Run.Player;
+            bool axisHeld = Snapshot.Axis.sqrMagnitude > 0.01f;
 
-            if (Snapshot.Axis.sqrMagnitude > 0.01f)
+            // The two schemes are latched rather than resolved per frame. Reading whichever is live
+            // right now means releasing a key hands control straight back to a cursor the player has
+            // not touched, and the character lurches off towards it.
+            if (axisHeld)
+            {
+                _keyboardActive = true;
+            }
+            else if (Snapshot.PointerMoved)
+            {
+                _keyboardActive = false;
+            }
+
+            if (_keyboardActive)
             {
                 _pointerFollowActive = false;
-                p.MoveIntent = Snapshot.Axis.normalized;
+                p.MoveIntent = axisHeld ? Snapshot.Axis.normalized : Vector2.zero;
             }
             else if (Snapshot.PointerValid)
             {

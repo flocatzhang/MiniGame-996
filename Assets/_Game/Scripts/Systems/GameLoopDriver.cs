@@ -68,6 +68,7 @@ namespace OfficeHell.Systems
         {
             Input.Reset();
             Orbits.Reset();
+            Skill.Reset();
         }
 
         void OnDayStarted(EvtArg arg)

@@ -373,7 +373,8 @@ namespace OfficeHell.Systems
 
                     if (t.SelectAllEvery > 0)
                     {
-                        sb.Append(" · 每 ").Append(t.SelectAllEvery).Append(" 次 Ctrl+A 全屏");
+                        sb.Append(" · 每 ").Append(t.SelectAllEvery).Append(" 次 Ctrl+A 全选 ")
+                          .Append(t.SelectAllRadius.ToString("0.#"));
                     }
 
                     break;

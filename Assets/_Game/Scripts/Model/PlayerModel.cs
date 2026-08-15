@@ -44,6 +44,13 @@ namespace OfficeHell.Model
 
         public float SkillReadyAt;
         public float SkillInvulnUntil;
+
+        /// <summary>
+        /// Ctrl + A is rationed across the whole loadout rather than per slot, so this lives on the
+        /// player and not on WeaponRuntime. Six orange keyboards each counting to five independently
+        /// is six sweeps inside two seconds, which reads as one continuous effect rather than six.
+        /// </summary>
+        public float SelectAllReadyAt;
         public SlackPassive Passives;
 
         /// <summary>
@@ -287,6 +294,7 @@ namespace OfficeHell.Model
             ExpToNext = CombatFormula.ExpForLevel(1, prog);
             PendingLevelUps = 0;
             SkillReadyAt = 0f;
+            SelectAllReadyAt = 0f;
             Passives = SlackPassive.None;
             ClearAuras();
             GlobalSlowUntil = 0f;

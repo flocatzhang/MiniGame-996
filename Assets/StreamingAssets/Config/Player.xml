@@ -26,9 +26,12 @@
   <!--
     摸鱼. Heals only 5 percent, so it is an escape button and not a heal button. The push exists to
     break a surround; without it the invulnerability just delays the same death by 1.5 seconds.
+
+    pushForce is a distance in units, same as every knockback in Weapons.xml. It is the one push in
+    the game allowed to be this large, because breaking a surround is the entire reason it exists.
   -->
   <Skill id="slack" name="摸鱼" cd="12" invulnDuration="1.5" healPctMaxSan="5"
-         pushRadius="3" pushForce="8" />
+         pushRadius="3" pushForce="4" />
 
   <!--
     orthographicSize 5.5 at 16:9 gives a 19.6 x 11 view, so the camera half extents are 9.78 x 5.5.
@@ -52,31 +55,41 @@
   <Arena halfWidth="19.71" halfHeight="11.5" />
 
   <!--
-    ceil(coef * L^1.55) per level, 9 levels for the 9 job ranks.
+    ceil(coef * L^power) per level, 9 levels for the 9 job ranks.
 
-    coef is 12 rather than the 10 in the design sheet, and the reason is the sheet's own stated intent:
-    「玩家正好在周六升到 CEO」. At 10 the cumulative cost to rank 9 is 920 against an exp supply of about
-    1230 across the six days, which seats the player as CEO two thirds of the way through Friday and
-    leaves the entire last day without a single level up. At 12 the cost is 1103, landing on the
-    Friday/Saturday boundary: promoted to CEO, then immediately the annual review. The rank curve is the
-    anchor, not the coefficient, because it drives equipment card quality, the number of card choices
-    and the result screen copy all at once.
+    The rank curve is the anchor, not the two numbers, because it drives equipment card quality, the
+    number of card choices and the result screen copy all at once. The sheet's stated intent is
+    「玩家正好在周六升到 CEO」, so the cumulative cost to rank 9 is fitted just above what the first five
+    days can supply: promoted to CEO, then immediately the annual review.
 
-    The first level up still costs 12, which is 6 mails or roughly 7 seconds. The hard requirement is
-    that the first upgrade lands inside 10 seconds, and it depends on spawn density rather than on day
-    length, so shortening Monday to 40 seconds does not threaten it.
+    Doubling the spawn table doubled that supply, from roughly 1230 exp across six days to roughly
+    2480, so the curve had to roughly double with it or the player is CEO on Wednesday and the back
+    half of the week has no level ups left in it. That is the exact failure the 10 -> 12 change was
+    made to avoid.
+
+    power carries the increase rather than coef, and which one moves is not arbitrary. Level 1 costs
+    coef x 1, so the coefficient is also the price of the first upgrade, and that upgrade is the one
+    number in this file that is a promise to the player rather than a tuning knob: it has to land
+    inside ten seconds. Doubling coef would have doubled it to 12 mails. 1.55 -> 1.95 leaves level 1
+    at 12 exp, six mails, exactly where it has always been, and puts the whole of the extra cost on
+    levels 5 through 9, which is also where the extra exp arrives. Cumulative goes 1103 -> about 2240
+    and every intermediate promotion lands on the same day it used to.
+
+    Both this and kpiTargetKills below are fitted against an estimated supply rather than a measured
+    one. Run the headless self test and correct them from its output: 'last rank on day' has to read
+    6, and if it reads 4 or 5 the supply was underestimated and power goes up, never coef.
 
     downgradeExp 3: a drop that cannot beat what is worn is still worth walking over. Without it the
     late game turns the floor into scenery, which quietly deletes the reason to move.
 
-    kpiTargetKills 640 against the 672 bodies a clean full week produces, so the bar reaches the 99 cap
-    partway through Saturday and clips. It has to clip somewhere: a target the run cannot reach leaves
-    the bar at 98 and the cap never reads as a cap, while a much lower target parks it at 99 from
-    Thursday onward and the cap stops reading as a cap and starts reading as a full bar. An average run
-    that drops a third of the spawns lands in the high eighties, which is the intended near miss.
+    kpiTargetKills 1120 against the roughly 1200 bodies the doubled week is expected to produce, so
+    the bar reaches the 99 cap partway through Saturday and clips. It has to clip somewhere: a target
+    the run cannot reach leaves the bar at 98 and the cap never reads as a cap, while a much lower
+    target parks it at 99 from Thursday onward and the cap stops reading as a cap and starts reading
+    as a full bar. Set this to about 94 percent of the self test's 'total kills'.
   -->
-  <Progression maxLevel="9" expCoef="12" expPower="1.55" downgradeExp="3"
-               kpiCap="99" kpiTargetKills="640" finalSalary="9996" />
+  <Progression maxLevel="9" expCoef="12" expPower="1.95" downgradeExp="3"
+               kpiCap="99" kpiTargetKills="1120" finalSalary="9996" />
 
   <!--
     The drop rate doubles below one third sanity. This is the one number in the game that lies to the

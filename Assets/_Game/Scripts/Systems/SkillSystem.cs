@@ -20,6 +20,18 @@ namespace OfficeHell.Systems
             _ctx = ctx;
         }
 
+        /// <summary>
+        /// A run opens with the skill already on cooldown. It fires the instant it is ready, so an
+        /// armed skill at second zero spends its invulnerability, its heal and its knockback on an
+        /// empty field before the first enemy has walked in, and the player's first sight of their
+        /// only active ability is it going off for no reason.
+        /// </summary>
+        public void Reset()
+        {
+            PlayerModel p = _ctx.Run.Player;
+            p.SkillReadyAt = GameClock.Now + p.SkillCd(_ctx.Cfg.Skill);
+        }
+
         public void Tick(float dt)
         {
             PlayerModel p = _ctx.Run.Player;
@@ -84,10 +96,7 @@ namespace OfficeHell.Systems
                     continue;
                 }
 
-                if (dist > 0.001f)
-                {
-                    e.Knockback = away / dist * def.PushForce;
-                }
+                e.ForceKnockback(away, def.PushForce, now);
 
                 if (stun)
                 {

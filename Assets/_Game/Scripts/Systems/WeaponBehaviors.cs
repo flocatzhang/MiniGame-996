@@ -99,8 +99,9 @@ namespace OfficeHell.Systems
             PlayerModel p = ctx.Run.Player;
             float now = GameClock.Now;
 
-            bool selectAll = tier.SelectAllEvery > 0 &&
-                             (rt.AttackCount + 1) % tier.SelectAllEvery == 0;
+            bool due = tier.SelectAllEvery > 0 &&
+                       (rt.AttackCount + 1) % tier.SelectAllEvery == 0;
+            bool selectAll = due && now >= p.SelectAllReadyAt;
 
             Vector2 spot;
             if (selectAll)
@@ -118,7 +119,19 @@ namespace OfficeHell.Systems
                 spot = ctx.Run.Enemies[target].Pos;
             }
 
-            rt.AttackCount++;
+            // A slot whose sweep is due but blocked by the shared cooldown throws an ordinary strike
+            // and leaves its counter alone, so it retries next attack rather than forfeiting the sweep
+            // and waiting out another full cycle. Advancing the counter here is what would turn the
+            // shared cooldown from "they take turns" into "only one keyboard ever gets to do it".
+            if (!due || selectAll)
+            {
+                rt.AttackCount++;
+            }
+
+            if (selectAll)
+            {
+                p.SelectAllReadyAt = now + tier.SelectAllSharedCd;
+            }
 
             float qualityCoef = ctx.Cfg.WeaponQuality.Get(rt.Quality);
             float damage = CombatFormula.WeaponDamage(def, qualityCoef, p.Stats.Get(StatType.Atk));
@@ -145,6 +158,12 @@ namespace OfficeHell.Systems
             return true;
         }
 
+        /// <summary>
+        /// Ctrl + A pays for its coverage. It lands at a fraction of a normal strike and carries
+        /// neither the knockback nor the slow, because a sweep this wide that also pushed and slowed
+        /// everything inside it would be three effects for the price of one, and the field would spend
+        /// every fifth attack scattered and crawling rather than closing in.
+        /// </summary>
         static void Queue(
             GameContext ctx,
             WeaponRuntime rt,
@@ -161,10 +180,11 @@ namespace OfficeHell.Systems
             s.From = from;
             s.BornAt = GameClock.Now;
             s.LandAt = landAt;
-            s.Radius = tier.BlastRadius;
-            s.Damage = damage;
-            s.Knockback = tier.Knockback;
-            s.SlowPct = tier.SlowPct;
+            s.Radius = selectAll ? tier.SelectAllRadius : tier.BlastRadius;
+            s.Damage = selectAll ? damage * Mathf.Clamp(tier.SelectAllPct, 0f, 100f) * 0.01f : damage;
+            s.Knockback = selectAll ? 0f : tier.Knockback;
+            s.SlowPct = selectAll ? 0f : tier.SlowPct;
+            s.SlowSeconds = tier.SlowSeconds;
             s.SelectAll = selectAll;
         }
     }

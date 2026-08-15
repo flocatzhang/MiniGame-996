@@ -173,16 +173,13 @@ namespace OfficeHell.Systems
 
                 c.MarkHit(e.Id, now + cd, now);
 
-                if (c.Knockback > 0f)
+                Vector2 dir = e.Pos - run.Player.Pos;
+                if (dir.sqrMagnitude < 0.0001f)
                 {
-                    Vector2 dir = e.Pos - run.Player.Pos;
-                    if (dir.sqrMagnitude < 0.0001f)
-                    {
-                        dir = Vector2.up;
-                    }
-
-                    e.Knockback += dir.normalized * c.Knockback;
+                    dir = Vector2.up;
                 }
+
+                e.TryKnockback(dir, c.Knockback, now);
 
                 CombatSystem.DealDamageToEnemy(_ctx, e, c.Damage, c.Pos);
             }

@@ -350,28 +350,46 @@ namespace OfficeHell.Systems
             ctx.Bus.Dispatch(EventID.BossTelegraph, a);
         }
 
-        /// <summary>Throws red folders that detonate where they land. Three, five from phase two.</summary>
+        /// <summary>
+        /// Marks the floor around the player and bills those circles a moment later. Three, five from
+        /// phase two.
+        ///
+        /// This used to be thrown folders, and thrown folders could not hit anyone. They were aimed at
+        /// where the player stood when the boss let go, flew at 8 against the player's 4.5, and only
+        /// billed whoever was inside 2.2 units of the landing point when they got there. Across a
+        /// typical six units that is three quarters of a second of flight, by which time the player had
+        /// walked three and a half units: any direction was a dodge, including straight at the boss,
+        /// and the fight had no ranged threat at all.
+        ///
+        /// Marked ground answers it because the mark follows the player instead of a stale coordinate,
+        /// and the dodge stops being "keep walking" and becomes "read the gaps", which is the same
+        /// sentence phase three's rain already teaches. It is still fully dodgeable, and deliberately
+        /// so: the circles cover part of a disc the player can leave in about the warning time, so the
+        /// short answer is to step into a gap rather than to outrun the whole pattern.
+        /// </summary>
         void CastKpi(EnemyModel e, GameContext ctx)
         {
             int count = e.Phase >= 2
                 ? (int)e.Def.Param.GetFloat("kpiCountLate", 5f)
                 : (int)e.Def.Param.GetFloat("kpiCount", 3f);
 
-            Vector2 target = ctx.Run.Player.Pos;
+            float warn = e.Def.Param.GetFloat("kpiWarn", 0.8f);
+            float radius = e.Def.Param.GetFloat("kpiBlast", 1.8f);
+            float scatter = e.Def.Param.GetFloat("kpiScatter", 2.2f);
+            float now = GameClock.Now;
+
+            ArenaDef arena = ctx.Cfg.Arena;
+            Vector2 center = ctx.Run.Player.Pos;
+
             for (int i = 0; i < count; i++)
             {
-                Vector2 scatter = target + Rng.RingPoint(Vector2.zero, 0f, 2.2f);
-                Vector2 dir = scatter - e.Pos;
-                float dist = dir.magnitude;
-                if (dist < 0.1f)
-                {
-                    continue;
-                }
-
-                ProjectileModel p = ProjectileFactory.Spawn(
-                    ctx, e.Pos, dir / dist * 8f, e.ContactDamage * 0.9f, dist, "v_kpi", true);
-                p.Radius = 0.3f;
-                p.ExplodeRadius = e.Def.Param.GetFloat("kpiBlast", 1.8f);
+                TelegraphModel t = ctx.Run.RentTelegraph();
+                t.Pos = arena.Clamp(center + Rng.RingPoint(Vector2.zero, 0f, scatter), 1f);
+                t.Radius = radius;
+                t.BornAt = now;
+                t.FireAt = now + warn;
+                t.Damage = e.ContactDamage * 0.9f;
+                t.ViewId = "v_warn_kpi";
             }
         }
 
@@ -396,7 +414,7 @@ namespace OfficeHell.Systems
             {
                 float angle = Mathf.PI * 2f / count * i + Rng.Range(-0.2f, 0.2f);
                 TelegraphModel t = ctx.Run.RentTelegraph();
-                t.Pos = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                t.Pos = ctx.Cfg.Arena.Clamp(center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius, 1f);
                 t.Radius = 0.9f;
                 t.BornAt = GameClock.Now;
                 t.FireAt = GameClock.Now + e.Def.Param.GetFloat("summonWarn", 1f);
@@ -452,9 +470,7 @@ namespace OfficeHell.Systems
                     Rng.Range(-spreadY, spreadY));
 
                 TelegraphModel t = ctx.Run.RentTelegraph();
-                t.Pos = new Vector2(
-                    Mathf.Clamp(pos.x, -arena.HalfWidth + 1f, arena.HalfWidth - 1f),
-                    Mathf.Clamp(pos.y, -arena.HalfHeight + 1f, arena.HalfHeight - 1f));
+                t.Pos = arena.Clamp(pos, 1f);
                 t.Radius = radius;
                 t.BornAt = GameClock.Now;
                 t.FireAt = GameClock.Now + warn;

@@ -32,6 +32,7 @@ namespace OfficeHell.Systems
             for (int i = 0; i < PlayerModel.WeaponSlots; i++)
             {
                 p.Weapons[i].NextFireAt = now + p.Weapons[i].PhaseOffset;
+                p.Weapons[i].WaitingForTarget = false;
             }
         }
 
@@ -61,11 +62,13 @@ namespace OfficeHell.Systems
                 {
                     rt.LastFiredAt = now;
                     rt.NextFireAt = now + interval;
+                    rt.WaitingForTarget = false;
                 }
                 else
                 {
                     // No target in range. Do not burn the cooldown, just look again shortly.
                     rt.NextFireAt = now + RetrySeconds;
+                    rt.WaitingForTarget = true;
                 }
             }
         }
@@ -78,6 +81,13 @@ namespace OfficeHell.Systems
             }
 
             if (rt.Def.Kind == WeaponKind.Orbit)
+            {
+                return 1f;
+            }
+
+            // An empty field polls every RetrySeconds, which would otherwise park the readout just
+            // short of full and read as a jammed weapon. The slot is ready; it has nothing to shoot.
+            if (rt.WaitingForTarget)
             {
                 return 1f;
             }

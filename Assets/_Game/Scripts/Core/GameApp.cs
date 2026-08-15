@@ -98,6 +98,11 @@ namespace OfficeHell.Core
                 Driver.Dispose();
             }
 
+            if (_binder != null)
+            {
+                _binder.Dispose();
+            }
+
             if (_juice != null)
             {
                 _juice.Dispose();

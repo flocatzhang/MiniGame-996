@@ -9,8 +9,14 @@ namespace OfficeHell.Core
     /// </summary>
     public sealed class InputProvider : MonoBehaviour
     {
+        /// <summary>Screen pixels. Loose enough to ignore sensor jitter on a resting mouse.</summary>
+        const float PointerMoveEpsilon = 2f;
+
         InputSystem _target;
         Camera _camera;
+
+        Vector3 _lastPointerScreen;
+        bool _hasPointerScreen;
 
         public void Bind(InputSystem target, Camera camera)
         {
@@ -29,12 +35,22 @@ namespace OfficeHell.Core
 
             Vector3 mouse = Input.mousePosition;
             bool inside = mouse.x >= 0f && mouse.y >= 0f && mouse.x <= Screen.width && mouse.y <= Screen.height;
+            bool moved = false;
             if (inside)
             {
                 Vector3 world = _camera.ScreenToWorldPoint(new Vector3(mouse.x, mouse.y, 0f));
                 snapshot.PointerWorld = new Vector2(world.x, world.y);
                 snapshot.PointerValid = true;
+
+                // Measured in screen space on purpose: the world point under a resting cursor drifts
+                // every frame while the camera follows the player, which would look like mouse input.
+                moved = _hasPointerScreen
+                    && (mouse - _lastPointerScreen).sqrMagnitude > PointerMoveEpsilon * PointerMoveEpsilon;
+                _lastPointerScreen = mouse;
+                _hasPointerScreen = true;
             }
+
+            snapshot.PointerMoved = moved || Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1);
 
             float x = 0f;
             float y = 0f;

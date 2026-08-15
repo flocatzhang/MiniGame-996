@@ -6,12 +6,22 @@ namespace OfficeHell.Model
 {
     public sealed class EnemyModel
     {
+        /// <summary>
+        /// How fast an active knockback bleeds off, in units per second squared. Lives here rather than
+        /// in the movement pass because it is what turns an authored distance into an impulse, and the
+        /// two have to agree or the sheet stops describing what happens on screen.
+        /// </summary>
+        public const float KnockbackDecay = 8f;
+
         public int Id;
         public string DefId;
         public EnemyDef Def;
 
         public Vector2 Pos;
         public Vector2 Knockback;
+
+        /// <summary>Internal cooldown on the knockback debuff, so it cannot be chained. See TryKnockback.</summary>
+        public float KnockbackReadyAt;
         public float Hp;
         public float MaxHp;
         public float ContactDamage;
@@ -98,6 +108,41 @@ namespace OfficeHell.Model
             return speed;
         }
 
+        /// <summary>
+        /// Knockback is authored as the distance the enemy should travel, which is the unit the design
+        /// sheet states it in ("击退 1 unit") and the only one a designer can verify by watching the
+        /// screen. The conversion to an impulse is v = sqrt(2 * decay * distance).
+        ///
+        /// The cooldown is the point of this method. Impulses used to be added on top of whatever was
+        /// already there, so six slots landing on one frame stacked six pushes, and an enemy under
+        /// sustained fire was shoved backwards indefinitely without ever closing. One push per window,
+        /// and a blocked push is dropped rather than queued: a queued one would arrive after the shot
+        /// that earned it and read as a shove out of nowhere.
+        /// </summary>
+        public bool TryKnockback(Vector2 dir, float distance, float now)
+        {
+            if (distance <= 0f || dir.sqrMagnitude < 0.0001f || now < KnockbackReadyAt)
+            {
+                return false;
+            }
+
+            Knockback = dir.normalized * Mathf.Sqrt(2f * KnockbackDecay * distance);
+            KnockbackReadyAt = now + (Def != null ? Def.KnockbackCd : 1.2f);
+            return true;
+        }
+
+        /// <summary>
+        /// The two panic buttons ignore the cooldown: 摸鱼 and the orange headphone shield shattering.
+        /// Both carry their own long cooldown and exist to break a surround, so silently losing one
+        /// because a stapler needle landed a moment earlier would spend the player's escape at exactly
+        /// the moment they reached for it. They still open a fresh window behind them.
+        /// </summary>
+        public void ForceKnockback(Vector2 dir, float distance, float now)
+        {
+            KnockbackReadyAt = 0f;
+            TryKnockback(dir, distance, now);
+        }
+
         public void Reset()
         {
             Id = 0;
@@ -105,6 +150,7 @@ namespace OfficeHell.Model
             Def = null;
             Pos = Vector2.zero;
             Knockback = Vector2.zero;
+            KnockbackReadyAt = 0f;
             Hp = 0f;
             MaxHp = 0f;
             ContactDamage = 0f;
@@ -153,9 +199,6 @@ namespace OfficeHell.Model
 
         public float Knockback;
 
-        /// <summary>Boss KPI files detonate where they land instead of hitting a single target.</summary>
-        public float ExplodeRadius;
-
         /// <summary>Range is one number in xml and means both lock radius and max flight distance.</summary>
         public float MaxDistance;
 
@@ -186,7 +229,6 @@ namespace OfficeHell.Model
             FromEnemy = false;
             PinSeconds = 0f;
             Knockback = 0f;
-            ExplodeRadius = 0f;
             MaxDistance = 0f;
             _hit.Clear();
         }
@@ -211,8 +253,13 @@ namespace OfficeHell.Model
         public float Damage;
         public float Knockback;
         public float SlowPct;
+        public float SlowSeconds;
 
-        /// <summary>Keyboard orange. Every fifth attack ignores Target and hits the whole screen.</summary>
+        /// <summary>
+        /// Keyboard orange. Every fifth attack centres on the player instead of on a locked enemy and
+        /// carries the far larger sweep radius. It resolves through the same circle as every other
+        /// strike: the flag only marks it for the flourish the presentation layer puts on top.
+        /// </summary>
         public bool SelectAll;
 
         public bool IsDead;
@@ -235,6 +282,7 @@ namespace OfficeHell.Model
             Damage = 0f;
             Knockback = 0f;
             SlowPct = 0f;
+            SlowSeconds = 0f;
             SelectAll = false;
             IsDead = false;
         }
@@ -434,6 +482,12 @@ namespace OfficeHell.Model
         public float NextFireAt;
         public float LastFiredAt;
 
+        /// <summary>
+        /// Set when the slot is off cooldown but found nothing to shoot. The retry poll keeps pushing
+        /// NextFireAt forward, so without this the readout would report a cooldown that never ends.
+        /// </summary>
+        public bool WaitingForTarget;
+
         /// <summary>Keyboard orange counts to five, so the counter belongs to the slot.</summary>
         public int AttackCount;
 
@@ -463,6 +517,7 @@ namespace OfficeHell.Model
             Quality = Quality.White;
             NextFireAt = 0f;
             LastFiredAt = 0f;
+            WaitingForTarget = false;
             AttackCount = 0;
         }
     }

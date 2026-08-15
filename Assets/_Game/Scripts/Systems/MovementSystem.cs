@@ -21,10 +21,7 @@ namespace OfficeHell.Systems
 
             float speed = p.EffectiveMoveSpeed(GameClock.Now);
             p.Pos += p.MoveIntent * speed * dt;
-
-            float maxX = Mathf.Max(1f, arena.HalfWidth - p.Radius);
-            float maxY = Mathf.Max(1f, arena.HalfHeight - p.Radius);
-            p.Pos = new Vector2(Mathf.Clamp(p.Pos.x, -maxX, maxX), Mathf.Clamp(p.Pos.y, -maxY, maxY));
+            p.Pos = arena.Clamp(p.Pos, p.Radius);
         }
     }
 }

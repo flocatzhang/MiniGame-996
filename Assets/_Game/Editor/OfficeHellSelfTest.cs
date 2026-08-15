@@ -172,8 +172,8 @@ namespace OfficeHell.EditorTools
                 "sfx_weapon_stapler_fire", "sfx_weapon_stapler_hit",
             };
             string[] drops = { "sfx_drop_white", "sfx_drop_blue", "sfx_drop_yellow", "sfx_drop_orange" };
-            float[] dropLengths = { 1.676f, 2.259f, 2.276f, 3.305f };
-            int[] dropRates = { 48000, 48000, 11000, 48000 };
+            float[] dropLengths = { 2.259f, 2.020f, 2.276f, 3.305f };
+            int[] dropRates = { 48000, 11000, 11000, 48000 };
             string[] bgm = { "bgm_login", "bgm_battle", "bgm_boss", "bgm_result" };
 
             string[] guids = AssetDatabase.FindAssets("t:AudioClip", new[] { "Assets/_Game/Audio" });
@@ -260,11 +260,11 @@ namespace OfficeHell.EditorTools
                 "the four quality keys should reference four distinct delivered drop clips");
             report.Require(cfg.Audio.Sfx["sfx_growth_card_appear"].Clip == "SFX/sfx_growth_card_appear",
                 "card appearance should use its newly delivered dedicated clip");
-            report.Require(Mathf.Abs(cfg.Audio.Sfx["sfx_drop_white"].Volume - 0.50f) < 0.001f &&
-                           Mathf.Abs(cfg.Audio.Sfx["sfx_drop_blue"].Volume - 0.46f) < 0.001f &&
+            report.Require(Mathf.Abs(cfg.Audio.Sfx["sfx_drop_white"].Volume - 0.36f) < 0.001f &&
+                           Mathf.Abs(cfg.Audio.Sfx["sfx_drop_blue"].Volume - 0.52f) < 0.001f &&
                            Mathf.Abs(cfg.Audio.Sfx["sfx_drop_yellow"].Volume - 1.00f) < 0.001f &&
                            Mathf.Abs(cfg.Audio.Sfx["sfx_drop_orange"].Volume - 0.90f) < 0.001f,
-                "drop quality volume ladder should be 0.50 / 0.46 / 1.00 / 0.90");
+                "drop quality volume ladder should be 0.36 / 0.52 / 1.00 / 0.90");
             report.Require(Mathf.Abs(cfg.Audio.SfxVolume - 0.707946f) < 0.001f &&
                            Mathf.Abs(cfg.Audio.Sfx["sfx_drop_white"].GainDb - 3f) < 0.001f &&
                            Mathf.Abs(cfg.Audio.Sfx["sfx_drop_blue"].GainDb - 3f) < 0.001f &&

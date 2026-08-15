@@ -1,3 +1,4 @@
+using OfficeHell.Config;
 using OfficeHell.Core;
 using OfficeHell.Model;
 using UnityEngine;
@@ -10,8 +11,6 @@ namespace OfficeHell.Systems
     /// </summary>
     public sealed class EnemyAiSystem
     {
-        const float KnockbackDecay = 8f;
-
         readonly GameContext _ctx;
 
         public EnemyAiSystem(GameContext ctx)
@@ -50,6 +49,7 @@ namespace OfficeHell.Systems
             }
 
             // Pass three: movement.
+            ArenaDef arena = _ctx.Cfg.Arena;
             for (int i = 0; i < run.Enemies.Count; i++)
             {
                 EnemyModel e = run.Enemies[i];
@@ -61,35 +61,31 @@ namespace OfficeHell.Systems
                 if (e.Knockback.sqrMagnitude > 0.0001f)
                 {
                     e.Pos += e.Knockback * dt;
-                    e.Knockback = Vector2.MoveTowards(e.Knockback, Vector2.zero, KnockbackDecay * dt);
+                    e.Knockback = Vector2.MoveTowards(e.Knockback, Vector2.zero, EnemyModel.KnockbackDecay * dt);
                 }
 
                 float speed = e.EffectiveSpeed(now);
-                if (speed <= 0f)
+                if (speed > 0f)
                 {
-                    continue;
-                }
-
-                Vector2 dir;
-                IEnemyBehavior b = EnemyBehaviorRegistry.Get(e.Def.Behavior);
-                if (b == null || !b.TryMove(e, _ctx, out dir))
-                {
-                    Vector2 delta = player.Pos - e.Pos;
-                    float dist = delta.magnitude;
-                    if (dist < 0.0001f)
+                    Vector2 dir;
+                    IEnemyBehavior b = EnemyBehaviorRegistry.Get(e.Def.Behavior);
+                    if (b == null || !b.TryMove(e, _ctx, out dir))
                     {
-                        continue;
+                        Vector2 delta = player.Pos - e.Pos;
+                        float dist = delta.magnitude;
+                        dir = dist > 0.0001f ? delta / dist : Vector2.zero;
                     }
 
-                    dir = delta / dist;
+                    if (dir.sqrMagnitude >= 0.0001f)
+                    {
+                        e.Pos += dir * speed * dt;
+                    }
                 }
 
-                if (dir.sqrMagnitude < 0.0001f)
-                {
-                    continue;
-                }
-
-                e.Pos += dir * speed * dt;
+                // Applied to the result rather than to the chase step, because chasing is the one way
+                // of leaving the field that cannot happen: the player is bounded too. Everything that
+                // does escape moves without asking the chase code, so an early out must not skip this.
+                e.Pos = arena.Clamp(e.Pos, e.Radius);
             }
         }
     }

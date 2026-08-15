@@ -91,6 +91,12 @@ namespace OfficeHell.Config
         public int Exp;
         public EnemyTier Tier;
 
+        /// <summary>
+        /// Internal cooldown on the knockback debuff. Heavier bodies take a longer one: being shoved
+        /// around by a stapler is the difference between a boss and a large mail.
+        /// </summary>
+        public float KnockbackCd = 1.2f;
+
         /// <summary>The boss numbers are absolute, the per day growth formula must not touch them.</summary>
         public bool IgnoreScaling;
     }
@@ -112,6 +118,14 @@ namespace OfficeHell.Config
         public float From;
         public float To = 9999f;
         public float BudgetPct = 100f;
+
+        /// <summary>
+        /// How much faster enemies arrive at the end of this spawner's window than at the start.
+        /// 1 is a flat rate, 2 means the closing bell is twice as busy as the opening. The budget is
+        /// unaffected: only its distribution across the window changes.
+        /// </summary>
+        public float Ramp = 2f;
+
         public List<PickDef> Picks = new List<PickDef>(4);
     }
 
@@ -226,8 +240,39 @@ namespace OfficeHell.Config
         public float SecondSlamPct = 60f;
         public float SlowPct;
 
-        /// <summary>0 disables the "Ctrl + A" pass, otherwise every Nth attack hits the whole screen.</summary>
+        /// <summary>
+        /// How long a hit slows for. It has to be shorter than the weapon's own attack interval or the
+        /// next strike renews it before it lapses, and a debuff at full uptime is not a debuff, it is
+        /// a permanent stat change on every enemy the player is currently fighting.
+        /// </summary>
+        public float SlowSeconds = 0.8f;
+
+        /// <summary>0 disables the "Ctrl + A" pass, otherwise every Nth attack sweeps SelectAllRadius.</summary>
         public int SelectAllEvery;
+
+        /// <summary>
+        /// What fraction of a normal strike Ctrl + A deals. Below 100 because the sweep already trades
+        /// nothing for its coverage: at parity it is simply a free full damage hit on everything near
+        /// the player, which clears the field faster than the field can refill.
+        /// </summary>
+        public float SelectAllPct = 100f;
+
+        /// <summary>
+        /// How far the Ctrl + A sweep reaches from the player. It used to have no radius at all and
+        /// billed every enemy alive, which made the one weapon that is also a screen clear on a timer
+        /// leave the other five slots with nothing to shoot. A radius restores the thing every other
+        /// area attack in the game has: an outside.
+        /// </summary>
+        public float SelectAllRadius = 6f;
+
+        /// <summary>
+        /// Shared across every slot holding this weapon, not per slot. Six orange keyboards reach
+        /// their fifth attack at six slightly different times, so without this the sweep stops being
+        /// an event and becomes a strobe that happens to be the background state of the fight. Set
+        /// under one slot's own cadence and it does nothing; over it and haste eventually makes even
+        /// a lone keyboard wait, which is the intended ceiling rather than a bug.
+        /// </summary>
+        public float SelectAllSharedCd;
 
         // Orbit
         public int OrbitCount = 1;
@@ -253,7 +298,11 @@ namespace OfficeHell.Config
             t.Slams = Slams;
             t.SecondSlamPct = SecondSlamPct;
             t.SlowPct = SlowPct;
+            t.SlowSeconds = SlowSeconds;
             t.SelectAllEvery = SelectAllEvery;
+            t.SelectAllPct = SelectAllPct;
+            t.SelectAllRadius = SelectAllRadius;
+            t.SelectAllSharedCd = SelectAllSharedCd;
             t.OrbitCount = OrbitCount;
             t.OrbitRadius = OrbitRadius;
             t.OrbitDegPerSec = OrbitDegPerSec;
@@ -360,6 +409,19 @@ namespace OfficeHell.Config
     {
         public float HalfWidth = 15f;
         public float HalfHeight = 8.5f;
+
+        /// <summary>
+        /// One definition of "inside the walls", for everything that moves rather than for the player
+        /// alone. Knockback, a ranged unit backing away and a split landing next to a wall all push a
+        /// body outward without ever going through the chase code, so the bound has to be applied to
+        /// the resulting position instead of to any one mover.
+        /// </summary>
+        public Vector2 Clamp(Vector2 pos, float radius)
+        {
+            float maxX = Mathf.Max(1f, HalfWidth - radius);
+            float maxY = Mathf.Max(1f, HalfHeight - radius);
+            return new Vector2(Mathf.Clamp(pos.x, -maxX, maxX), Mathf.Clamp(pos.y, -maxY, maxY));
+        }
     }
 
     public sealed class ProgressionDef
