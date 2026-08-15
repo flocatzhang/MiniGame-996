@@ -11,7 +11,7 @@ namespace OfficeHell.View
     {
         public SpriteRenderer Body;
 
-        SpriteRenderer _beam;
+        LootBeamFx _lootBeam;
         SpriteRenderer _barBack;
         SpriteRenderer _barFill;
         SpriteRenderer _ring;
@@ -278,36 +278,21 @@ namespace OfficeHell.View
 
         // ---------- optional decorations, created lazily ----------
 
-        public void ShowBeam(Color color, float height, float width)
+        public void ShowLootBeam(Quality quality, Color color, float time, int seed)
         {
-            if (_beam == null)
+            if (_lootBeam == null)
             {
-                GameObject go = new GameObject("Beam");
-                go.transform.SetParent(transform, false);
-                _beam = go.AddComponent<SpriteRenderer>();
-                _beam.sprite = PrimitiveFactory.Pixel;
-                _beam.sortingOrder = Body.sortingOrder - 1;
+                _lootBeam = LootBeamFx.Create(transform, Body.sortingOrder);
             }
 
-            _beam.enabled = true;
-            _beam.color = new Color(color.r, color.g, color.b, 0.35f);
-            _beam.transform.localScale = new Vector3(width, height, 1f);
-            _beam.transform.localPosition = new Vector3(0f, height * 0.5f, 0f);
+            _lootBeam.Show(quality, color, time, seed);
         }
 
         public void HideBeam()
         {
-            if (_beam != null)
+            if (_lootBeam != null)
             {
-                _beam.enabled = false;
-            }
-        }
-
-        public void RotateBeam(float degrees)
-        {
-            if (_beam != null && _beam.enabled)
-            {
-                _beam.transform.localRotation = Quaternion.Euler(0f, degrees, 0f);
+                _lootBeam.Hide();
             }
         }
 

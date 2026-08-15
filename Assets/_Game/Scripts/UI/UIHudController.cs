@@ -4,12 +4,15 @@ using OfficeHell.Model;
 using OfficeHell.Systems;
 using OfficeHell.View;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace OfficeHell.UI
 {
     /// <summary>Projects the current run onto the prefab-authored battle HUD.</summary>
     public sealed class UIHudController : UIControllerBase
     {
+        static Sprite _progressFillSprite;
+
         readonly UIContext _ctx;
         readonly UIHudView _view;
 
@@ -21,6 +24,10 @@ namespace OfficeHell.UI
 
         protected override void OnUIInit()
         {
+            ConfigureProgressFill(_view.SanFill);
+            ConfigureProgressFill(_view.ExpFill);
+            ConfigureProgressFill(_view.SkillFill);
+
             Sprite[] playerFrames = ArtCatalog.Frames("player");
             if (playerFrames.Length > 0)
             {
@@ -29,6 +36,29 @@ namespace OfficeHell.UI
             }
 
             _view.BossRoot.SetActive(false);
+        }
+
+        static void ConfigureProgressFill(Image fill)
+        {
+            if (fill.sprite == null)
+            {
+                if (_progressFillSprite == null)
+                {
+                    _progressFillSprite = Sprite.Create(
+                        Texture2D.whiteTexture,
+                        new Rect(0f, 0f, 1f, 1f),
+                        new Vector2(0.5f, 0.5f),
+                        1f);
+                    _progressFillSprite.name = "UIHud Progress Fill";
+                    _progressFillSprite.hideFlags = HideFlags.HideAndDontSave;
+                }
+
+                fill.sprite = _progressFillSprite;
+            }
+
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
         }
 
         protected override void OnUITick(float unscaledDt)
@@ -46,7 +76,8 @@ namespace OfficeHell.UI
                 ? Mathf.Clamp01((float)player.Exp / player.ExpToNext)
                 : 0f;
             _view.ExpText.text = player.Exp + " / " + player.ExpToNext;
-            _view.RankText.text = cfg.RankOf(player.Level) + "  Lv." + player.Level;
+            _view.NameText.text = cfg.RankOf(player.Level);
+            _view.RankText.text = "Lv." + player.Level;
 
             int salary = CombatFormula.Salary(run.CombatSeconds, cfg.TotalCombatSeconds, cfg.Progression);
             _view.CoinText.text = salary.ToString("N0");

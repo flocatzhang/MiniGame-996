@@ -15,6 +15,9 @@ namespace OfficeHell.View
         static readonly Dictionary<ViewShape, Sprite> Cache = new Dictionary<ViewShape, Sprite>(8);
         static Sprite _pixel;
         static Sprite _ring;
+        static Sprite _lootBeam;
+        static Sprite _lootGlow;
+        static Sprite _lootSpark;
 
         public static Sprite Get(ViewShape shape)
         {
@@ -58,6 +61,48 @@ namespace OfficeHell.View
                 }
 
                 return _ring;
+            }
+        }
+
+        /// <summary>Soft vertical mask with a bottom pivot, shared by every loot beam layer.</summary>
+        public static Sprite LootBeam
+        {
+            get
+            {
+                if (_lootBeam == null)
+                {
+                    _lootBeam = BuildLootBeam();
+                }
+
+                return _lootBeam;
+            }
+        }
+
+        /// <summary>Radial falloff used for the pool-friendly ground glow.</summary>
+        public static Sprite LootGlow
+        {
+            get
+            {
+                if (_lootGlow == null)
+                {
+                    _lootGlow = BuildSoftDisc("loot_glow", 64);
+                }
+
+                return _lootGlow;
+            }
+        }
+
+        /// <summary>Small radial falloff used by the single particle system on each loot view.</summary>
+        public static Sprite LootSpark
+        {
+            get
+            {
+                if (_lootSpark == null)
+                {
+                    _lootSpark = BuildSoftDisc("loot_spark", 16);
+                }
+
+                return _lootSpark;
             }
         }
 
@@ -146,6 +191,59 @@ namespace OfficeHell.View
 
             Sprite sprite = Sprite.Create(tex, new Rect(0, 0, Size, Size), new Vector2(0.5f, 0.5f), Size);
             sprite.name = "ring";
+            return sprite;
+        }
+
+        static Sprite BuildLootBeam()
+        {
+            Texture2D tex = NewTexture(Size, Size);
+            Color32[] pixels = new Color32[Size * Size];
+
+            for (int y = 0; y < Size; y++)
+            {
+                float v = (y + 0.5f) / Size;
+                float bottomFade = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(v / 0.08f));
+                float topFade = 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((v - 0.52f) / 0.48f));
+
+                for (int x = 0; x < Size; x++)
+                {
+                    float nx = Mathf.Abs((x + 0.5f) / Size * 2f - 1f);
+                    float sideFade = Mathf.Pow(Mathf.Clamp01(1f - nx), 2.4f);
+                    byte a = (byte)Mathf.RoundToInt(255f * sideFade * bottomFade * topFade);
+                    pixels[y * Size + x] = new Color32(255, 255, 255, a);
+                }
+            }
+
+            tex.SetPixels32(pixels);
+            tex.Apply();
+
+            Sprite sprite = Sprite.Create(tex, new Rect(0, 0, Size, Size), new Vector2(0.5f, 0f), Size);
+            sprite.name = "loot_beam";
+            return sprite;
+        }
+
+        static Sprite BuildSoftDisc(string name, int size)
+        {
+            Texture2D tex = NewTexture(size, size);
+            Color32[] pixels = new Color32[size * size];
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float nx = (x + 0.5f) / size * 2f - 1f;
+                    float ny = (y + 0.5f) / size * 2f - 1f;
+                    float falloff = Mathf.Pow(Mathf.Clamp01(1f - Mathf.Sqrt(nx * nx + ny * ny)), 2f);
+                    byte a = (byte)Mathf.RoundToInt(255f * falloff);
+                    pixels[y * size + x] = new Color32(255, 255, 255, a);
+                }
+            }
+
+            tex.SetPixels32(pixels);
+            tex.Apply();
+
+            Sprite sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+            sprite.name = name;
             return sprite;
         }
 

@@ -3358,8 +3358,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -57.000027, y: 0}
-  m_SizeDelta: {x: -113.99995, y: -6}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: -6, y: -6}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &541322155837410559
 CanvasRenderer:
@@ -3716,6 +3716,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Portrait: {fileID: 6235238452965376547}
+  NameText: {fileID: 144084221516788142}
   RankText: {fileID: 2023523559160516510}
   SanFill: {fileID: 3706183185073615636}
   SanText: {fileID: 3337676924540562022}

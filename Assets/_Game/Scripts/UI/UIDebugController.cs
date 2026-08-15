@@ -125,14 +125,14 @@ namespace OfficeHell.UI
             GUILayout.EndHorizontal();
 
             GUILayout.Space(6f);
-            GUILayout.Label("强制掉落", _label);
+            GUILayout.Label("强制掉落（生成在角色上方，不会立即拾取）", _label);
             GUILayout.BeginHorizontal();
             for (int i = 0; i < 4; i++)
             {
                 Quality q = (Quality)i;
                 if (GUILayout.Button(QualityLabel(q) + "武"))
                 {
-                    _ctx.Driver.Loot.SpawnWeapon(p.Pos, q);
+                    _ctx.Driver.Loot.SpawnWeapon(DebugLootPosition(p, i), q);
                 }
             }
 
@@ -144,11 +144,19 @@ namespace OfficeHell.UI
                 Quality q = (Quality)i;
                 if (GUILayout.Button(QualityLabel(q) + "防"))
                 {
-                    _ctx.Driver.Loot.SpawnArmor(p.Pos, q);
+                    _ctx.Driver.Loot.SpawnArmor(DebugLootPosition(p, i), q);
                 }
             }
 
             GUILayout.EndHorizontal();
+
+            if (GUILayout.Button("四档光柱对比"))
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    _ctx.Driver.Loot.SpawnWeapon(DebugLootPosition(p, i), (Quality)i);
+                }
+            }
 
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("咖啡"))
@@ -327,6 +335,13 @@ namespace OfficeHell.UI
                 case Quality.Orange: return "橙";
                 default: return "绿";
             }
+        }
+
+        static Vector2 DebugLootPosition(PlayerModel player, int qualityIndex)
+        {
+            float x = (qualityIndex - 1.5f) * 1.35f;
+            float y = player.Pos.y > 0f ? -3f : 3f;
+            return player.Pos + new Vector2(x, y);
         }
     }
 }

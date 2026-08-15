@@ -22,7 +22,7 @@
     and no time to read one. Green is muted on purpose so it never competes with the healing text.
   -->
   <Quality id="green" weight="62" affixCount="0" color="#6FB86B"
-           beam="none" hitStop="0" shake="0" label="false" autoMagnet="true"
+           beam="soft" hitStop="0" shake="0" label="false" autoMagnet="true"
            sfx="sfx_drop_green" />
 
   <Quality id="blue" weight="27" affixCount="1" color="#4A9BFF"

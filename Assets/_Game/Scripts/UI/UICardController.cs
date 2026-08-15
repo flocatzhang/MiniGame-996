@@ -65,6 +65,7 @@ namespace OfficeHell.UI
 
             List<CardOffer> offers = _ctx.Driver.Cards.Offers;
             int count = Mathf.Min(offers.Count, MaxCards);
+            int recommendedIndex = RecommendedEquipmentIndex(offers, count);
             int pending = _ctx.Game.Run.Player.PendingLevelUps;
             _view.Title.text = pending > 1
                 ? "选择你的奖励（剩余 " + pending + " 次）"
@@ -76,12 +77,33 @@ namespace OfficeHell.UI
                 _cards[i].gameObject.SetActive(used);
                 if (used)
                 {
-                    Fill(_cards[i], offers[i], i);
+                    Fill(_cards[i], offers[i], i, i == recommendedIndex);
                 }
             }
         }
 
-        void Fill(UICardView card, CardOffer offer, int index)
+        static int RecommendedEquipmentIndex(List<CardOffer> offers, int count)
+        {
+            int recommendedIndex = -1;
+            int highestQuality = -1;
+
+            for (int i = 0; i < count; i++)
+            {
+                CardOffer offer = offers[i];
+                int quality = (int)offer.Quality;
+                if (offer.Kind != CardKind.Equipment || quality <= highestQuality)
+                {
+                    continue;
+                }
+
+                recommendedIndex = i;
+                highestQuality = quality;
+            }
+
+            return recommendedIndex;
+        }
+
+        void Fill(UICardView card, CardOffer offer, int index, bool recommended)
         {
             card.Kind.text = KindWord(offer.Kind);
             card.Title.text = offer.Title;
@@ -116,7 +138,7 @@ namespace OfficeHell.UI
             card.IconFallback.gameObject.SetActive(sprite == null);
             card.IconFallback.text = IconFallback(iconKey);
 
-            card.RecommendBadge.SetActive(offer.Kind == CardKind.Equipment);
+            card.RecommendBadge.SetActive(recommended);
             card.NewBadge.SetActive(offer.Kind == CardKind.Skill && !offer.IsUpgrade);
         }
 

@@ -691,8 +691,7 @@ namespace OfficeHell.View
 
                 if (gear && qd.Beam != "none")
                 {
-                    v.ShowBeam(qd.Color, BeamHeight(qd.Beam), BeamWidth(qd.Beam));
-                    v.RotateBeam(t * 60f);
+                    v.ShowLootBeam(l.Quality, qd.Color, t, l.Id);
                 }
                 else
                 {
@@ -707,28 +706,6 @@ namespace OfficeHell.View
                 {
                     v.HideLabel();
                 }
-            }
-        }
-
-        static float BeamHeight(string beam)
-        {
-            switch (beam)
-            {
-                case "thin": return 1.6f;
-                case "medium": return 2.6f;
-                case "thick": return 4.2f;
-                default: return 0f;
-            }
-        }
-
-        static float BeamWidth(string beam)
-        {
-            switch (beam)
-            {
-                case "thin": return 0.12f;
-                case "medium": return 0.22f;
-                case "thick": return 0.40f;
-                default: return 0f;
             }
         }
 

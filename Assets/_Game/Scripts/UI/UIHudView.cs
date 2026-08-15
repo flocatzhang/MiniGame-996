@@ -26,6 +26,7 @@ namespace OfficeHell.UI
         }
 
         public Image Portrait;
+        public Text NameText;
         public Text RankText;
         public Image SanFill;
         public Text SanText;
