@@ -47,11 +47,14 @@ namespace OfficeHell.View
 
         void Build(int sortingOrder)
         {
-            _groundGlow = NewRenderer("GroundGlow", PrimitiveFactory.LootGlow, sortingOrder - 4);
-            _groundRing = NewRenderer("GroundRing", PrimitiveFactory.Ring, sortingOrder - 3);
-            _wideBeam = NewRenderer("WideBeam", PrimitiveFactory.LootBeam, sortingOrder - 3);
-            _coreBeam = NewRenderer("CoreBeam", PrimitiveFactory.LootBeam, sortingOrder - 2);
-            _accentBeam = NewRenderer("AccentBeam", PrimitiveFactory.LootBeam, sortingOrder - 1);
+            // Reserve sortingOrder - 1 for the authored quality light. Higher tiers make these beam
+            // layers wider and more opaque, so drawing them over the light made blue/purple/orange
+            // drops appear to lose the art at the bright part of their pulse.
+            _groundGlow = NewRenderer("GroundGlow", PrimitiveFactory.LootGlow, sortingOrder - 6);
+            _groundRing = NewRenderer("GroundRing", PrimitiveFactory.Ring, sortingOrder - 5);
+            _wideBeam = NewRenderer("WideBeam", PrimitiveFactory.LootBeam, sortingOrder - 5);
+            _coreBeam = NewRenderer("CoreBeam", PrimitiveFactory.LootBeam, sortingOrder - 4);
+            _accentBeam = NewRenderer("AccentBeam", PrimitiveFactory.LootBeam, sortingOrder - 3);
 
             GameObject particleGo = new GameObject("Sparks");
             particleGo.transform.SetParent(transform, false);

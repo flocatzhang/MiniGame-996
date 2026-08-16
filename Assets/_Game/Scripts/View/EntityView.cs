@@ -14,6 +14,7 @@ namespace OfficeHell.View
         LootBeamFx _lootBeam;
         SpriteRenderer _barBack;
         SpriteRenderer _barFill;
+        SpriteRenderer _qualityLight;
         SpriteRenderer _ring;
         TextMesh _label;
 
@@ -324,6 +325,43 @@ namespace OfficeHell.View
             }
         }
 
+        /// <summary>
+        /// Draws the authored tier light above the beam geometry but below the item. Keeping this
+        /// separate from Ring means pooled loot cannot borrow an enemy aura, while the stable sorting
+        /// gap prevents the stronger purple and orange beam pulses from intermittently hiding it.
+        /// </summary>
+        public void ShowQualityLight(Sprite sprite, float radius)
+        {
+            if (sprite == null)
+            {
+                HideQualityLight();
+                return;
+            }
+
+            if (_qualityLight == null)
+            {
+                GameObject go = new GameObject("QualityLight");
+                go.transform.SetParent(transform, false);
+                _qualityLight = go.AddComponent<SpriteRenderer>();
+                _qualityLight.sortingOrder = Body.sortingOrder - 1;
+            }
+
+            _qualityLight.sprite = sprite;
+            _qualityLight.enabled = true;
+            _qualityLight.color = Color.white;
+            float sourceWidth = Mathf.Max(0.01f, sprite.bounds.size.x);
+            float scale = Mathf.Max(0f, radius) * 2f / sourceWidth;
+            _qualityLight.transform.localScale = Vector3.one * scale;
+        }
+
+        public void HideQualityLight()
+        {
+            if (_qualityLight != null)
+            {
+                _qualityLight.enabled = false;
+            }
+        }
+
         public void ShowRing(Color color, float radius)
         {
             ShowRing(null, color, radius);
@@ -438,6 +476,7 @@ namespace OfficeHell.View
         public void ResetDecorations()
         {
             HideBeam();
+            HideQualityLight();
             HideBar();
             HideLabel();
             HideRing();

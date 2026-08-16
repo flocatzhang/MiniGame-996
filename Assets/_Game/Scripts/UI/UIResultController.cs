@@ -4,6 +4,7 @@ using System.Text;
 using OfficeHell.Config;
 using OfficeHell.Model;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace OfficeHell.UI
 {
@@ -11,6 +12,7 @@ namespace OfficeHell.UI
     public sealed class UIResultController : UIControllerBase
     {
         static readonly float[] StepAt = { 0f, 0.5f, 1.1f, 2f, 2.6f, 3.1f };
+        static Sprite _kpiFillSprite;
 
         sealed class WorkRow
         {
@@ -39,8 +41,41 @@ namespace OfficeHell.UI
 
         protected override void OnUIInit()
         {
+            ConfigureKpiProgressBar(_view.KpiFill);
             _view.RestartButton.onClick.AddListener(Restart);
             _view.MenuButton.onClick.AddListener(ReturnToMenu);
+        }
+
+        static void ConfigureKpiProgressBar(Image fill)
+        {
+            if (fill.sprite == null)
+            {
+                if (_kpiFillSprite == null)
+                {
+                    _kpiFillSprite = Sprite.Create(
+                        Texture2D.whiteTexture,
+                        new Rect(0f, 0f, 1f, 1f),
+                        new Vector2(0.5f, 0.5f),
+                        1f);
+                    _kpiFillSprite.name = "UIResult KPI Fill";
+                    _kpiFillSprite.hideFlags = HideFlags.HideAndDontSave;
+                }
+
+                fill.sprite = _kpiFillSprite;
+            }
+
+            RectTransform rect = fill.rectTransform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = Vector2.zero;
+
+            fill.gameObject.SetActive(true);
+            fill.raycastTarget = false;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            fill.fillAmount = 0f;
         }
 
         protected override void OnUIDestroy()
@@ -87,8 +122,7 @@ namespace OfficeHell.UI
             _view.Comment.text = Comment(run);
 
             _kpiTarget = Mathf.Min(99, run.Kpi(cfg.Progression));
-            _view.KpiFill.fillAmount = 0f;
-            _view.KpiLabel.text = "KPI 完成度  0%";
+            SetKpiProgress(0f);
 
             _step = 0;
             _skipped = false;
@@ -198,8 +232,7 @@ namespace OfficeHell.UI
             if (_step >= 4)
             {
                 float target = _kpiTarget / 100f;
-                _view.KpiFill.fillAmount = Mathf.Min(target, _view.KpiFill.fillAmount + unscaledDt * 0.55f);
-                _view.KpiLabel.text = "KPI 完成度  " + Mathf.RoundToInt(_view.KpiFill.fillAmount * 100f) + "%";
+                SetKpiProgress(Mathf.Min(target, _view.KpiFill.fillAmount + unscaledDt * 0.55f));
             }
 
             if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Space))
@@ -218,8 +251,14 @@ namespace OfficeHell.UI
             _skipped = true;
             _step = StepAt.Length - 1;
             ApplyStep(_step);
-            _view.KpiFill.fillAmount = _kpiTarget / 100f;
-            _view.KpiLabel.text = "KPI 完成度  " + _kpiTarget + "%";
+            SetKpiProgress(_kpiTarget / 100f);
+        }
+
+        void SetKpiProgress(float normalized)
+        {
+            float value = Mathf.Clamp01(normalized);
+            _view.KpiFill.fillAmount = value;
+            _view.KpiLabel.text = "KPI 完成度  " + Mathf.RoundToInt(value * 100f) + "%";
         }
 
         void ApplyStep(int step)

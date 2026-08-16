@@ -148,6 +148,15 @@ namespace OfficeHell.EditorTools
                     result.KpiGroup != null && result.KpiLabel != null && result.KpiFill != null &&
                     result.ButtonsGroup != null && result.RestartButton != null && result.MenuButton != null,
                 "UIResult serialized references are incomplete.");
+            RectTransform resultKpiFillRect = result.KpiFill.rectTransform;
+            Require(result.KpiFill.gameObject.activeSelf && result.KpiFill.transform.parent != null &&
+                    result.KpiFill.transform.parent.name == "KpiBackground" &&
+                    result.KpiFill.type == UnityEngine.UI.Image.Type.Filled &&
+                    result.KpiFill.fillMethod == UnityEngine.UI.Image.FillMethod.Horizontal &&
+                    result.KpiFill.fillOrigin == (int)UnityEngine.UI.Image.OriginHorizontal.Left &&
+                    resultKpiFillRect.anchorMin == Vector2.zero && resultKpiFillRect.anchorMax == Vector2.one &&
+                    resultKpiFillRect.sizeDelta == Vector2.zero,
+                "UIResult KPI fill must stretch over KpiBackground and fill horizontally from the left.");
             Require(AssetDatabase.GetAssetPath(result.ClearOutcomeSprite) == ClearOutcomePath &&
                     AssetDatabase.GetAssetPath(result.IncompleteOutcomeSprite) == IncompleteOutcomePath,
                 "UIResult outcome sprites are not mapped to the authored completed/incomplete Slice assets.");
@@ -633,7 +642,7 @@ namespace OfficeHell.EditorTools
             SetTop(rule.rectTransform, new Vector2(24f, -257f), new Vector2(302f, 2f), new Vector2(0f, 1f));
 
             Text primary = Label("Primary", root.transform, "攻击力 +5", 27, Ink, TextAnchor.UpperLeft);
-            SetTop(primary.rectTransform, new Vector2(24f, -286f), new Vector2(250f, 82f), new Vector2(0f, 1f));
+            SetTop(primary.rectTransform, new Vector2(24f, -286f), new Vector2(285f, 110f), new Vector2(0f, 1f));
             primary.fontStyle = FontStyle.Bold;
             primary.horizontalOverflow = HorizontalWrapMode.Wrap;
             primary.verticalOverflow = VerticalWrapMode.Truncate;
@@ -826,12 +835,14 @@ namespace OfficeHell.EditorTools
             SetCenter(kpiLabel.rectTransform, new Vector2(0f, 13f), new Vector2(710f, 28f));
             Image kpiBackground = Image("KpiBackground", kpiGroup.transform, new Color(0.16f, 0.14f, 0.12f, 0.18f));
             SetBottom(kpiBackground.rectTransform, new Vector2(355f, 1f), new Vector2(710f, 15f), new Vector2(0.5f, 0f));
+            kpiBackground.raycastTarget = false;
             Image kpiFill = Image("KpiFill", kpiBackground.transform, new Color(0.91f, 0.62f, 0.05f, 1f));
             Stretch(kpiFill.rectTransform, 0f, 0f, 0f, 0f);
+            kpiFill.raycastTarget = false;
             kpiFill.type = UnityEngine.UI.Image.Type.Filled;
             kpiFill.fillMethod = UnityEngine.UI.Image.FillMethod.Horizontal;
-            kpiFill.fillOrigin = 0;
-            kpiFill.fillAmount = 0.99f;
+            kpiFill.fillOrigin = (int)UnityEngine.UI.Image.OriginHorizontal.Left;
+            kpiFill.fillAmount = 0f;
 
             GameObject buttonsGroup = UiObject("ButtonsGroup", root.transform);
             RectTransform buttonsRect = buttonsGroup.GetComponent<RectTransform>();

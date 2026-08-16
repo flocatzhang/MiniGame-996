@@ -191,8 +191,8 @@ namespace OfficeHell.Systems
         }
 
         /// <summary>
-        /// Orange links the badges into one ring. The rope is sampled as a thin annulus test rather
-        /// than as line segments: the visual is a circle, so the hit shape should be one too.
+        /// Orange links the badges into one annular damage zone. Sampling the shared orbit radius
+        /// keeps every card in the upgrade on one hit shape instead of charging overlapping segments.
         /// </summary>
         void ResolveTether(OrbitCardModel c, float now)
         {

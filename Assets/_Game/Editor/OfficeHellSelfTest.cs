@@ -940,6 +940,16 @@ namespace OfficeHell.EditorTools
             report.Require(GameIconCatalog.Item("no_such_card") == null && GameIconCatalog.Item(null) == null,
                 "an unmapped icon key must resolve to null so the card panel can fall back to its label");
 
+            float keyboardLootLight = GameIconCatalog.LootQualityLightRadius("keyboard", 0.42f);
+            float staplerLootLight = GameIconCatalog.LootQualityLightRadius("stapler", 0.42f);
+            float badgeLootLight = GameIconCatalog.LootQualityLightRadius("badge", 0.42f);
+            report.Require(Mathf.Abs(GameIconCatalog.LootIconMultiplier("keyboard") - 1.5f) < 0.001f &&
+                           Mathf.Abs(GameIconCatalog.LootIconMultiplier("stapler") - 3f) < 0.001f &&
+                           Mathf.Abs(GameIconCatalog.LootIconMultiplier("badge") - 3f) < 0.001f &&
+                           Mathf.Abs(staplerLootLight - keyboardLootLight * 2f) < 0.001f &&
+                           Mathf.Abs(badgeLootLight - keyboardLootLight * 2f) < 0.001f,
+                "world loot quality lights no longer scale with the authored 1.5x/3x item sizes");
+
             // Every authored card carries art. A card added to Cards.xml without a row in the catalog
             // still draws and still works, it just wears three letters where the picture goes.
             for (int i = 0; i < cfg.Cards.Cards.Count; i++)
@@ -958,7 +968,11 @@ namespace OfficeHell.EditorTools
                            GameIconCatalog.Coffee != null && GameIconCatalog.Coffee.name == "Coffee",
                 "world projectile, orbit or coffee icon mapping is incomplete");
 
-            string[] worldFxNames = { "Circle_Blue", "Circle_Red", "Circle_Yellow", "CoffeeStains" };
+            string[] worldFxNames =
+            {
+                "Circle_Blue", "Circle_Red", "Circle_Yellow", "CoffeeStains",
+                "GreenLight", "BlueLight", "PurpleLight", "OrangeLight",
+            };
             for (int i = 0; i < worldFxNames.Length; i++)
             {
                 string resourcePath = "Slice/" + worldFxNames[i];
@@ -979,12 +993,35 @@ namespace OfficeHell.EditorTools
                            WorldFxCatalog.CoffeeStain != null && WorldFxCatalog.CoffeeStain.name == "CoffeeStains",
                 "world aura or coffee-stain art mapping is incomplete");
 
+            report.Require(WorldFxCatalog.QualityLight(Quality.Green) != null &&
+                           WorldFxCatalog.QualityLight(Quality.Green).name == "GreenLight" &&
+                           WorldFxCatalog.QualityLight(Quality.Blue) != null &&
+                           WorldFxCatalog.QualityLight(Quality.Blue).name == "BlueLight" &&
+                           WorldFxCatalog.QualityLight(Quality.Purple) != null &&
+                           WorldFxCatalog.QualityLight(Quality.Purple).name == "PurpleLight" &&
+                           WorldFxCatalog.QualityLight(Quality.Orange) != null &&
+                           WorldFxCatalog.QualityLight(Quality.Orange).name == "OrangeLight",
+                "world loot quality-light art mapping is incomplete");
+
             EntityView view = EntityView.Create("GameIconSelfTest", 0);
             view.Bind(ConfigManager.FallbackView, ViewShape.Quad, true);
             view.SetStaticSprite(GameIconCatalog.FriendlyProjectile, 0.4f);
             report.Require(view.Body.sprite == GameIconCatalog.FriendlyProjectile &&
                            ColorDistance(view.Body.color, Color.white) < 0.01f,
                 "world item icon is missing or receives a color tint");
+            view.ShowQualityLight(WorldFxCatalog.GreenLight, 0.84f);
+            Transform qualityLightTransform = view.transform.Find("QualityLight");
+            SpriteRenderer qualityLightRenderer = qualityLightTransform != null
+                ? qualityLightTransform.GetComponent<SpriteRenderer>()
+                : null;
+            float qualityLightWidth = qualityLightRenderer != null
+                ? qualityLightRenderer.sprite.bounds.size.x * qualityLightTransform.localScale.x
+                : 0f;
+            report.Require(qualityLightRenderer != null &&
+                           qualityLightRenderer.sprite == WorldFxCatalog.GreenLight &&
+                           qualityLightRenderer.sortingOrder < view.Body.sortingOrder &&
+                           Mathf.Abs(qualityLightWidth - 1.68f) < 0.01f,
+                "world loot quality light is missing, above its icon or incorrectly sized");
             view.ShowRing(WorldFxCatalog.CircleRed, Color.white, 2f);
             Transform ringTransform = view.transform.Find("Ring");
             SpriteRenderer ringRenderer = ringTransform != null ? ringTransform.GetComponent<SpriteRenderer>() : null;
@@ -1014,14 +1051,33 @@ namespace OfficeHell.EditorTools
             float greenAlpha = greenCore != null ? greenCore.color.a : 0f;
             report.Require(greenCore != null && greenGlow != null && greenSparks != null &&
                            greenHeight >= 1.3f && greenAlpha >= 0.16f && greenGlow.color.a >= 0.1f &&
-                           greenSparks.main.maxParticles >= 10,
-                "green equipment loot does not retain a visible beam, ground glow and particle profile");
+                           greenSparks.main.maxParticles >= 10 && qualityLightRenderer != null &&
+                           greenCore.sortingOrder < qualityLightRenderer.sortingOrder &&
+                           qualityLightRenderer.sortingOrder < view.Body.sortingOrder,
+                "green equipment loot does not retain a visible beam, quality light and particle profile");
 
             view.ShowLootBeam(Quality.Blue, new Color(0.29f, 0.61f, 1f, 1f), 1.1f, 17);
             float blueHeight = greenCore != null ? greenCore.transform.localScale.y : 0f;
             float blueAlpha = greenCore != null ? greenCore.color.a : 0f;
             report.Require(greenHeight < blueHeight && greenAlpha < blueAlpha,
                 "green loot beam no longer stays visually below the blue quality tier");
+            Quality[] worldLightQualities =
+            {
+                Quality.Green, Quality.Blue, Quality.Purple, Quality.Orange,
+            };
+            Sprite[] worldLightSprites =
+            {
+                WorldFxCatalog.GreenLight, WorldFxCatalog.BlueLight,
+                WorldFxCatalog.PurpleLight, WorldFxCatalog.OrangeLight,
+            };
+            for (int i = 0; i < worldLightQualities.Length; i++)
+            {
+                view.ResetDecorations();
+                view.ShowQualityLight(WorldFxCatalog.QualityLight(worldLightQualities[i]), 0.84f);
+                report.Require(qualityLightRenderer.enabled &&
+                               qualityLightRenderer.sprite == worldLightSprites[i],
+                    "pooled loot did not restore its " + worldLightQualities[i] + " quality light after reset");
+            }
             Object.DestroyImmediate(view.gameObject);
             report.Line("game icons and world FX: 22 distinct card/HUD icons, every authored card covered, " +
                         "plus auras, stains, projectiles and loot mappings verified");

@@ -658,40 +658,6 @@ namespace OfficeHell.View
                 v.transform.localRotation = Quaternion.Euler(0f, 0f, Time.unscaledTime * 90f);
             }
 
-            // The orange tether is one ring, matching its hit shape. Four line segments would read as
-            // four separate ropes rather than as the single halo the upgrade promises.
-            if (cards.Count > 0 && cards[0].Tethered)
-            {
-                ShowTether(cards[0]);
-            }
-            else
-            {
-                HideTether();
-            }
-        }
-
-        EntityView _tether;
-
-        void ShowTether(OrbitCardModel c)
-        {
-            if (_tether == null)
-            {
-                _tether = EntityView.Create("OrbitTether", 8);
-                _tether.transform.SetParent(_root, false);
-                _tether.Bind(ConfigManager.FallbackView, ViewShape.Quad, true);
-                _tether.Body.enabled = false;
-            }
-
-            _tether.SetWorldPosition(_ctx.Run.Player.Pos + new Vector2(0f, _bodyPlaneY));
-            _tether.ShowRing(WorldFxCatalog.CircleYellow, new Color(1f, 1f, 1f, 0.5f), c.Radius);
-        }
-
-        void HideTether()
-        {
-            if (_tether != null)
-            {
-                _tether.HideRing();
-            }
         }
 
         void SyncLoot()
@@ -714,12 +680,12 @@ namespace OfficeHell.View
                 ViewDef def = _ctx.Cfg.View(l.ViewId);
                 EntityView v = Bind(l.Id, KeyLoot, 15, def);
                 Sprite icon = gear ? GameIconCatalog.Item(l.SourceDefId) : GameIconCatalog.Coffee;
+                float iconScale = GameIconCatalog.LootIconMultiplier(l.SourceDefId);
 
                 if (icon != null)
                 {
                     // Drops need to win against the office floor. Keyboard art is already broad, so
                     // it uses the smaller multiplier while coffee and every other item use 3x.
-                    float iconScale = l.SourceDefId == "keyboard" ? 1.5f : 3f;
                     v.SetStaticSprite(icon, def.Scale * iconScale);
                 }
                 else if (gear)
@@ -737,6 +703,21 @@ namespace OfficeHell.View
                 else
                 {
                     v.SetBodyOffset(0f);
+                }
+
+                // The same quality artwork used by the HUD slots sits on the floor below the drop.
+                // It stays at the landing point while the item icon bobs, so the icon remains readable
+                // and the light reads as part of the drop effect rather than as a second item.
+                Sprite qualityLight = gear ? WorldFxCatalog.QualityLight(l.Quality) : null;
+                if (qualityLight != null)
+                {
+                    v.ShowQualityLight(
+                        qualityLight,
+                        GameIconCatalog.LootQualityLightRadius(l.SourceDefId, def.Scale));
+                }
+                else
+                {
+                    v.HideQualityLight();
                 }
 
                 if (gear && qd.Beam != "none")

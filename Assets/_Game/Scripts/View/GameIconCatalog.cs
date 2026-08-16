@@ -7,6 +7,8 @@ namespace OfficeHell.View
     public static class GameIconCatalog
     {
         const string Root = "Icon/card/";
+        const float KeyboardLootMultiplier = 1.5f;
+        const float DefaultLootMultiplier = 3f;
 
         /// <summary>
         /// Lookup key to asset name. Upgrade cards are keyed by their id in Cards.xml and equipment by
@@ -66,6 +68,21 @@ namespace OfficeHell.View
         public static Sprite Coffee
         {
             get { return Load("Coffee"); }
+        }
+
+        /// <summary>
+        /// Keyboard is broad enough at half the scale used by the other world drops. Keeping the
+        /// multiplier here also lets the supporting quality light preserve the same visible border.
+        /// </summary>
+        public static float LootIconMultiplier(string key)
+        {
+            return key == "keyboard" ? KeyboardLootMultiplier : DefaultLootMultiplier;
+        }
+
+        public static float LootQualityLightRadius(string key, float baseScale)
+        {
+            float relativeToKeyboard = LootIconMultiplier(key) / KeyboardLootMultiplier;
+            return baseScale * 2f * relativeToKeyboard;
         }
 
         public static Sprite Item(string key)
