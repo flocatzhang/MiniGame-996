@@ -142,7 +142,7 @@ UIMainMenu
 
 ### 4.2 UIHud.prefab
 
-用途：战斗中的正式 HUD。左上为人物基础状态，其下方是独立摸鱼技能充能条；中上为 09:00→21:00 工作时钟和星期/时段，右上为 KPI，下方为武器槽，右下为装备槽。一次游戏固定表达 996 的周一到周六，不使用“第一关、第二关”概念；时钟显示一天内的办公室时间投影，不是剩余战斗秒数。
+用途：战斗中的正式 HUD。左上为人物基础状态，其下方左侧是多状态栏、右侧是独立摸鱼技能充能条；中上为 09:00→21:00 工作时钟和星期/时段，右上为 KPI，下方为武器槽，右下为装备槽。一次游戏固定表达 996 的周一到周六，不使用“第一关、第二关”概念；时钟显示一天内的办公室时间投影，不是剩余战斗秒数。
 
 ```text
 UIHud
@@ -153,6 +153,12 @@ UIHud
 │  ├─ SanBar / Fill / Caption / Value
 │  ├─ CoinBlock / Caption / Value
 │  └─ KillBlock / Caption / Value
+├─ StatusBar
+│  ├─ AttackSlowStatus
+│  ├─ InvincibleStatus
+│  ├─ ShieldStatus
+│  ├─ MoveSlowStatus
+│  └─ TreatStatus
 ├─ SlackSkillStatus
 │  ├─ SkillIcon
 │  ├─ Caption
@@ -194,6 +200,12 @@ UIHud
 | `KillBlock` | 击杀统计底框 `Image` | 骷髅/击杀数底框 | 静态框体 |
 | `KillBlock/Caption` | 击杀标签 | 不挂图 | 静态文字 |
 | `KillBlock/Value` | 击杀数 | 不挂图 | 动态变化 |
+| `StatusBar` | 多状态横排容器 `RectTransform + HorizontalLayoutGroup` | 不挂图 | 位于 `CharacterStatus` 下方、`SlackSkillStatus` 左侧；左边预留一个图标位，隐藏的状态不占空位，多个状态会自动从左向右紧密排列 |
+| `StatusBar/AttackSlowStatus` | 老油条攻速降低状态 `Image` | `Resources/Slice/CriticalHit.png` | 进入老油条降低攻速范围时显示；获得控制免疫后隐藏 |
+| `StatusBar/InvincibleStatus` | 无敌状态 `Image` | `Resources/Slice/Invincible.png` | 受击无敌帧、摸鱼技能无敌或调试无敌生效时显示 |
+| `StatusBar/ShieldStatus` | 护盾状态 `Image` | `Resources/Slice/Shield.png` | 当前护盾值大于 0 时显示 |
+| `StatusBar/MoveSlowStatus` | PPT 移速降低状态 `Image` | `Resources/Slice/SlowDown.png` | 进入 PPT 降低移动速度范围时显示；获得控制免疫后隐藏 |
+| `StatusBar/TreatStatus` | 咖啡持续恢复状态 `Image` | `Resources/Slice/Treat.png` | 咖啡的持续恢复余量和持续时间均有效时显示 |
 | `SlackSkillStatus` | 独立摸鱼技能状态框 `Image` | 技能条整体底框，可做成参考图中的鱼形长条 | 是 `UIHud` 根节点的直接子节点，可独立移动、缩放、换图，不依赖人物状态框 |
 | `SlackSkillStatus/SkillIcon` | 摸鱼技能图标 `Image` | 鱼、咖啡或摸鱼技能正式图标 | Prefab 中只放占位色块；美术可直接替换 Sprite |
 | `SlackSkillStatus/Caption` | “摸鱼技能”静态标签 | 不挂图 | 可保留、改样式，或在正式图自带文字时关闭显示，但不要删除其他 View 引用 |
@@ -201,7 +213,7 @@ UIHud
 | `SlackSkillStatus/SkillBar/Fill` | 摸鱼 CD 填充 `Image` | 冷却/充能填充图 | 必须保持 `Filled + Horizontal + Left`；从 0% 向 100% 增长 |
 | `SlackSkillStatus/SkillBar/SkillText` | 摸鱼 CD 文字 | 不挂图 | 冷却时显示“充能 50% · 3.0s”，满条时显示“就绪 100%” |
 
-如需在 `CoinBlock` 或 `KillBlock` 中增加单独的金币、纸箱、骷髅小图标，可直接新增装饰 `Image` 子节点；只要不删除现有 Caption/Value 引用，就不需要代码支持。
+五个状态子节点默认关闭，这是正常状态；运行时 Controller 只切换各节点的 Active，不会替换 Sprite。UI 可以直接换五张图或调整单个图标尺寸，但不要删除节点、改变五个节点的先后顺序或移除 `HorizontalLayoutGroup`。如需在 `CoinBlock` 或 `KillBlock` 中增加单独的金币、纸箱、骷髅小图标，可直接新增装饰 `Image` 子节点；只要不删除现有 Caption/Value 引用，就不需要代码支持。
 
 #### 工作时钟与 KPI
 
@@ -245,7 +257,7 @@ UIHud
 | `BossHp/Fill` | Boss 血量前景 `Image` | 红色/危险色填充图 | `fillAmount` 动态变化 |
 | `Pip1~Pip3` | Boss 阶段/护盾提示 `Image` | 小圆点、骷髅、警报灯等 | 显隐或颜色由运行时状态控制 |
 
-`UIHudView` 的 Inspector 中需要保持：头像、职位、`Skill Root / Skill Background / Skill Icon / Skill Fill / Skill Text`、其他各条 Fill/Text、4 张品质光效 Sprite、6 个 `WeaponSlots`、3 个 `ArmorSlots`、Boss 区和 DayBanner 引用完整。每个槽位的 `Quality Light` 都必须指向自己的 `QualityLight` 子节点；数组顺序就是屏幕槽位顺序。`Skill Root` 必须指向根节点下的 `SlackSkillStatus`，这样美术移动人物框时不会误把摸鱼条一起改掉。
+`UIHudView` 的 Inspector 中需要保持：头像、职位、`Status Bar` 与五个状态 Image、`Skill Root / Skill Background / Skill Icon / Skill Fill / Skill Text`、其他各条 Fill/Text、4 张品质光效 Sprite、6 个 `WeaponSlots`、3 个 `ArmorSlots`、Boss 区和 DayBanner 引用完整。每个槽位的 `Quality Light` 都必须指向自己的 `QualityLight` 子节点；数组顺序就是屏幕槽位顺序。`Status Bar` 必须指向根节点下的 `StatusBar`，五个状态字段分别指向其同名子节点；`Skill Root` 必须指向根节点下的 `SlackSkillStatus`，这样美术移动人物框时不会误把摸鱼条一起改掉。
 
 ### 4.3 UIOffWork.prefab
 
@@ -421,7 +433,7 @@ UIResult
 | View | 必须检查的引用 |
 | --- | --- |
 | `UIMainMenuView` | Background、Start Button、Start Button Image、Start Button Label |
-| `UIHudView` | Portrait、Rank、SAN/EXP/KPI Fill 与 Text、Coin、Kill、Skill Root/Background/Icon/Fill/Text、Work Clock、Stage、6 个 Weapon Slot、3 个 Armor Slot、Boss Root/Name/Fill/Pips、Banner |
+| `UIHudView` | Portrait、Rank、SAN/EXP/KPI Fill 与 Text、Coin、Kill、Status Bar 与五个状态 Image、Skill Root/Background/Icon/Fill/Text、Work Clock、Stage、6 个 Weapon Slot、3 个 Armor Slot、Boss Root/Name/Fill/Pips、Banner |
 | `UIOffWorkView` | Dimmer、Skip Button、Boss Portrait、Day Title、Speech、Summary、Next Day、Hint |
 | `UICardPanelView` | Dimmer、Title、Card Container、Card Prefab |
 | `UICardView` | Button、Frame、Border、Accent、Footer、Icon Plate、Icon、Icon Fallback、全部文字、Recommend Badge、New Badge、16 项 Design Accents |

@@ -20,6 +20,8 @@ namespace OfficeHell.EditorTools
         const string ReleaseDir = "Build/Windows";
         const string DevelopmentDir = "Build/WindowsDev";
         const string ExeName = "OfficeHell.exe";
+        const string IconSourcePath = "testAssets/logo.png";
+        const string IconAssetPath = "Assets/_Game/UI/Art/WindowsPlayerIcon.png";
 
         [MenuItem("Office Hell/Build Windows Player (Release)", false, 40)]
         public static void BuildReleaseMenu()
@@ -70,6 +72,7 @@ namespace OfficeHell.EditorTools
             EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Standalone, BuildTarget.StandaloneWindows64);
             PlayerSettings.SetScriptingBackend(BuildTargetGroup.Standalone, ScriptingImplementation.Mono2x);
             PlayerSettings.SetApiCompatibilityLevel(BuildTargetGroup.Standalone, ApiCompatibilityLevel.NET_Standard_2_0);
+            ConfigureWindowsIcon();
 
             BuildReport report = BuildPipeline.BuildPlayer(options);
             BuildSummary summary = report.summary;
@@ -79,6 +82,70 @@ namespace OfficeHell.EditorTools
                 summary.totalSize / 1048576f, (float)summary.totalTime.TotalSeconds, options.locationPathName));
 
             return summary.result == BuildResult.Succeeded && summary.totalErrors == 0;
+        }
+
+        static void ConfigureWindowsIcon()
+        {
+            string projectRoot = Directory.GetParent(Application.dataPath).FullName;
+            string sourcePath = Path.Combine(projectRoot, IconSourcePath.Replace('/', Path.DirectorySeparatorChar));
+            if (!File.Exists(sourcePath))
+            {
+                throw new FileNotFoundException("Windows player icon source is missing.", sourcePath);
+            }
+
+            Texture2D source = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (!source.LoadImage(File.ReadAllBytes(sourcePath), false))
+            {
+                Object.DestroyImmediate(source);
+                throw new InvalidDataException("Windows player icon source is not a readable PNG: " + sourcePath);
+            }
+
+            int side = Mathf.NextPowerOfTwo(Mathf.Max(source.width, source.height));
+            Texture2D square = new Texture2D(side, side, TextureFormat.RGBA32, false);
+            square.SetPixels32(new Color32[side * side]);
+            int offsetX = (side - source.width) / 2;
+            int offsetY = (side - source.height) / 2;
+            square.SetPixels(offsetX, offsetY, source.width, source.height, source.GetPixels());
+            square.Apply(false, false);
+
+            string iconFilePath = Path.Combine(projectRoot,
+                IconAssetPath.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(iconFilePath));
+            File.WriteAllBytes(iconFilePath, square.EncodeToPNG());
+            Object.DestroyImmediate(source);
+            Object.DestroyImmediate(square);
+
+            AssetDatabase.ImportAsset(IconAssetPath,
+                ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
+            TextureImporter importer = AssetImporter.GetAtPath(IconAssetPath) as TextureImporter;
+            if (importer == null)
+            {
+                throw new InvalidDataException("Unity could not import the generated Windows player icon.");
+            }
+
+            importer.textureType = TextureImporterType.Default;
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = false;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.npotScale = TextureImporterNPOTScale.None;
+            importer.maxTextureSize = side;
+            importer.SaveAndReimport();
+
+            Texture2D icon = AssetDatabase.LoadAssetAtPath<Texture2D>(IconAssetPath);
+            if (icon == null)
+            {
+                throw new InvalidDataException("Unity did not load the generated Windows player icon asset.");
+            }
+
+            int[] iconSizes = PlayerSettings.GetIconSizesForTargetGroup(BuildTargetGroup.Standalone);
+            Texture2D[] icons = new Texture2D[iconSizes.Length];
+            for (int i = 0; i < icons.Length; i++)
+            {
+                icons[i] = icon;
+            }
+
+            PlayerSettings.SetIconsForTargetGroup(BuildTargetGroup.Standalone, icons);
+            Debug.Log("[OfficeHell] Windows icon: " + sourcePath + " -> " + side + "x" + side);
         }
     }
 }

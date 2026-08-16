@@ -42,6 +42,13 @@ namespace OfficeHell.UI
         public Image SkillFill;
         public Text SkillText;
 
+        public RectTransform StatusBar;
+        public Image AttackSlowStatus;
+        public Image InvincibleStatus;
+        public Image ShieldStatus;
+        public Image MoveSlowStatus;
+        public Image TreatStatus;
+
         [FormerlySerializedAs("CountdownText")]
         public Text WorkClockText;
         public Text StageText;

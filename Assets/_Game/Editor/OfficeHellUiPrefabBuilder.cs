@@ -29,6 +29,12 @@ namespace OfficeHell.EditorTools
         const string BlueLightPath = SliceFolder + "/BlueLight.png";
         const string PurpleLightPath = SliceFolder + "/PurpleLight.png";
         const string OrangeLightPath = SliceFolder + "/OrangeLight.png";
+        const string AttackSlowStatusPath = SliceFolder + "/CriticalHit.png";
+        const string InvincibleStatusPath = SliceFolder + "/Invincible.png";
+        const string ShieldStatusPath = SliceFolder + "/Shield.png";
+        const string MoveSlowStatusPath = SliceFolder + "/SlowDown.png";
+        const string TreatStatusPath = SliceFolder + "/Treat.png";
+        const float StatusIconStride = 28f;
         const string ClearOutcomePath = SliceFolder + "/5M_Standards.png";
         const string IncompleteOutcomePath = SliceFolder + "/5N_Standard.png";
 
@@ -53,7 +59,60 @@ namespace OfficeHell.EditorTools
             Debug.Log("[UI Prefabs] Missing prefabs created; existing prefab assets were left untouched.");
         }
 
-        [MenuItem("Office Hell/Validate UI Prefabs", false, 25)]
+        [MenuItem("Office Hell/Add Missing HUD Status Bar", false, 25)]
+        public static void AddMissingHudStatusBar()
+        {
+            GameObject root = PrefabUtility.LoadPrefabContents(HudPrefabPath);
+            try
+            {
+                UIHudView view = root.GetComponent<UIHudView>();
+                Require(view != null, "UIHud.prefab has no UIHudView.");
+                Require(root.transform.Find("StatusBar") == null,
+                    "UIHud StatusBar already exists; the migration refuses to overwrite Inspector edits.");
+
+                RectTransform character = root.transform.Find("CharacterStatus") as RectTransform;
+                RectTransform skill = root.transform.Find("SlackSkillStatus") as RectTransform;
+                Require(character != null && skill != null,
+                    "UIHud needs CharacterStatus and SlackSkillStatus before adding StatusBar.");
+
+                float left = character.anchoredPosition.x;
+                float gap = 7f;
+                Vector2 skillPosition = skill.anchoredPosition;
+                skillPosition.x += StatusIconStride;
+                skill.anchoredPosition = skillPosition;
+                Vector2 skillSize = skill.sizeDelta;
+                skillSize.x = Mathf.Max(0f, skillSize.x - StatusIconStride);
+                skill.sizeDelta = skillSize;
+                float width = Mathf.Max(120f, skill.anchoredPosition.x - left - gap);
+                Image attackSlow;
+                Image invincible;
+                Image shield;
+                Image moveSlow;
+                Image treat;
+                RectTransform statusBar = BuildStatusBar(root.transform,
+                    new Vector2(left, skill.anchoredPosition.y),
+                    new Vector2(width, skill.sizeDelta.y),
+                    StatusSprite(AttackSlowStatusPath), StatusSprite(InvincibleStatusPath),
+                    StatusSprite(ShieldStatusPath), StatusSprite(MoveSlowStatusPath),
+                    StatusSprite(TreatStatusPath),
+                    out attackSlow, out invincible, out shield, out moveSlow, out treat);
+                statusBar.SetSiblingIndex(skill.GetSiblingIndex());
+                AssignStatusBar(view, statusBar, attackSlow, invincible, shield, moveSlow, treat);
+
+                PrefabUtility.SaveAsPrefabAsset(root, HudPrefabPath);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Validate();
+            Debug.Log("[UI Prefabs] Added the editable UIHud StatusBar; existing HUD nodes were left untouched.");
+        }
+
+        [MenuItem("Office Hell/Validate UI Prefabs", false, 26)]
         public static void Validate()
         {
             UIMainMenuView menu = Required<UIMainMenuView>(MainMenuPrefabPath);
@@ -65,7 +124,9 @@ namespace OfficeHell.EditorTools
             Require(hud.Portrait != null && hud.RankText != null && hud.SanFill != null && hud.SanText != null &&
                     hud.ExpFill != null && hud.ExpText != null && hud.CoinText != null && hud.KillText != null &&
                     hud.SkillRoot != null && hud.SkillBackground != null && hud.SkillIcon != null &&
-                    hud.SkillFill != null && hud.SkillText != null && hud.WorkClockText != null &&
+                    hud.SkillFill != null && hud.SkillText != null && hud.StatusBar != null &&
+                    hud.AttackSlowStatus != null && hud.InvincibleStatus != null && hud.ShieldStatus != null &&
+                    hud.MoveSlowStatus != null && hud.TreatStatus != null && hud.WorkClockText != null &&
                     hud.StageText != null && hud.KpiFill != null && hud.KpiText != null && hud.BannerText != null &&
                     hud.WeaponSlots != null && hud.WeaponSlots.Length == 6 &&
                     hud.ArmorSlots != null && hud.ArmorSlots.Length == 3 && hud.BossRoot != null &&
@@ -78,6 +139,42 @@ namespace OfficeHell.EditorTools
                     AssetDatabase.GetAssetPath(hud.PurpleLightSprite) == PurpleLightPath &&
                     AssetDatabase.GetAssetPath(hud.OrangeLightSprite) == OrangeLightPath,
                 "UIHud quality-light sprites are not mapped to the four authored Slice assets.");
+            Require(hud.StatusBar.parent == hud.transform &&
+                    hud.StatusBar.GetComponent<HorizontalLayoutGroup>() != null &&
+                    hud.AttackSlowStatus.transform.parent == hud.StatusBar &&
+                    hud.InvincibleStatus.transform.parent == hud.StatusBar &&
+                    hud.ShieldStatus.transform.parent == hud.StatusBar &&
+                    hud.MoveSlowStatus.transform.parent == hud.StatusBar &&
+                    hud.TreatStatus.transform.parent == hud.StatusBar &&
+                    hud.AttackSlowStatus.transform.GetSiblingIndex() == 0 &&
+                    hud.InvincibleStatus.transform.GetSiblingIndex() == 1 &&
+                    hud.ShieldStatus.transform.GetSiblingIndex() == 2 &&
+                    hud.MoveSlowStatus.transform.GetSiblingIndex() == 3 &&
+                    hud.TreatStatus.transform.GetSiblingIndex() == 4,
+                "UIHud StatusBar must contain the five status icons in the authored horizontal order.");
+            HorizontalLayoutGroup hudStatusLayout = hud.StatusBar.GetComponent<HorizontalLayoutGroup>();
+            int expectedStatusInset = Mathf.RoundToInt(
+                hud.AttackSlowStatus.rectTransform.sizeDelta.x + hudStatusLayout.spacing);
+            Require(hudStatusLayout.padding.left == expectedStatusInset,
+                "UIHud StatusBar must leave one icon slot before its first visible status.");
+            RectTransform hudCharacterStatus = hud.transform.Find("CharacterStatus") as RectTransform;
+            RectTransform hudSkillStatus = hud.SkillRoot.transform as RectTransform;
+            Require(hudCharacterStatus != null && hudSkillStatus != null &&
+                    hud.StatusBar.anchoredPosition.y <
+                        hudCharacterStatus.anchoredPosition.y - hudCharacterStatus.sizeDelta.y &&
+                    hud.StatusBar.anchoredPosition.x + hud.StatusBar.sizeDelta.x <=
+                        hudSkillStatus.anchoredPosition.x,
+                "UIHud StatusBar must remain below CharacterStatus and left of SlackSkillStatus.");
+            Require(!hud.AttackSlowStatus.gameObject.activeSelf && !hud.InvincibleStatus.gameObject.activeSelf &&
+                    !hud.ShieldStatus.gameObject.activeSelf && !hud.MoveSlowStatus.gameObject.activeSelf &&
+                    !hud.TreatStatus.gameObject.activeSelf,
+                "UIHud status icons must be disabled by default.");
+            Require(AssetDatabase.GetAssetPath(hud.AttackSlowStatus.sprite) == AttackSlowStatusPath &&
+                    AssetDatabase.GetAssetPath(hud.InvincibleStatus.sprite) == InvincibleStatusPath &&
+                    AssetDatabase.GetAssetPath(hud.ShieldStatus.sprite) == ShieldStatusPath &&
+                    AssetDatabase.GetAssetPath(hud.MoveSlowStatus.sprite) == MoveSlowStatusPath &&
+                    AssetDatabase.GetAssetPath(hud.TreatStatus.sprite) == TreatStatusPath,
+                "UIHud status icons are not mapped to the five authored Slice assets.");
             Require(hud.SkillRoot.transform.parent == hud.transform &&
                     hud.SkillFill.type == UnityEngine.UI.Image.Type.Filled &&
                     hud.SkillFill.fillMethod == UnityEngine.UI.Image.FillMethod.Horizontal,
@@ -263,6 +360,11 @@ namespace OfficeHell.EditorTools
             Sprite blueLight = AssetDatabase.LoadAssetAtPath<Sprite>(BlueLightPath);
             Sprite purpleLight = AssetDatabase.LoadAssetAtPath<Sprite>(PurpleLightPath);
             Sprite orangeLight = AssetDatabase.LoadAssetAtPath<Sprite>(OrangeLightPath);
+            Sprite attackSlowStatusSprite = StatusSprite(AttackSlowStatusPath);
+            Sprite invincibleStatusSprite = StatusSprite(InvincibleStatusPath);
+            Sprite shieldStatusSprite = StatusSprite(ShieldStatusPath);
+            Sprite moveSlowStatusSprite = StatusSprite(MoveSlowStatusPath);
+            Sprite treatStatusSprite = StatusSprite(TreatStatusPath);
             Require(greenLight != null && blueLight != null && purpleLight != null && orangeLight != null,
                 "UIHud quality-light Slice assets are missing.");
 
@@ -325,8 +427,19 @@ namespace OfficeHell.EditorTools
             Stretch(sanText.rectTransform, 110f, 12f, 0f, 0f);
             sanText.fontStyle = FontStyle.Bold;
 
+            Image attackSlowStatus;
+            Image invincibleStatus;
+            Image shieldStatus;
+            Image moveSlowStatus;
+            Image treatStatus;
+            RectTransform statusBar = BuildStatusBar(root.transform,
+                new Vector2(32f, -230f), new Vector2(168f, 58f),
+                attackSlowStatusSprite, invincibleStatusSprite, shieldStatusSprite,
+                moveSlowStatusSprite, treatStatusSprite,
+                out attackSlowStatus, out invincibleStatus, out shieldStatus, out moveSlowStatus, out treatStatus);
+
             Image skillPanel = Image("SlackSkillStatus", root.transform, new Color(0.055f, 0.085f, 0.14f, 0.95f));
-            SetTop(skillPanel.rectTransform, new Vector2(32f, -230f), new Vector2(620f, 58f), new Vector2(0f, 1f));
+            SetTop(skillPanel.rectTransform, new Vector2(208f, -230f), new Vector2(444f, 58f), new Vector2(0f, 1f));
             skillPanel.raycastTarget = false;
             Outline skillOutline = skillPanel.gameObject.AddComponent<Outline>();
             skillOutline.effectColor = new Color(0.01f, 0.02f, 0.04f, 0.95f);
@@ -343,7 +456,7 @@ namespace OfficeHell.EditorTools
             Image skillBackground;
             Image skillFill = Bar("SkillBar", skillPanel.transform,
                 new Color(0.02f, 0.03f, 0.05f, 0.9f), new Color(0.15f, 0.76f, 0.5f, 1f), out skillBackground);
-            SetTop(skillBackground.rectTransform, new Vector2(150f, -14f), new Vector2(451f, 30f), new Vector2(0f, 1f));
+            SetTop(skillBackground.rectTransform, new Vector2(150f, -14f), new Vector2(275f, 30f), new Vector2(0f, 1f));
             Text skillText = Label("SkillText", skillBackground.transform, "摸鱼 · 就绪 100%", 17, Color.white, TextAnchor.MiddleCenter);
             Stretch(skillText.rectTransform, 6f, 6f, 0f, 0f);
             skillText.fontStyle = FontStyle.Bold;
@@ -499,6 +612,8 @@ namespace OfficeHell.EditorTools
             view.SkillIcon = skillIcon;
             view.SkillFill = skillFill;
             view.SkillText = skillText;
+            AssignStatusBar(view, statusBar, attackSlowStatus, invincibleStatus, shieldStatus, moveSlowStatus,
+                treatStatus);
             view.WorkClockText = workClock;
             view.StageText = stage;
             view.KpiFill = kpiFill;
@@ -515,6 +630,65 @@ namespace OfficeHell.EditorTools
             view.BossPips = bossPips;
             view.BannerText = banner;
             return root;
+        }
+
+        static RectTransform BuildStatusBar(Transform parent, Vector2 position, Vector2 size,
+            Sprite attackSlowSprite, Sprite invincibleSprite, Sprite shieldSprite, Sprite moveSlowSprite,
+            Sprite treatSprite, out Image attackSlow, out Image invincible, out Image shield,
+            out Image moveSlow, out Image treat)
+        {
+            GameObject statusBarObject = UiObject("StatusBar", parent);
+            RectTransform statusBar = statusBarObject.GetComponent<RectTransform>();
+            SetTop(statusBar, position, size, new Vector2(0f, 1f));
+
+            float spacing = 4f;
+            float iconSize = Mathf.Min(40f, Mathf.Floor((size.x - spacing * 5f) / 6f));
+            int verticalPadding = Mathf.Max(0, Mathf.RoundToInt((size.y - iconSize) * 0.5f));
+            HorizontalLayoutGroup layout = statusBarObject.AddComponent<HorizontalLayoutGroup>();
+            layout.padding = new RectOffset(Mathf.RoundToInt(iconSize + spacing), 0,
+                verticalPadding, verticalPadding);
+            layout.spacing = spacing;
+            layout.childAlignment = TextAnchor.MiddleLeft;
+            layout.childControlWidth = false;
+            layout.childControlHeight = false;
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = false;
+
+            attackSlow = StatusIcon("AttackSlowStatus", statusBar, attackSlowSprite, iconSize);
+            invincible = StatusIcon("InvincibleStatus", statusBar, invincibleSprite, iconSize);
+            shield = StatusIcon("ShieldStatus", statusBar, shieldSprite, iconSize);
+            moveSlow = StatusIcon("MoveSlowStatus", statusBar, moveSlowSprite, iconSize);
+            treat = StatusIcon("TreatStatus", statusBar, treatSprite, iconSize);
+            return statusBar;
+        }
+
+        static Image StatusIcon(string name, Transform parent, Sprite sprite, float size)
+        {
+            Image icon = Image(name, parent, Color.white);
+            SetCenter(icon.rectTransform, Vector2.zero, new Vector2(size, size));
+            icon.sprite = sprite;
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+            icon.gameObject.SetActive(false);
+            return icon;
+        }
+
+        static Sprite StatusSprite(string path)
+        {
+            Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            Require(sprite != null, "Missing UIHud status sprite: " + path);
+            return sprite;
+        }
+
+        static void AssignStatusBar(UIHudView view, RectTransform statusBar, Image attackSlow, Image invincible,
+            Image shield, Image moveSlow, Image treat)
+        {
+            view.StatusBar = statusBar;
+            view.AttackSlowStatus = attackSlow;
+            view.InvincibleStatus = invincible;
+            view.ShieldStatus = shield;
+            view.MoveSlowStatus = moveSlow;
+            view.TreatStatus = treat;
         }
 
         static GameObject BuildOffWork()

@@ -15,6 +15,11 @@ namespace OfficeHell.UI
         readonly UICardPanelView _view;
         readonly UICardView[] _cards = new UICardView[MaxCards];
         readonly UnityEngine.Events.UnityAction[] _clickHandlers = new UnityEngine.Events.UnityAction[MaxCards];
+        readonly System.Random _recommendationRandom = new System.Random();
+
+        int _recommendationSignature;
+        int _recommendationCount = -1;
+        int _recommendedIndex = -1;
 
         public Action<int> OnCardPicked;
 
@@ -65,7 +70,14 @@ namespace OfficeHell.UI
 
             List<CardOffer> offers = _ctx.Driver.Cards.Offers;
             int count = Mathf.Min(offers.Count, MaxCards);
-            int recommendedIndex = RecommendedEquipmentIndex(offers, count);
+            int signature = RecommendationSignature(offers, count);
+            if (_recommendationCount != count || _recommendationSignature != signature)
+            {
+                _recommendationCount = count;
+                _recommendationSignature = signature;
+                _recommendedIndex = RecommendedIndex(offers, count, _recommendationRandom);
+            }
+
             int pending = _ctx.Game.Run.Player.PendingLevelUps;
             _view.Title.text = pending > 1
                 ? "选择你的奖励（剩余 " + pending + " 次）"
@@ -77,51 +89,92 @@ namespace OfficeHell.UI
                 _cards[i].gameObject.SetActive(used);
                 if (used)
                 {
-                    Fill(_cards[i], offers[i], i, i == recommendedIndex);
+                    Fill(_cards[i], offers[i], i, i == _recommendedIndex);
                 }
             }
         }
 
-        static int RecommendedEquipmentIndex(List<CardOffer> offers, int count)
+        /// <summary>
+        /// Quality always wins first. A weapon breaks a tie at the highest tier; if several eligible
+        /// cards remain, one is chosen at random. The caller caches the result for the current hand so
+        /// opening or refreshing the same panel cannot make the badge jump between cards.
+        /// </summary>
+        static int RecommendedIndex(List<CardOffer> offers, int count, System.Random random)
         {
             if (count <= 0)
             {
                 return -1;
             }
 
-            Quality sharedQuality = offers[0].Quality;
-            bool allSameQuality = true;
+            Quality highestQuality = offers[0].Quality;
             for (int i = 1; i < count; i++)
             {
-                if (offers[i].Quality != sharedQuality)
+                if (offers[i].Quality > highestQuality)
                 {
-                    allSameQuality = false;
-                    break;
+                    highestQuality = offers[i].Quality;
                 }
             }
 
-            if (allSameQuality)
-            {
-                return -1;
-            }
-
-            int recommendedIndex = -1;
-            int highestQuality = -1;
-
+            int weaponCount = 0;
+            int highestCount = 0;
             for (int i = 0; i < count; i++)
             {
                 CardOffer offer = offers[i];
-                int quality = (int)offer.Quality;
-                if (offer.Kind != CardKind.Equipment || quality <= highestQuality)
+                if (offer.Quality != highestQuality)
                 {
                     continue;
                 }
 
-                recommendedIndex = i;
-                highestQuality = quality;
+                highestCount++;
+                if (offer.Kind == CardKind.Equipment && offer.IsWeapon)
+                {
+                    weaponCount++;
+                }
             }
 
-            return recommendedIndex;
+            bool preferWeapon = weaponCount > 0;
+            int eligibleCount = preferWeapon ? weaponCount : highestCount;
+            int selected = eligibleCount > 1 ? random.Next(eligibleCount) : 0;
+
+            for (int i = 0; i < count; i++)
+            {
+                CardOffer offer = offers[i];
+                bool eligible = offer.Quality == highestQuality &&
+                                (!preferWeapon || offer.Kind == CardKind.Equipment && offer.IsWeapon);
+                if (!eligible)
+                {
+                    continue;
+                }
+
+                if (selected == 0)
+                {
+                    return i;
+                }
+
+                selected--;
+            }
+
+            return -1;
+        }
+
+        static int RecommendationSignature(List<CardOffer> offers, int count)
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 31 + count;
+                for (int i = 0; i < count; i++)
+                {
+                    CardOffer offer = offers[i];
+                    hash = hash * 31 + (int)offer.Quality;
+                    hash = hash * 31 + (int)offer.Kind;
+                    hash = hash * 31 + (offer.IsWeapon ? 1 : 0);
+                    hash = hash * 31 + (offer.Id == null ? 0 : offer.Id.GetHashCode());
+                    hash = hash * 31 + (offer.DefId == null ? 0 : offer.DefId.GetHashCode());
+                }
+
+                return hash;
+            }
         }
 
         void Fill(UICardView card, CardOffer offer, int index, bool recommended)

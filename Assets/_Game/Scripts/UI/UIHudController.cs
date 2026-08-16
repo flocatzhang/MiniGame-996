@@ -41,6 +41,12 @@ namespace OfficeHell.UI
             ConfigureProgressFill(_view.SkillFill);
             ConfigureProgressFill(_view.KpiFill);
 
+            PrepareStatusIcon(_view.AttackSlowStatus);
+            PrepareStatusIcon(_view.InvincibleStatus);
+            PrepareStatusIcon(_view.ShieldStatus);
+            PrepareStatusIcon(_view.MoveSlowStatus);
+            PrepareStatusIcon(_view.TreatStatus);
+
             Sprite[] playerFrames = ArtCatalog.Frames("player");
             if (playerFrames.Length > 0)
             {
@@ -102,6 +108,7 @@ namespace OfficeHell.UI
 
             RefreshWorkClock(run, cfg);
             RefreshSkill(player);
+            RefreshStatuses(player);
             RefreshWeapons(player);
             RefreshArmor(player);
             RefreshBoss(run);
@@ -136,6 +143,35 @@ namespace OfficeHell.UI
             _view.SkillText.text = remaining <= 0.01f
                 ? _ctx.Game.Cfg.Skill.Name + " · 就绪 100%"
                 : _ctx.Game.Cfg.Skill.Name + " · 充能 " + percent + "% · " + remaining.ToString("0.0") + "s";
+        }
+
+        static void PrepareStatusIcon(Image icon)
+        {
+            icon.color = Color.white;
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+            icon.gameObject.SetActive(false);
+        }
+
+        void RefreshStatuses(PlayerModel player)
+        {
+            bool receivesControl = !player.ImmuneToControl;
+            SetStatusActive(_view.AttackSlowStatus,
+                receivesControl && player.Aura(AuraChannel.AttackSlow) > 0.001f);
+            SetStatusActive(_view.InvincibleStatus, player.IsInvulnerable(GameClock.Now));
+            SetStatusActive(_view.ShieldStatus, player.HasShield);
+            SetStatusActive(_view.MoveSlowStatus,
+                receivesControl && player.Aura(AuraChannel.MoveSlow) > 0.001f);
+            SetStatusActive(_view.TreatStatus,
+                player.CoffeeHealRemaining > 0.0001f && GameClock.Now < player.CoffeeHealUntil);
+        }
+
+        static void SetStatusActive(Image icon, bool active)
+        {
+            if (icon.gameObject.activeSelf != active)
+            {
+                icon.gameObject.SetActive(active);
+            }
         }
 
         static string PeriodName(int hour)

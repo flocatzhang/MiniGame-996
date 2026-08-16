@@ -806,6 +806,9 @@ namespace OfficeHell.EditorTools
                 report.Require(hud.Portrait != null && hud.RankText != null && hud.SanFill != null &&
                                hud.CoinText != null && hud.KillText != null && hud.SkillRoot != null &&
                                hud.SkillBackground != null && hud.SkillIcon != null && hud.SkillFill != null &&
+                               hud.StatusBar != null && hud.AttackSlowStatus != null &&
+                               hud.InvincibleStatus != null && hud.ShieldStatus != null &&
+                               hud.MoveSlowStatus != null && hud.TreatStatus != null &&
                                hud.WorkClockText != null && hud.StageText != null && hud.KpiFill != null &&
                                hud.GreenLightSprite != null && hud.BlueLightSprite != null &&
                                hud.PurpleLightSprite != null && hud.OrangeLightSprite != null,
@@ -814,6 +817,38 @@ namespace OfficeHell.EditorTools
                                hud.SkillFill.type == Image.Type.Filled &&
                                hud.SkillFill.fillMethod == Image.FillMethod.Horizontal,
                     "UIHud slack skill is not an independently editable horizontal progress bar");
+                report.Require(hud.StatusBar.parent == hud.transform &&
+                               hud.StatusBar.GetComponent<HorizontalLayoutGroup>() != null &&
+                               hud.AttackSlowStatus.transform.GetSiblingIndex() == 0 &&
+                               hud.InvincibleStatus.transform.GetSiblingIndex() == 1 &&
+                               hud.ShieldStatus.transform.GetSiblingIndex() == 2 &&
+                               hud.MoveSlowStatus.transform.GetSiblingIndex() == 3 &&
+                               hud.TreatStatus.transform.GetSiblingIndex() == 4,
+                    "UIHud status icons are not editable children in the fixed horizontal order");
+                HorizontalLayoutGroup hudStatusLayout = hud.StatusBar.GetComponent<HorizontalLayoutGroup>();
+                int expectedStatusInset = Mathf.RoundToInt(
+                    hud.AttackSlowStatus.rectTransform.sizeDelta.x + hudStatusLayout.spacing);
+                report.Require(hudStatusLayout.padding.left == expectedStatusInset,
+                    "UIHud status bar does not reserve one icon slot before the first visible status");
+                RectTransform hudCharacterStatus = hud.transform.Find("CharacterStatus") as RectTransform;
+                RectTransform hudSkillStatus = hud.SkillRoot.transform as RectTransform;
+                report.Require(hudCharacterStatus != null && hudSkillStatus != null &&
+                               hud.StatusBar.anchoredPosition.y <
+                                   hudCharacterStatus.anchoredPosition.y - hudCharacterStatus.sizeDelta.y &&
+                               hud.StatusBar.anchoredPosition.x + hud.StatusBar.sizeDelta.x <=
+                                   hudSkillStatus.anchoredPosition.x,
+                    "UIHud status bar is not below CharacterStatus and left of SlackSkillStatus");
+                report.Require(AssetDatabase.GetAssetPath(hud.AttackSlowStatus.sprite) ==
+                                   "Assets/_Game/UI/Resources/Slice/CriticalHit.png" &&
+                               AssetDatabase.GetAssetPath(hud.InvincibleStatus.sprite) ==
+                                   "Assets/_Game/UI/Resources/Slice/Invincible.png" &&
+                               AssetDatabase.GetAssetPath(hud.ShieldStatus.sprite) ==
+                                   "Assets/_Game/UI/Resources/Slice/Shield.png" &&
+                               AssetDatabase.GetAssetPath(hud.MoveSlowStatus.sprite) ==
+                                   "Assets/_Game/UI/Resources/Slice/SlowDown.png" &&
+                               AssetDatabase.GetAssetPath(hud.TreatStatus.sprite) ==
+                                   "Assets/_Game/UI/Resources/Slice/Treat.png",
+                    "UIHud status icons do not reference the five authored Slice sprites");
                 report.Require(hud.KpiFill.transform.parent != null &&
                                hud.KpiFill.transform.parent.GetComponent<Image>() != null &&
                                hud.KpiFill.type == Image.Type.Filled &&
@@ -1158,6 +1193,10 @@ namespace OfficeHell.EditorTools
                     "equipment footer still includes a quality prefix");
                 report.Require(firstHand[2].Icon.sprite == GameIconCatalog.Item("keyboard"),
                     "equipment card did not load the keyboard item icon");
+                report.Require(firstHand[1].RecommendBadge.activeSelf &&
+                               !firstHand[0].RecommendBadge.activeSelf &&
+                               !firstHand[2].RecommendBadge.activeSelf,
+                    "card panel did not recommend the uniquely highest-quality card");
             }
             int picked = -1;
             cardController.OnCardPicked = index => picked = index;
@@ -1166,24 +1205,46 @@ namespace OfficeHell.EditorTools
 
             driver.Cards.Offers[0].Quality = Quality.Orange;
             cardController.Refresh();
-            report.Require(firstHand.Length > 0 && firstHand[0].Frame.sprite == firstHand[0].OrangeFrameSprite,
-                "card frame did not switch to the orange quality artwork");
+            report.Require(firstHand.Length > 0 && firstHand[0].Frame.sprite == firstHand[0].OrangeFrameSprite &&
+                           firstHand[0].RecommendBadge.activeSelf,
+                "card frame or recommendation did not switch to the uniquely highest orange card");
 
             for (int i = 0; i < driver.Cards.Offers.Count; i++)
             {
                 driver.Cards.Offers[i].Quality = Quality.Blue;
             }
             cardController.Refresh();
-            bool anySameQualityRecommendation = false;
+            int sameQualityRecommendations = 0;
             for (int i = 0; i < firstHand.Length; i++)
             {
-                anySameQualityRecommendation |= firstHand[i].RecommendBadge.activeSelf;
+                if (firstHand[i].RecommendBadge.activeSelf)
+                {
+                    sameQualityRecommendations++;
+                }
             }
-            report.Require(!anySameQualityRecommendation,
-                "three cards of the same quality still displayed a recommendation badge");
+            report.Require(sameQualityRecommendations == 1 && firstHand[2].RecommendBadge.activeSelf,
+                "equal-quality cards did not prefer the weapon as the sole recommendation");
+
+            driver.Cards.Offers[2].Kind = CardKind.Skill;
+            driver.Cards.Offers[2].IsWeapon = false;
+            cardController.Refresh();
+            int randomRecommendation = -1;
+            int randomRecommendationCount = 0;
+            for (int i = 0; i < firstHand.Length; i++)
+            {
+                if (firstHand[i].RecommendBadge.activeSelf)
+                {
+                    randomRecommendation = i;
+                    randomRecommendationCount++;
+                }
+            }
+            report.Require(randomRecommendationCount == 1,
+                "an equal-quality hand without a weapon did not receive exactly one random recommendation");
 
             cardController.Refresh();
             cardController.Refresh();
+            report.Require(randomRecommendation >= 0 && firstHand[randomRecommendation].RecommendBadge.activeSelf,
+                "refreshing an unchanged hand moved its random recommendation badge");
             UICardView[] refreshedHand = panel.CardContainer.GetComponentsInChildren<UICardView>(true);
             report.Require(refreshedHand.Length == 3,
                 "consecutive card refreshes duplicated the prefab hierarchy to " + refreshedHand.Length + " items");
@@ -1274,6 +1335,54 @@ namespace OfficeHell.EditorTools
             report.Require(hud.SkillRoot.activeSelf && Mathf.Abs(hud.SkillFill.fillAmount - 0.5f) < 0.02f &&
                            hud.SkillText.text.Contains("充能") && hud.SkillText.text.Contains("50%"),
                 "battle HUD slack-skill bar did not expose its half-cooldown progress state");
+
+            PlayerModel statusPlayer = game.Run.Player;
+            testArmor.Quality = Quality.Green;
+            statusPlayer.ApplyAura(AuraChannel.AttackSlow, 25f);
+            statusPlayer.ApplyAura(AuraChannel.MoveSlow, 25f);
+            statusPlayer.InvulnUntil = GameClock.Now + 1f;
+            statusPlayer.Shield = 12f;
+            statusPlayer.CoffeeHealRemaining = 8f;
+            statusPlayer.CoffeeHealUntil = GameClock.Now + 6f;
+            hudController.UITick(0f);
+            report.Require(hud.AttackSlowStatus.gameObject.activeSelf &&
+                           hud.InvincibleStatus.gameObject.activeSelf &&
+                           hud.ShieldStatus.gameObject.activeSelf &&
+                           hud.MoveSlowStatus.gameObject.activeSelf &&
+                           hud.TreatStatus.gameObject.activeSelf,
+                "battle HUD did not show concurrent attack slow, invincible, shield, move slow and treatment states");
+            report.Require(hud.AttackSlowStatus.transform.GetSiblingIndex() <
+                               hud.InvincibleStatus.transform.GetSiblingIndex() &&
+                           hud.InvincibleStatus.transform.GetSiblingIndex() <
+                               hud.ShieldStatus.transform.GetSiblingIndex() &&
+                           hud.ShieldStatus.transform.GetSiblingIndex() <
+                               hud.MoveSlowStatus.transform.GetSiblingIndex() &&
+                           hud.MoveSlowStatus.transform.GetSiblingIndex() <
+                               hud.TreatStatus.transform.GetSiblingIndex(),
+                "battle HUD status icons lost their horizontal DNF-style display order");
+
+            testArmor.Quality = Quality.Purple;
+            hudController.UITick(0f);
+            report.Require(!hud.AttackSlowStatus.gameObject.activeSelf &&
+                           !hud.MoveSlowStatus.gameObject.activeSelf &&
+                           hud.InvincibleStatus.gameObject.activeSelf &&
+                           hud.ShieldStatus.gameObject.activeSelf &&
+                           hud.TreatStatus.gameObject.activeSelf,
+                "purple shield immunity did not hide blocked control debuffs while retaining positive states");
+
+            statusPlayer.ClearAuras();
+            statusPlayer.InvulnUntil = 0f;
+            statusPlayer.SkillInvulnUntil = 0f;
+            statusPlayer.Shield = 0f;
+            statusPlayer.CoffeeHealRemaining = 0f;
+            statusPlayer.CoffeeHealUntil = 0f;
+            hudController.UITick(0f);
+            report.Require(!hud.AttackSlowStatus.gameObject.activeSelf &&
+                           !hud.InvincibleStatus.gameObject.activeSelf &&
+                           !hud.ShieldStatus.gameObject.activeSelf &&
+                           !hud.MoveSlowStatus.gameObject.activeSelf &&
+                           !hud.TreatStatus.gameObject.activeSelf,
+                "battle HUD retained status icons after all player states were cleared");
             Object.DestroyImmediate(hud.gameObject);
 
             game.Run.KilledToday = 13;
