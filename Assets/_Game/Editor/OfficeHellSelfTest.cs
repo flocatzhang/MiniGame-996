@@ -728,6 +728,9 @@ namespace OfficeHell.EditorTools
                     "art set '" + sets[i] + "' has " + frames.Length + " frame(s), expected " + expected[i]);
             }
 
+            RequireFrameCanvas(report, "mail", 149f, 166f);
+            RequireFrameCanvas(report, "report", 171f, 153f);
+
             ViewDef smallBug = cfg.View("v_bug_small");
             report.Require(smallBug != null && smallBug.SpriteSet == "bug",
                 "small BUG should reuse the BUG animation set");
@@ -741,6 +744,18 @@ namespace OfficeHell.EditorTools
             report.Require(!playerView.Body.flipX,
                 "player source frames should remain unflipped when facing left");
             Object.DestroyImmediate(playerView.gameObject);
+        }
+
+        static void RequireFrameCanvas(Report report, string setName, float width, float height)
+        {
+            Sprite[] frames = ArtCatalog.Frames(setName);
+            for (int i = 0; i < frames.Length; i++)
+            {
+                Rect rect = frames[i].rect;
+                report.Require(Mathf.Approximately(rect.width, width) && Mathf.Approximately(rect.height, height),
+                    "art set '" + setName + "' frame " + i + " is " + rect.width + "x" + rect.height
+                    + ", expected " + width + "x" + height);
+            }
         }
 
         static void TestUiPrefabs(Report report, ConfigManager cfg)
@@ -791,7 +806,9 @@ namespace OfficeHell.EditorTools
                 report.Require(hud.Portrait != null && hud.RankText != null && hud.SanFill != null &&
                                hud.CoinText != null && hud.KillText != null && hud.SkillRoot != null &&
                                hud.SkillBackground != null && hud.SkillIcon != null && hud.SkillFill != null &&
-                               hud.WorkClockText != null && hud.StageText != null && hud.KpiFill != null,
+                               hud.WorkClockText != null && hud.StageText != null && hud.KpiFill != null &&
+                               hud.GreenLightSprite != null && hud.BlueLightSprite != null &&
+                               hud.PurpleLightSprite != null && hud.OrangeLightSprite != null,
                     "UIHud has incomplete character, clock or KPI references");
                 report.Require(hud.SkillRoot.transform.parent == hud.transform &&
                                hud.SkillFill.type == Image.Type.Filled &&
@@ -811,11 +828,23 @@ namespace OfficeHell.EditorTools
                     for (int i = 0; i < hud.WeaponSlots.Length; i++)
                     {
                         UIHudView.WeaponSlotReferences slot = hud.WeaponSlots[i];
-                        report.Require(slot != null && slot.CooldownFill != null && slot.Icon != null &&
+                        report.Require(slot != null && slot.CooldownFill != null && slot.QualityLight != null &&
+                                       slot.Icon != null &&
                                        slot.Label != null &&
                                        slot.CooldownFill.transform.GetSiblingIndex() < slot.Icon.transform.GetSiblingIndex() &&
+                                       slot.QualityLight.transform.GetSiblingIndex() < slot.Icon.transform.GetSiblingIndex() &&
                                        slot.Icon.transform.GetSiblingIndex() < slot.Label.transform.GetSiblingIndex(),
-                            "UIHud weapon slot " + i + " is not layered as cooldown -> icon -> label");
+                            "UIHud weapon slot " + i + " does not layer quality light below icon and label");
+                    }
+                }
+                if (hud.ArmorSlots != null)
+                {
+                    for (int i = 0; i < hud.ArmorSlots.Length; i++)
+                    {
+                        UIHudView.ArmorSlotReferences slot = hud.ArmorSlots[i];
+                        report.Require(slot != null && slot.QualityLight != null && slot.Icon != null &&
+                                       slot.QualityLight.transform.GetSiblingIndex() < slot.Icon.transform.GetSiblingIndex(),
+                            "UIHud armor slot " + i + " does not layer quality light below its icon");
                     }
                 }
             }
@@ -1149,6 +1178,9 @@ namespace OfficeHell.EditorTools
                            ColorDistance(hud.WeaponSlots[1].Background.color, starterGreen) < 0.01f &&
                            ColorDistance(hud.WeaponSlots[2].Background.color, starterGreen) < 0.01f &&
                            ColorDistance(hud.WeaponSlots[3].Background.color, emptyWeaponSlotColor) < 0.01f &&
+                           hud.WeaponSlots[0].QualityLight.gameObject.activeSelf &&
+                           hud.WeaponSlots[0].QualityLight.sprite == hud.GreenLightSprite &&
+                           !hud.WeaponSlots[3].QualityLight.gameObject.activeSelf &&
                            hud.WeaponSlots[0].CooldownFill.transform.GetSiblingIndex() <
                            hud.WeaponSlots[0].Icon.transform.GetSiblingIndex(),
                 "battle HUD did not show three green starting slots followed by an empty slot");
@@ -1159,16 +1191,25 @@ namespace OfficeHell.EditorTools
                                          cfg.QualityOf(Quality.Blue).Color) < 0.01f,
                 "battle HUD weapon slot did not update after a quality change");
             Quality[] slotQualities = { Quality.Green, Quality.Blue, Quality.Purple, Quality.Orange };
+            Sprite[] slotLightSprites =
+            {
+                hud.GreenLightSprite, hud.BlueLightSprite, hud.PurpleLightSprite, hud.OrangeLightSprite,
+            };
             for (int i = 0; i < slotQualities.Length; i++)
             {
                 game.Run.Player.Weapons[0].Quality = slotQualities[i];
                 hudController.UITick(0f);
                 report.Require(ColorDistance(hud.WeaponSlots[0].Background.color,
-                                             cfg.QualityOf(slotQualities[i]).Color) < 0.01f,
+                                             cfg.QualityOf(slotQualities[i]).Color) < 0.01f &&
+                               hud.WeaponSlots[0].QualityLight.gameObject.activeSelf &&
+                               hud.WeaponSlots[0].QualityLight.sprite == slotLightSprites[i],
                     "battle HUD weapon slot did not switch to " + slotQualities[i] + " quality tint");
             }
             report.Require(hud.ArmorSlots[0].Icon.enabled &&
                            hud.ArmorSlots[0].Icon.sprite == GameIconCatalog.Item("headphone") &&
+                           hud.ArmorSlots[0].QualityLight.gameObject.activeSelf &&
+                           hud.ArmorSlots[0].QualityLight.sprite == hud.PurpleLightSprite &&
+                           !hud.ArmorSlots[1].QualityLight.gameObject.activeSelf &&
                            ColorDistance(hud.ArmorSlots[0].Icon.color, Color.white) < 0.01f,
                 "battle HUD armor slot did not display the untinted earphone icon");
             float skillCd = game.Run.Player.SkillCd(cfg.Skill);
@@ -1248,6 +1289,13 @@ namespace OfficeHell.EditorTools
 
             report.Require(view.Outcome.text == expectedOutcome,
                 ending + " outcome is '" + view.Outcome.text + "', expected '" + expectedOutcome + "'");
+            Sprite expectedBanner = ending == Ending.Clear
+                ? view.ClearOutcomeSprite
+                : view.IncompleteOutcomeSprite;
+            report.Require(view.OutcomeBanner != null && view.OutcomeBanner.sprite == expectedBanner &&
+                           view.OutcomeBanner.preserveAspect && !view.OutcomeBanner.raycastTarget &&
+                           !view.Outcome.enabled,
+                ending + " did not select the expected completed/incomplete outcome banner");
             report.Require(view.Salary.text == "¥" + expectedSalary.ToString("N0"),
                 ending + " salary is '" + view.Salary.text + "', expected ¥" + expectedSalary.ToString("N0"));
             report.Require(view.WorkLabels[0].text == "修复 BUG" && view.WorkValues[0].text == "+ 5 个",

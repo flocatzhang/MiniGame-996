@@ -25,6 +25,12 @@ namespace OfficeHell.EditorTools
         const string BlueCardFramePath = SliceFolder + "/3blue.png";
         const string PurpleCardFramePath = SliceFolder + "/3purple.png";
         const string OrangeCardFramePath = SliceFolder + "/3orange.png";
+        const string GreenLightPath = SliceFolder + "/GreenLight.png";
+        const string BlueLightPath = SliceFolder + "/BlueLight.png";
+        const string PurpleLightPath = SliceFolder + "/PurpleLight.png";
+        const string OrangeLightPath = SliceFolder + "/OrangeLight.png";
+        const string ClearOutcomePath = SliceFolder + "/5M_Standards.png";
+        const string IncompleteOutcomePath = SliceFolder + "/5N_Standard.png";
 
         static readonly Color Ink = new Color(0.08f, 0.09f, 0.14f, 1f);
         static readonly Color Paper = new Color(0.96f, 0.94f, 0.9f, 1f);
@@ -63,8 +69,15 @@ namespace OfficeHell.EditorTools
                     hud.StageText != null && hud.KpiFill != null && hud.KpiText != null && hud.BannerText != null &&
                     hud.WeaponSlots != null && hud.WeaponSlots.Length == 6 &&
                     hud.ArmorSlots != null && hud.ArmorSlots.Length == 3 && hud.BossRoot != null &&
-                    hud.BossName != null && hud.BossFill != null && hud.BossPips != null && hud.BossPips.Length == 3,
+                    hud.BossName != null && hud.BossFill != null && hud.BossPips != null && hud.BossPips.Length == 3 &&
+                    hud.GreenLightSprite != null && hud.BlueLightSprite != null &&
+                    hud.PurpleLightSprite != null && hud.OrangeLightSprite != null,
                 "UIHud serialized references or slot counts are incomplete.");
+            Require(AssetDatabase.GetAssetPath(hud.GreenLightSprite) == GreenLightPath &&
+                    AssetDatabase.GetAssetPath(hud.BlueLightSprite) == BlueLightPath &&
+                    AssetDatabase.GetAssetPath(hud.PurpleLightSprite) == PurpleLightPath &&
+                    AssetDatabase.GetAssetPath(hud.OrangeLightSprite) == OrangeLightPath,
+                "UIHud quality-light sprites are not mapped to the four authored Slice assets.");
             Require(hud.SkillRoot.transform.parent == hud.transform &&
                     hud.SkillFill.type == UnityEngine.UI.Image.Type.Filled &&
                     hud.SkillFill.fillMethod == UnityEngine.UI.Image.FillMethod.Horizontal,
@@ -79,17 +92,21 @@ namespace OfficeHell.EditorTools
             {
                 UIHudView.WeaponSlotReferences slot = hud.WeaponSlots[i];
                 Require(slot != null && slot.Background != null && slot.CooldownFill != null &&
-                        slot.Icon != null && slot.Label != null,
+                        slot.QualityLight != null && slot.Icon != null && slot.Label != null,
                     "UIHud weapon slot " + i + " has incomplete references.");
                 Require(slot.CooldownFill.transform.GetSiblingIndex() < slot.Icon.transform.GetSiblingIndex() &&
+                        slot.QualityLight.transform.GetSiblingIndex() < slot.Icon.transform.GetSiblingIndex() &&
                         slot.Icon.transform.GetSiblingIndex() < slot.Label.transform.GetSiblingIndex(),
-                    "UIHud weapon slot " + i + " must render in Cooldown -> Icon -> Label order.");
+                    "UIHud weapon slot " + i + " must render its quality light below Icon and Label.");
             }
             for (int i = 0; i < hud.ArmorSlots.Length; i++)
             {
                 UIHudView.ArmorSlotReferences slot = hud.ArmorSlots[i];
-                Require(slot != null && slot.Background != null && slot.Icon != null && slot.Label != null,
+                Require(slot != null && slot.Background != null && slot.QualityLight != null &&
+                        slot.Icon != null && slot.Label != null,
                     "UIHud armor slot " + i + " has incomplete references.");
+                Require(slot.QualityLight.transform.GetSiblingIndex() < slot.Icon.transform.GetSiblingIndex(),
+                    "UIHud armor slot " + i + " must render its quality light below the icon.");
             }
 
             UIOffWorkView offWork = Required<UIOffWorkView>(OffWorkPrefabPath);
@@ -107,6 +124,8 @@ namespace OfficeHell.EditorTools
                     card.PurpleFrameSprite != null && card.OrangeFrameSprite != null &&
                     card.DesignAccents != null && card.DesignAccents.Length == 16,
                 "UICardItem serialized references are incomplete.");
+            Require(!card.Description.gameObject.activeSelf && !card.NewBadge.activeSelf,
+                "UICardItem Description and NewBadge must be disabled by default.");
             Require(AssetDatabase.GetAssetPath(card.GreenFrameSprite) == GreenCardFramePath &&
                     AssetDatabase.GetAssetPath(card.BlueFrameSprite) == BlueCardFramePath &&
                     AssetDatabase.GetAssetPath(card.PurpleFrameSprite) == PurpleCardFramePath &&
@@ -120,7 +139,8 @@ namespace OfficeHell.EditorTools
                 "UICardPanel must reference UICardItem.prefab.");
 
             UIResultView result = Required<UIResultView>(ResultPrefabPath);
-            Require(result.Dimmer != null && result.Outcome != null && result.Stamp != null &&
+            Require(result.Dimmer != null && result.OutcomeBanner != null && result.Outcome != null &&
+                    result.ClearOutcomeSprite != null && result.IncompleteOutcomeSprite != null && result.Stamp != null &&
                     result.SalaryGroup != null && result.Salary != null && result.WorkGroup != null &&
                     result.WorkLabels != null && result.WorkLabels.Length == 3 && result.WorkValues != null &&
                     result.WorkValues.Length == 3 && result.LootGroup != null && result.BestQuality != null &&
@@ -128,6 +148,9 @@ namespace OfficeHell.EditorTools
                     result.KpiGroup != null && result.KpiLabel != null && result.KpiFill != null &&
                     result.ButtonsGroup != null && result.RestartButton != null && result.MenuButton != null,
                 "UIResult serialized references are incomplete.");
+            Require(AssetDatabase.GetAssetPath(result.ClearOutcomeSprite) == ClearOutcomePath &&
+                    AssetDatabase.GetAssetPath(result.IncompleteOutcomeSprite) == IncompleteOutcomePath,
+                "UIResult outcome sprites are not mapped to the authored completed/incomplete Slice assets.");
 
             GameObject instance = PrefabUtility.InstantiatePrefab(card.gameObject) as GameObject;
             Require(instance != null && instance.GetComponent<UICardView>() != null,
@@ -227,6 +250,12 @@ namespace OfficeHell.EditorTools
         {
             GameObject root = Root("UIHud");
             UIHudView view = root.AddComponent<UIHudView>();
+            Sprite greenLight = AssetDatabase.LoadAssetAtPath<Sprite>(GreenLightPath);
+            Sprite blueLight = AssetDatabase.LoadAssetAtPath<Sprite>(BlueLightPath);
+            Sprite purpleLight = AssetDatabase.LoadAssetAtPath<Sprite>(PurpleLightPath);
+            Sprite orangeLight = AssetDatabase.LoadAssetAtPath<Sprite>(OrangeLightPath);
+            Require(greenLight != null && blueLight != null && purpleLight != null && orangeLight != null,
+                "UIHud quality-light Slice assets are missing.");
 
             Image statusPanel = Image("CharacterStatus", root.transform, new Color(0.055f, 0.085f, 0.14f, 0.94f));
             SetTop(statusPanel.rectTransform, new Vector2(32f, -28f), new Vector2(620f, 190f), new Vector2(0f, 1f));
@@ -364,6 +393,13 @@ namespace OfficeHell.EditorTools
                 cooldown.fillAmount = 0f;
                 cooldown.raycastTarget = false;
 
+                Image qualityLight = Image("QualityLight", background.transform, Color.white);
+                qualityLight.sprite = greenLight;
+                SetCenter(qualityLight.rectTransform, Vector2.zero, new Vector2(160f, 150f));
+                qualityLight.preserveAspect = true;
+                qualityLight.raycastTarget = false;
+                qualityLight.gameObject.SetActive(false);
+
                 Image icon = Image("Icon", background.transform, new Color(0.18f, 0.22f, 0.29f, 1f));
                 SetTop(icon.rectTransform, new Vector2(16f, -10f), new Vector2(80f, 56f), new Vector2(0f, 1f));
                 icon.raycastTarget = false;
@@ -375,6 +411,7 @@ namespace OfficeHell.EditorTools
                 {
                     Background = background,
                     CooldownFill = cooldown,
+                    QualityLight = qualityLight,
                     Icon = icon,
                     Label = label,
                 };
@@ -393,6 +430,12 @@ namespace OfficeHell.EditorTools
                 Outline slotOutline = background.gameObject.AddComponent<Outline>();
                 slotOutline.effectColor = new Color(0.52f, 0.66f, 0.82f, 0.9f);
                 slotOutline.effectDistance = new Vector2(3f, -3f);
+                Image qualityLight = Image("QualityLight", background.transform, Color.white);
+                qualityLight.sprite = greenLight;
+                SetCenter(qualityLight.rectTransform, Vector2.zero, new Vector2(140f, 130f));
+                qualityLight.preserveAspect = true;
+                qualityLight.raycastTarget = false;
+                qualityLight.gameObject.SetActive(false);
                 Image icon = Image("Icon", background.transform, new Color(0.18f, 0.22f, 0.29f, 1f));
                 SetTop(icon.rectTransform, new Vector2(16f, -10f), new Vector2(80f, 56f), new Vector2(0f, 1f));
                 icon.raycastTarget = false;
@@ -403,6 +446,7 @@ namespace OfficeHell.EditorTools
                 armors[i] = new UIHudView.ArmorSlotReferences
                 {
                     Background = background,
+                    QualityLight = qualityLight,
                     Icon = icon,
                     Label = label,
                 };
@@ -452,6 +496,10 @@ namespace OfficeHell.EditorTools
             view.KpiText = kpiText;
             view.WeaponSlots = weapons;
             view.ArmorSlots = armors;
+            view.GreenLightSprite = greenLight;
+            view.BlueLightSprite = blueLight;
+            view.PurpleLightSprite = purpleLight;
+            view.OrangeLightSprite = orangeLight;
             view.BossRoot = bossRoot;
             view.BossName = bossName;
             view.BossFill = bossFill;
@@ -585,7 +633,7 @@ namespace OfficeHell.EditorTools
             SetTop(rule.rectTransform, new Vector2(24f, -257f), new Vector2(302f, 2f), new Vector2(0f, 1f));
 
             Text primary = Label("Primary", root.transform, "攻击力 +5", 27, Ink, TextAnchor.UpperLeft);
-            SetTop(primary.rectTransform, new Vector2(24f, -286f), new Vector2(302f, 82f), new Vector2(0f, 1f));
+            SetTop(primary.rectTransform, new Vector2(24f, -286f), new Vector2(250f, 82f), new Vector2(0f, 1f));
             primary.fontStyle = FontStyle.Bold;
             primary.horizontalOverflow = HorizontalWrapMode.Wrap;
             primary.verticalOverflow = VerticalWrapMode.Truncate;
@@ -594,6 +642,7 @@ namespace OfficeHell.EditorTools
                 new Color(0.22f, 0.23f, 0.28f), TextAnchor.UpperLeft);
             SetTop(description.rectTransform, new Vector2(24f, -356f), new Vector2(302f, 84f), new Vector2(0f, 1f));
             description.horizontalOverflow = HorizontalWrapMode.Wrap;
+            description.gameObject.SetActive(false);
 
             Text keyHint = Label("KeyHint", root.transform, "按 1", 20,
                 new Color(0.3f, 0.32f, 0.38f), TextAnchor.MiddleRight);
@@ -694,6 +743,10 @@ namespace OfficeHell.EditorTools
         {
             GameObject root = Root("UIResult");
             UIResultView view = root.AddComponent<UIResultView>();
+            Sprite clearOutcome = AssetDatabase.LoadAssetAtPath<Sprite>(ClearOutcomePath);
+            Sprite incompleteOutcome = AssetDatabase.LoadAssetAtPath<Sprite>(IncompleteOutcomePath);
+            Require(clearOutcome != null && incompleteOutcome != null,
+                "UIResult completed/incomplete outcome Slice assets are missing.");
             Image dimmer = Image("Dimmer", root.transform, new Color(0.015f, 0.025f, 0.045f, 0.76f));
             Stretch(dimmer.rectTransform, 0f, 0f, 0f, 0f);
             dimmer.raycastTarget = true;
@@ -704,7 +757,10 @@ namespace OfficeHell.EditorTools
             paperOutline.effectColor = new Color(0.03f, 0.04f, 0.07f, 0.85f);
             paperOutline.effectDistance = new Vector2(6f, -6f);
 
-            Image outcomeBanner = Image("OutcomeBanner", root.transform, new Color(0.72f, 0.09f, 0.12f, 1f));
+            Image outcomeBanner = Image("OutcomeBanner", root.transform, Color.white);
+            outcomeBanner.sprite = incompleteOutcome;
+            outcomeBanner.preserveAspect = true;
+            outcomeBanner.raycastTarget = false;
             SetCenter(outcomeBanner.rectTransform, new Vector2(-250f, 378f), new Vector2(440f, 86f));
             Outline outcomeOutline = outcomeBanner.gameObject.AddComponent<Outline>();
             outcomeOutline.effectColor = new Color(0.05f, 0.03f, 0.04f, 1f);
@@ -712,6 +768,7 @@ namespace OfficeHell.EditorTools
             Text outcome = Label("Outcome", outcomeBanner.transform, "未达标", 47, Color.white, TextAnchor.MiddleCenter);
             Stretch(outcome.rectTransform, 16f, 16f, 4f, 4f);
             outcome.fontStyle = FontStyle.Bold;
+            outcome.enabled = false;
 
             Text stamp = Label("Stamp", paper.transform, "第 6 天 · 18:00", 19,
                 new Color(0.28f, 0.27f, 0.26f), TextAnchor.MiddleRight);
@@ -785,7 +842,10 @@ namespace OfficeHell.EditorTools
                 new Color(0.65f, 0.86f, 0.63f), new Vector2(205f, 0f));
 
             view.Dimmer = dimmer;
+            view.OutcomeBanner = outcomeBanner;
             view.Outcome = outcome;
+            view.ClearOutcomeSprite = clearOutcome;
+            view.IncompleteOutcomeSprite = incompleteOutcome;
             view.Stamp = stamp;
             view.SalaryGroup = salaryGroup;
             view.Salary = salary;

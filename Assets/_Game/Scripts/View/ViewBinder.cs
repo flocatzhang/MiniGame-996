@@ -76,7 +76,6 @@ namespace OfficeHell.View
         readonly List<DeathFx> _deaths = new List<DeathFx>(64);
 
         EntityView _playerView;
-        EntityView _pickupRing;
 
         float _playerHitAt = -999f;
         Vector2 _playerHitDir = Vector2.right;
@@ -290,11 +289,6 @@ namespace OfficeHell.View
                 _playerView = EntityView.Create("PlayerView", 40);
                 _playerView.transform.SetParent(_root, false);
                 _playerView.Bind(_ctx.Cfg.View("v_player"), ViewShape.Circle, false);
-
-                _pickupRing = EntityView.Create("PickupRing", 5);
-                _pickupRing.transform.SetParent(_root, false);
-                _pickupRing.Bind(ConfigManager.FallbackView, ViewShape.Quad, true);
-                _pickupRing.Body.enabled = false;
             }
 
             _playerView.SetWorldPosition(p.Pos);
@@ -356,9 +350,6 @@ namespace OfficeHell.View
             {
                 _playerView.HideRing();
             }
-
-            _pickupRing.SetWorldPosition(p.Pos);
-            _pickupRing.ShowRing(WorldFxCatalog.CircleBlue, new Color(1f, 1f, 1f, 0.12f), p.MagnetRadius);
         }
 
         void SyncEnemies()

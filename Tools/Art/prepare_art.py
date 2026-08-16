@@ -1,8 +1,8 @@
 from pathlib import Path
 from shutil import copy2
+import sys
 
 from PIL import Image
-from psd_tools import PSDImage
 
 
 PROJECT = Path(r"E:\OfficeHell")
@@ -35,6 +35,13 @@ ROW_TOPS = {
     "boss": 1889,
 }
 
+# These delivered rows replace their PSD layers. Their frames have deliberately different widths,
+# so they must be separated by fully transparent column gaps instead of by width / frame count.
+DIRECT_ROWS = {
+    "mail": "\u90ae\u4ef6.png",
+    "report": "\u5468\u62a5.png",
+}
+
 
 def find_source(name: str) -> Path:
     path = SOURCE / name
@@ -44,6 +51,8 @@ def find_source(name: str) -> Path:
 
 
 def export_animation_rows() -> None:
+    from psd_tools import PSDImage
+
     psd = PSDImage.open(find_source("序列帧.psd"))
     layers = list(psd.descendants())
     ROWS.mkdir(parents=True, exist_ok=True)
@@ -67,6 +76,36 @@ def export_animation_rows() -> None:
             raise RuntimeError(f"could not composite animation layer {key}")
         image.convert("RGBA").save(ROWS / f"{key}.png", optimize=True)
 
+def export_direct_rows() -> None:
+    ROWS.mkdir(parents=True, exist_ok=True)
+    for key, filename in DIRECT_ROWS.items():
+        image = Image.open(find_source(filename)).convert("RGBA")
+        image.save(ROWS / f"{key}.png", optimize=True)
+
+
+def split_disconnected_row(source: Image.Image, key: str, count: int) -> list[Image.Image]:
+    alpha = source.getchannel("A")
+    occupied = [
+        alpha.crop((x, 0, x + 1, source.height)).getbbox() is not None
+        for x in range(source.width)
+    ]
+
+    spans = []
+    start = None
+    for x, has_content in enumerate(occupied + [False]):
+        if has_content and start is None:
+            start = x
+        elif not has_content and start is not None:
+            spans.append((start, x))
+            start = None
+
+    if len(spans) != count:
+        raise RuntimeError(
+            f"animation row {key} has {len(spans)} visible column groups, expected {count}"
+        )
+
+    return [source.crop((left, 0, right, source.height)) for left, right in spans]
+
 
 def split_row(key: str, count: int) -> None:
     source = Image.open(ROWS / f"{key}.png").convert("RGBA")
@@ -75,12 +114,16 @@ def split_row(key: str, count: int) -> None:
         raise RuntimeError(f"animation row {key} is empty")
 
     left, top, right, bottom = alpha_box
+    cells = split_disconnected_row(source, key, count) if key in DIRECT_ROWS else []
     cell_width = (right - left) / count
     crops = []
     for index in range(count):
-        cell_left = round(left + cell_width * index)
-        cell_right = round(left + cell_width * (index + 1))
-        cell = source.crop((cell_left, top, cell_right, bottom))
+        if cells:
+            cell = cells[index]
+        else:
+            cell_left = round(left + cell_width * index)
+            cell_right = round(left + cell_width * (index + 1))
+            cell = source.crop((cell_left, top, cell_right, bottom))
         content_box = cell.getchannel("A").getbbox()
         if content_box is None:
             raise RuntimeError(f"animation row {key} frame {index} is empty")
@@ -131,7 +174,17 @@ def copy_static_art() -> None:
 
 
 def main() -> None:
+    if sys.argv[1:] == ["--direct-rows"]:
+        export_direct_rows()
+        for key, filename in DIRECT_ROWS.items():
+            split_row(key, FRAME_COUNTS[key])
+        print(f"prepared {len(DIRECT_ROWS)} direct character rows")
+        return
+    if sys.argv[1:]:
+        raise RuntimeError("supported argument: --direct-rows")
+
     export_animation_rows()
+    export_direct_rows()
 
     for key, count in FRAME_COUNTS.items():
         split_row(key, count)

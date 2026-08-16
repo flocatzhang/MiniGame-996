@@ -7,7 +7,10 @@ namespace OfficeHell.UI
     public sealed class UIResultView : MonoBehaviour
     {
         public Image Dimmer;
+        public Image OutcomeBanner;
         public Text Outcome;
+        public Sprite ClearOutcomeSprite;
+        public Sprite IncompleteOutcomeSprite;
         public Text Stamp;
 
         public GameObject SalaryGroup;

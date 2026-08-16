@@ -56,7 +56,14 @@ namespace OfficeHell.UI
             bool fail = run.Ending == Ending.Fail;
             bool completed = !fail;
 
+            _view.OutcomeBanner.sprite = run.Ending == Ending.Clear
+                ? _view.ClearOutcomeSprite
+                : _view.IncompleteOutcomeSprite;
+            _view.OutcomeBanner.color = Color.white;
+            _view.OutcomeBanner.preserveAspect = true;
+            _view.OutcomeBanner.raycastTarget = false;
             _view.Outcome.text = fail ? "已离职" : "未达标";
+            _view.Outcome.enabled = false;
             _view.Stamp.text = completed
                 ? WorkClockModel.Stamp(cfg.DayCount, WeekdayOf(cfg, cfg.DayCount), 1f, cfg.Clock)
                 : WorkClockModel.Stamp(run.DayIndex, WeekdayOf(cfg, run.DayIndex), run.DayProgress01, cfg.Clock);

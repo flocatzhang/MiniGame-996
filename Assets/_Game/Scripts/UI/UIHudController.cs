@@ -28,6 +28,12 @@ namespace OfficeHell.UI
             for (int i = 0; i < _emptyWeaponSlotColors.Length; i++)
             {
                 _emptyWeaponSlotColors[i] = _view.WeaponSlots[i].Background.color;
+                HideQualityLight(_view.WeaponSlots[i].QualityLight);
+            }
+
+            for (int i = 0; i < _view.ArmorSlots.Length; i++)
+            {
+                HideQualityLight(_view.ArmorSlots[i].QualityLight);
             }
 
             ConfigureProgressFill(_view.SanFill);
@@ -150,6 +156,7 @@ namespace OfficeHell.UI
                 {
                     // Empty slots retain the neutral artwork/tint authored in the HUD prefab.
                     view.Background.color = _emptyWeaponSlotColors[i];
+                    HideQualityLight(view.QualityLight);
                     view.Label.text = "空";
                     view.Label.color = new Color(0.4f, 0.42f, 0.48f);
                     view.Icon.sprite = null;
@@ -161,6 +168,7 @@ namespace OfficeHell.UI
 
                 QualityDef quality = _ctx.Game.Cfg.QualityOf(weapon.Quality);
                 view.Background.color = quality.Color;
+                ShowQualityLight(view.QualityLight, weapon.Quality);
                 view.Label.text = weapon.Def.Name;
                 view.Label.color = quality.Color;
                 view.Icon.sprite = UIPrefabCatalog.CardIcon(weapon.Def.Id);
@@ -179,6 +187,7 @@ namespace OfficeHell.UI
                 ArmorRuntime armor = player.Armors[i];
                 if (armor.IsEmpty)
                 {
+                    HideQualityLight(view.QualityLight);
                     view.Label.text = SlotWord((EquipSlot)(i + 1));
                     view.Label.color = new Color(0.38f, 0.4f, 0.46f);
                     view.Icon.sprite = null;
@@ -188,12 +197,41 @@ namespace OfficeHell.UI
                 }
 
                 Color quality = _ctx.Game.Cfg.QualityOf(armor.Quality).Color;
+                ShowQualityLight(view.QualityLight, armor.Quality);
                 view.Label.text = armor.Def.Name;
                 view.Label.color = quality;
                 view.Icon.sprite = UIPrefabCatalog.CardIcon(armor.Def.Id);
                 view.Icon.enabled = view.Icon.sprite != null;
                 view.Icon.preserveAspect = true;
                 view.Icon.color = Color.white;
+            }
+        }
+
+        static void HideQualityLight(Image light)
+        {
+            if (light == null) return;
+            light.sprite = null;
+            light.gameObject.SetActive(false);
+        }
+
+        void ShowQualityLight(Image light, Quality quality)
+        {
+            if (light == null) return;
+            light.sprite = QualityLightSprite(quality);
+            light.color = Color.white;
+            light.preserveAspect = true;
+            light.raycastTarget = false;
+            light.gameObject.SetActive(light.sprite != null);
+        }
+
+        Sprite QualityLightSprite(Quality quality)
+        {
+            switch (quality)
+            {
+                case Quality.Blue: return _view.BlueLightSprite;
+                case Quality.Purple: return _view.PurpleLightSprite;
+                case Quality.Orange: return _view.OrangeLightSprite;
+                default: return _view.GreenLightSprite;
             }
         }
 

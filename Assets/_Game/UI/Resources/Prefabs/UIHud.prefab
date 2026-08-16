@@ -297,12 +297,12 @@ GameObject:
   - component: {fileID: 391396370682228185}
   - component: {fileID: 8439014753078988886}
   m_Layer: 0
-  m_Name: Image
+  m_Name: QualityLight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &5510756411603971934
 RectTransform:
   m_ObjectHideFlags: 0
@@ -344,7 +344,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -352,7 +352,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 21300000, guid: 3d68097169c6df6438dc011566931fcb, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -372,12 +372,12 @@ GameObject:
   - component: {fileID: 6572934690553683238}
   - component: {fileID: 107501560510161784}
   m_Layer: 0
-  m_Name: Image
+  m_Name: QualityLight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1123509932852442744
 RectTransform:
   m_ObjectHideFlags: 0
@@ -419,7 +419,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -427,7 +427,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 21300000, guid: 3d68097169c6df6438dc011566931fcb, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -522,12 +522,12 @@ GameObject:
   - component: {fileID: 2561292125541157841}
   - component: {fileID: 5687360993266415184}
   m_Layer: 0
-  m_Name: Image
+  m_Name: QualityLight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &6699037712977208302
 RectTransform:
   m_ObjectHideFlags: 0
@@ -569,7 +569,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -577,7 +577,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 21300000, guid: 3d68097169c6df6438dc011566931fcb, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -2517,12 +2517,12 @@ GameObject:
   - component: {fileID: 1076188217006250472}
   - component: {fileID: 5004625141683345823}
   m_Layer: 0
-  m_Name: Image
+  m_Name: QualityLight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &7840032597422551607
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2564,7 +2564,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -2572,7 +2572,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 21300000, guid: 3d68097169c6df6438dc011566931fcb, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -2970,12 +2970,12 @@ GameObject:
   - component: {fileID: 6973691518070555014}
   - component: {fileID: 4857844888822637964}
   m_Layer: 0
-  m_Name: Image
+  m_Name: QualityLight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2753338730053439625
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3017,7 +3017,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -3025,7 +3025,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 21300000, guid: 3d68097169c6df6438dc011566931fcb, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -3045,12 +3045,12 @@ GameObject:
   - component: {fileID: 5902965084559520180}
   - component: {fileID: 1800534517555172457}
   m_Layer: 0
-  m_Name: Image
+  m_Name: QualityLight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &7335502638226510663
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3092,7 +3092,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -3100,7 +3100,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 21300000, guid: 3d68097169c6df6438dc011566931fcb, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -3879,12 +3879,12 @@ GameObject:
   - component: {fileID: 2075770362686804742}
   - component: {fileID: 7905028069125404328}
   m_Layer: 0
-  m_Name: Image
+  m_Name: QualityLight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2808716697730686541
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3926,7 +3926,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -3934,7 +3934,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 21300000, guid: 3d68097169c6df6438dc011566931fcb, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -4264,38 +4264,51 @@ MonoBehaviour:
   WeaponSlots:
   - Background: {fileID: 5422959414185523078}
     CooldownFill: {fileID: 517397013884241954}
+    QualityLight: {fileID: 1389115046867251817}
     Icon: {fileID: 529209755504564609}
     Label: {fileID: 1517436226463232285}
   - Background: {fileID: 8008409708676049725}
     CooldownFill: {fileID: 1382407998604081920}
+    QualityLight: {fileID: 8439014753078988886}
     Icon: {fileID: 6591304823072289975}
     Label: {fileID: 6800266020441943021}
   - Background: {fileID: 4018021345091625716}
     CooldownFill: {fileID: 7860069658094834925}
+    QualityLight: {fileID: 1800534517555172457}
     Icon: {fileID: 5601287255788040867}
     Label: {fileID: 3166155200362411296}
   - Background: {fileID: 9104108945344493178}
     CooldownFill: {fileID: 6857592328752031295}
+    QualityLight: {fileID: 5004625141683345823}
     Icon: {fileID: 4705886566452247019}
     Label: {fileID: 531331503493662278}
   - Background: {fileID: 5542567799871734220}
     CooldownFill: {fileID: 9145123804113250378}
+    QualityLight: {fileID: 5687360993266415184}
     Icon: {fileID: 1508982244084807599}
     Label: {fileID: 5684837476717987986}
   - Background: {fileID: 778742424040798326}
     CooldownFill: {fileID: 6347102095884831566}
+    QualityLight: {fileID: 7905028069125404328}
     Icon: {fileID: 4692961470429111182}
     Label: {fileID: 899878252251337504}
   ArmorSlots:
   - Background: {fileID: 5002339368492159572}
+    QualityLight: {fileID: 107501560510161784}
     Icon: {fileID: 4963637681420633803}
     Label: {fileID: 4724979773815498073}
   - Background: {fileID: 7142555632197148683}
+    QualityLight: {fileID: 3512167667514907496}
     Icon: {fileID: 5532594820553852301}
     Label: {fileID: 442925894083108615}
   - Background: {fileID: 560402762934914901}
+    QualityLight: {fileID: 4857844888822637964}
     Icon: {fileID: 1029266271568899722}
     Label: {fileID: 8252665618925087522}
+  GreenLightSprite: {fileID: 21300000, guid: 79be328fb75d66c4297515e217b3a25e, type: 3}
+  BlueLightSprite: {fileID: 21300000, guid: 5d7ee46eb89d111438fb191bd1fd4236, type: 3}
+  PurpleLightSprite: {fileID: 21300000, guid: f187eeab4c72c2947899d0524de73c34, type: 3}
+  OrangeLightSprite: {fileID: 21300000, guid: 3d68097169c6df6438dc011566931fcb, type: 3}
   BossRoot: {fileID: 4186138114105335280}
   BossName: {fileID: 5006731951885914106}
   BossFill: {fileID: 5213506713708797053}
@@ -5228,12 +5241,12 @@ GameObject:
   - component: {fileID: 3790137665014111909}
   - component: {fileID: 1389115046867251817}
   m_Layer: 0
-  m_Name: Image
+  m_Name: QualityLight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &7831041216229030087
 RectTransform:
   m_ObjectHideFlags: 0
@@ -5275,7 +5288,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -5283,7 +5296,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 21300000, guid: 3d68097169c6df6438dc011566931fcb, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -5571,12 +5584,12 @@ GameObject:
   - component: {fileID: 5150526646654133670}
   - component: {fileID: 3512167667514907496}
   m_Layer: 0
-  m_Name: Image
+  m_Name: QualityLight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &7233647764392698439
 RectTransform:
   m_ObjectHideFlags: 0
@@ -5618,7 +5631,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -5626,7 +5639,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 21300000, guid: 3d68097169c6df6438dc011566931fcb, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1

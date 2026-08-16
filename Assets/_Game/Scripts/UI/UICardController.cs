@@ -129,7 +129,6 @@ namespace OfficeHell.UI
             card.Kind.text = KindWord(offer.Kind);
             card.Title.text = offer.Title;
             card.Primary.text = Primary(offer);
-            card.Description.text = Description(offer);
             card.FooterText.text = Footer(offer);
             card.KeyHint.text = "按 " + (index + 1);
 
@@ -159,7 +158,6 @@ namespace OfficeHell.UI
             card.IconFallback.text = IconFallback(iconKey);
 
             card.RecommendBadge.SetActive(recommended);
-            card.NewBadge.SetActive(offer.Kind == CardKind.Skill && !offer.IsUpgrade);
         }
 
         /// <summary>
@@ -170,21 +168,6 @@ namespace OfficeHell.UI
         static string Primary(CardOffer offer)
         {
             return offer.Desc;
-        }
-
-        static string Description(CardOffer offer)
-        {
-            if (offer.Kind == CardKind.Equipment)
-            {
-                return QualityName(offer.Quality) + "品质装备";
-            }
-
-            if (offer.IsUpgrade)
-            {
-                return QualityName(offer.OwnedQuality) + " → " + QualityName(offer.Quality) + " 升级";
-            }
-
-            return offer.Kind == CardKind.Stat ? "基础属性永久提升" : "本局永久生效";
         }
 
         Color Identity(UICardView card, CardOffer offer)

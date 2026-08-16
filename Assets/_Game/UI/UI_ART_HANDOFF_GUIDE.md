@@ -163,9 +163,9 @@ UIHud
 ├─ KpiPanel
 │  └─ KpiBar / Fill / KpiText
 ├─ WeaponSlots
-│  └─ Weapon1~Weapon6 / Icon / Label / Cooldown
+│  └─ Weapon1~Weapon6 / Cooldown / QualityLight / Icon / Label
 ├─ ArmorSlots
-│  └─ Armor1~Armor3 / Icon / Label
+│  └─ Armor1~Armor3 / QualityLight / Icon / Label
 ├─ BossBar
 │  ├─ BossName
 │  ├─ BossHp / Fill
@@ -223,11 +223,13 @@ UIHud
 | --- | --- | --- | --- |
 | `WeaponSlots` | 6 个武器槽的布局容器 | 不挂图 | 可调整整体位置和间距，数量保持 6 |
 | `Weapon1~Weapon6` | 单个武器槽背景 `Image` | 武器槽框、胶带边框 | 槽位底色会按状态变化 |
-| `Weapon*/Icon` | 武器图标 `Image` | 不在 Prefab 固定挂正式装备图 | 按装备 `Def.Id` 从 `Resources/Icons/Cards` 自动加载 |
+| `Weapon*/QualityLight` | 武器品质光效底 `Image` | 由程序在 `GreenLight / BlueLight / PurpleLight / OrangeLight` 中切换 | 空槽隐藏；必须保持在 `Icon` 下层，不要固定挂死某一种品质 |
+| `Weapon*/Icon` | 武器图标 `Image` | 不在 Prefab 固定挂正式装备图 | 按装备 `Def.Id` 从 `Resources/Icon/card` 自动加载 |
 | `Weapon*/Label` | 武器名称/等级 | 不挂图 | 动态变化 |
 | `Weapon*/Cooldown` | 冷却遮罩 `Image` | 半透明暗色或放射形遮罩 | 作为 Filled Image 动态显示冷却 |
 | `ArmorSlots` | 3 个装备槽的布局容器 | 不挂图 | 可调整整体位置和间距，数量保持 3 |
 | `Armor1~Armor3` | 单个装备槽背景 `Image` | 装备/被动槽框 | 槽位底色会按状态变化 |
+| `Armor*/QualityLight` | 防具品质光效底 `Image` | 由程序在 `GreenLight / BlueLight / PurpleLight / OrangeLight` 中切换 | 空槽隐藏；必须保持在 `Icon` 下层，不要固定挂死某一种品质 |
 | `Armor*/Icon` | 装备图标 `Image` | 不在 Prefab 固定挂正式装备图 | 按装备 `Def.Id` 自动加载 |
 
 进入新一局时，`Weapon1~Weapon3` 会依次显示绿色订书机、绿色键盘、绿色工牌；`Weapon4~Weapon6` 保持空槽。三件图标与绿色品质底色都由运行时代码填写，美术不要把它们直接画死在 Prefab 背景中。
@@ -243,7 +245,7 @@ UIHud
 | `BossHp/Fill` | Boss 血量前景 `Image` | 红色/危险色填充图 | `fillAmount` 动态变化 |
 | `Pip1~Pip3` | Boss 阶段/护盾提示 `Image` | 小圆点、骷髅、警报灯等 | 显隐或颜色由运行时状态控制 |
 
-`UIHudView` 的 Inspector 中需要保持：头像、职位、`Skill Root / Skill Background / Skill Icon / Skill Fill / Skill Text`、其他各条 Fill/Text、6 个 `WeaponSlots`、3 个 `ArmorSlots`、Boss 区和 DayBanner 引用完整。数组顺序就是屏幕槽位顺序。`Skill Root` 必须指向根节点下的 `SlackSkillStatus`，这样美术移动人物框时不会误把摸鱼条一起改掉。
+`UIHudView` 的 Inspector 中需要保持：头像、职位、`Skill Root / Skill Background / Skill Icon / Skill Fill / Skill Text`、其他各条 Fill/Text、4 张品质光效 Sprite、6 个 `WeaponSlots`、3 个 `ArmorSlots`、Boss 区和 DayBanner 引用完整。每个槽位的 `Quality Light` 都必须指向自己的 `QualityLight` 子节点；数组顺序就是屏幕槽位顺序。`Skill Root` 必须指向根节点下的 `SlackSkillStatus`，这样美术移动人物框时不会误把摸鱼条一起改掉。
 
 ### 4.3 UIOffWork.prefab
 
@@ -382,8 +384,8 @@ UIResult
 | --- | --- | --- | --- |
 | `UIResult` | 根节点，挂 `UIResultView` | 不挂图 | View 引用必须完整 |
 | `Dimmer` | 全屏暗幕 `Image` | 纯色或轻纹理 | 保留战斗画面但压暗背景 |
-| `OutcomeBanner` | 结果横幅 `Image` | 红色警报条、印章横幅 | 框体静态 |
-| `OutcomeBanner/Outcome` | 结果文字 | 不挂图 | 通关/超时显示“未达标”，失败显示“已离职” |
+| `OutcomeBanner` | 两态结果横幅 `Image` | `5M_Standards` / `5N_Standard` | 只有击败最终 Boss 的 `Clear` 使用蓝色 `5M_Standards`；超时未击败和中途死亡都使用红色 `5N_Standard` |
+| `OutcomeBanner/Outcome` | 兼容用结果文字 | 不挂图 | 两张正式横幅已经包含文字，因此运行时关闭显示；保留 View 引用，不要删除 |
 | `SalaryPaper` | 中央结算纸张 `Image` | 建议可九宫格拉伸的工资单、打印纸或文件纸 | 所有明细的承载底图 |
 | `Stamp` | 盖章文字 | 可保留文字，也可新增静态印章底图 | 结果状态动态变化 |
 | `TopRule`、`MiddleRule` | 分隔线 `Image` | 手绘线、打印线、虚线 | 静态装饰 |

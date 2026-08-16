@@ -13,6 +13,7 @@ namespace OfficeHell.UI
         {
             public Image Background;
             public Image CooldownFill;
+            public Image QualityLight;
             public Image Icon;
             public Text Label;
         }
@@ -21,6 +22,7 @@ namespace OfficeHell.UI
         public sealed class ArmorSlotReferences
         {
             public Image Background;
+            public Image QualityLight;
             public Image Icon;
             public Text Label;
         }
@@ -49,6 +51,10 @@ namespace OfficeHell.UI
 
         public WeaponSlotReferences[] WeaponSlots;
         public ArmorSlotReferences[] ArmorSlots;
+        public Sprite GreenLightSprite;
+        public Sprite BlueLightSprite;
+        public Sprite PurpleLightSprite;
+        public Sprite OrangeLightSprite;
 
         public GameObject BossRoot;
         public Text BossName;
