@@ -57,6 +57,15 @@ namespace OfficeHell.Model
 
         public bool AnyLegendaryDropped;
 
+        /// <summary>
+        /// Armour slots that have already produced an orange piece, indexed by EquipSlot. A run is
+        /// six days of which a judge watches three, and the pity timer plus the scripted guarantees
+        /// only pay out a handful of legendaries: spending two of them on the same slot means the
+        /// second one is worth three experience, which is the most anticlimactic outcome the drop
+        /// system can produce.
+        /// </summary>
+        public readonly bool[] OrangeArmorTaken = new bool[4];
+
         public Quality BestQuality = Quality.Green;
         public string BestLootName = "-";
         public bool AnyLootPicked;
@@ -194,6 +203,12 @@ namespace OfficeHell.Model
             CombatSeconds = 0f;
             SecondsSinceLastLegendary = 0f;
             AnyLegendaryDropped = false;
+
+            for (int i = 0; i < OrangeArmorTaken.Length; i++)
+            {
+                OrangeArmorTaken[i] = false;
+            }
+
             BestQuality = Quality.Green;
             BestLootName = "-";
             AnyLootPicked = false;

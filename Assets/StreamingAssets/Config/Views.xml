@@ -50,6 +50,13 @@
   <View id="v_warn_kpi"    shape="Circle" color="#FF4A3A" scale="1.00" />
 
   <!--
+    The boss's 画饼. Same red as the KPI mark because it costs the same thing, and the two are told
+    apart by the pancake drawn inside the ring rather than by hue: a second shade of red would be a
+    third thing to learn on the one day the screen is already fullest.
+  -->
+  <View id="v_warn_pie"    shape="Circle" color="#FF4A3A" scale="1.00" />
+
+  <!--
     Yellow slipper's coffee trail. Same brown as the coffee drop and deliberately so: the mark is the
     spilled version of the thing the player has been picking up all week. It is the only ground ring
     that is not a warning, which is exactly why it must not be in the warning palette.

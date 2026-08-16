@@ -188,29 +188,47 @@
 
   <!--
     Saturday is the one hand written total. The density formula asks for 277 trash mobs, which would
-    bury the boss telegraphs and the legendary drop under a screen of noise. 20 arrive here up front;
-    the other 40 come from the two phase transitions, so the middle of the fight is a clean duel.
+    bury the boss telegraphs and the legendary drop under a screen of noise, so the count here is a
+    boss pacing number that happens to live in the spawn table: it does not follow density up and it
+    does not follow density down either.
 
-    That is not only pacing. Every weapon auto locks the nearest target, so leaving trash on the field
-    means six weapons spend the whole fight shooting mail while the boss stands untouched.
+    The constraint that sets it is the auto lock. Every weapon targets the nearest body, so trash on
+    the field is trash the six slots are shooting instead of the boss. That is the whole reason this
+    day was left out of both times the week was rescaled, and it is still the first thing to check
+    when any number here moves.
 
-    Flat, and the only day whose spawning is meant to stop early. Saturday's escalation is the boss's
-    three phases, and trash still arriving at 21:00 would be arriving through the final bar.
+    The fight used to be 20 up front and nothing after, with the other 40 arriving on the two phase
+    breaks. Twelve seconds of arrivals across a two minute day left the duel almost empty between
+    breaks, so the middle of each bar was a boss walking at 1.4 towards a player who had nothing else
+    to read. It now runs a second window from 12s to 100s carrying seventy percent of the budget,
+    which is the same idea the phase breaks already had, spread thin enough that it never becomes the
+    thing the weapons are pointed at: about 1.2 arrivals a second against Friday's 3.2.
 
-    It is the one day left out of both times the week was rescaled, and the auto lock is the whole
-    reason. The other five days get harder when the screen fills up; this one stops being a boss
-    fight, because forty extra mails means six slots spend the duel shooting mail while 9999 x 3
-    stands untouched. The count here is a boss pacing number that happens to be written in the spawn
-    table, so it does not follow density up and it does not follow density down either. concurrentMax
-    stays at 40 with it for the same reason: it is sized against the two phase transitions dumping 20
-    apiece, not against an arrival rate.
+    Three deliberate limits on that window:
+
+    - It stops at 100 of 120. Trash arriving through the final bar is the one case the old comment
+      was right about without qualification, and the last twenty seconds are the finale.
+    - ramp 1.5 rather than flat. Saturday's escalation is still the boss's three phases; this only
+      makes the arrivals agree with them instead of contradicting them.
+    - PPT and 老油条 sit at one weight in eighteen. They are the two health sponges, and a sponge on
+      the field is the auto lock parked on something that takes a while to die.
+
+    concurrentMax rises with it. It was 40 against two breaks dumping 20 apiece; the breaks now dump
+    26 and there is a standing population underneath them. Bar break bursts ignore the cap by design,
+    so its real job is throttling this window while a wave is still being cleared.
   -->
   <Day index="6" label="忘了周六要加班赶进度" weekday="周六"
-       duration="120" offWork="0" totalSpawn="20" concurrentMax="40">
-    <Spawner from="0" to="12" interval="2.0" groupSize="4" budgetPct="100" ramp="1">
+       duration="120" offWork="0" totalSpawn="48" concurrentMax="54">
+    <Spawner from="0" to="12" interval="2.0" groupSize="4" budgetPct="30" ramp="1">
       <Pick enemyId="mail" weight="4" />
       <Pick enemyId="deadline" weight="2" />
       <Pick enemyId="bug" weight="2" />
+    </Spawner>
+    <Spawner from="12" to="96" interval="2.5" groupSize="3" budgetPct="70" ramp="1.5">
+      <Pick enemyId="mail" weight="6" />
+      <Pick enemyId="deadline" weight="4" />
+      <Pick enemyId="bug" weight="4" />
+      <Pick enemyId="report" weight="2" />
     </Spawner>
     <Fixed enemyId="boss" count="1" atSecond="6" entrance="true" guaranteeDrop="orange" />
   </Day>

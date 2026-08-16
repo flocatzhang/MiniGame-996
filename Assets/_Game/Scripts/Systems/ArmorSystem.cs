@@ -26,10 +26,21 @@ namespace OfficeHell.Systems
         const float StainInterval = 0.3f;
         const float StainSeconds = 2.5f;
         const float StainRadius = 0.9f;
-        const float StainSlowPct = 20f;
+        const float StainSlowPct = 50f;
 
         /// <summary>Refreshed every frame the enemy stands in it, so it lapses shortly after they leave.</summary>
         const float StainSlowSeconds = 0.25f;
+
+        /// <summary>
+        /// Chip damage for standing in the trail, as a share of ATK so it keeps pace with the build
+        /// instead of falling off the moment hpScale climbs. Deliberately small: the trail already
+        /// halves the pack's speed, and the six weapon slots are what is supposed to kill things.
+        /// Billed on an interval rather than per frame so it also reads as a number the player can
+        /// see rather than a stream of ones.
+        /// </summary>
+        const float StainDamagePctAtk = 15f;
+
+        const float StainDamageInterval = 0.5f;
 
         /// <summary>
         /// How long a granted shield lasts before lapsing on its own.
@@ -113,6 +124,7 @@ namespace OfficeHell.Systems
             }
 
             List<EnemyModel> enemies = _ctx.Run.Enemies;
+            float damage = p.Stats.Get(StatType.Atk) * StainDamagePctAtk * 0.01f;
 
             for (int s = 0; s < PlayerModel.StainSlots; s++)
             {
@@ -151,6 +163,16 @@ namespace OfficeHell.Systems
                     }
 
                     e.SlowUntil = Mathf.Max(e.SlowUntil, now + StainSlowSeconds);
+
+                    // The gate is on the enemy, not on the mark, so walking a tight circle bills the
+                    // same rate as walking a line.
+                    if (now < e.StainTickAt)
+                    {
+                        continue;
+                    }
+
+                    e.StainTickAt = now + StainDamageInterval;
+                    CombatSystem.DealDamageToEnemy(_ctx, e, damage, at);
                 }
             }
         }

@@ -119,7 +119,7 @@ namespace OfficeHell.EditorTools
             TestStartingLoadout(report, cfg);
             TestArtAssets(report, cfg);
             TestUiPrefabs(report, cfg);
-            TestGameIcons(report);
+            TestGameIcons(report, cfg);
             TestUiControllerBindings(report, cfg);
             TestResultPresentation(report, cfg);
             TestAudioAssets(report, cfg);
@@ -128,6 +128,8 @@ namespace OfficeHell.EditorTools
             TestSpawnGeometry(report, cfg);
             TestSpawnBandKeepsDistance(report, cfg);
             TestCardQualityTiers(report, cfg);
+            TestWeaponHandLevels(report, cfg);
+            TestOrangeArmorNeverRepeatsASlot(report, cfg);
             TestEquipmentNaming(report, cfg);
             TestArmorSlotEffects(report, cfg);
             TestSkillHealIsSilentAtFullSanity(report, cfg);
@@ -433,10 +435,23 @@ namespace OfficeHell.EditorTools
 
             EnemyModel walker = h.Driver.Spawn.Spawn(cfg.Enemy("mail"), Vector2.zero, null);
             h.Driver.ForceRebuildGrid();
+            float walkerHp = walker != null ? walker.Hp : 0f;
             h.Driver.Armor.Tick(FixedDelta);
 
             report.Require(walker != null && walker.SlowUntil > GameClock.Now && walker.SlowPct > 0f,
                 "an enemy standing on a fresh coffee mark was not slowed");
+
+            // The chip is rate limited per enemy rather than per mark, and the trail overlaps itself
+            // heavily. A gate that lived on the mark would read as correct here and bill six times as
+            // fast in a run, so the second tick has to come back empty.
+            float firstTick = walkerHp - (walker != null ? walker.Hp : 0f);
+            h.Driver.Armor.Tick(FixedDelta);
+            float secondTick = walkerHp - firstTick - (walker != null ? walker.Hp : 0f);
+
+            report.Require(firstTick > 0f, "an enemy standing on a fresh coffee mark took no chip damage");
+            report.Require(Mathf.Abs(secondTick) < 0.001f,
+                "a coffee mark billed " + secondTick.ToString("0.00") +
+                " again on the very next frame, the per enemy interval is not holding");
 
             report.Line("headphone shield lapses, death save is once per run, hoodie guard and both slipper tiers fire");
             h.Dispose();
@@ -481,8 +496,8 @@ namespace OfficeHell.EditorTools
                 "coffee drop chance should be 3%, doubled to 6% at low SAN");
             report.Require(Mathf.Abs(coffee.InstantHealPctMaxSan - 8f) < 0.001f &&
                            Mathf.Abs(coffee.HealOverTimePctMaxSan - 8f) < 0.001f &&
-                           Mathf.Abs(coffee.HealOverTimeSeconds - 4f) < 0.001f,
-                "one coffee should heal 8% immediately and 8% over four seconds");
+                           Mathf.Abs(coffee.HealOverTimeSeconds - 6f) < 0.001f,
+                "one coffee should heal 8% immediately and 8% over six seconds");
             report.Require(Mathf.Abs(coffee.WorldLifetimeSeconds - 30f) < 0.001f,
                 "coffee world lifetime should be 30 seconds");
 
@@ -512,6 +527,22 @@ namespace OfficeHell.EditorTools
                 "coffee continuous heal still had " + healing.Player.CoffeeHealRemaining + " pending");
             healing.Dispose();
 
+            // Stacking is the failure that hides: the SAN bar still moves, just twice as fast on the
+            // day that already drops the most cups, so the densest hour becomes the safest one.
+            Harness stack = Harness.Create(cfg);
+            stack.Driver.Flow.StartRun();
+            AdvanceToBattle(stack, report, "coffee stacking");
+            stack.Player.San = 0f;
+            float oneCup = stack.Player.MaxSan * coffee.HealOverTimePctMaxSan * 0.01f;
+
+            stack.Driver.Loot.CollectNow(stack.Driver.Loot.SpawnCoffee(stack.Player.Pos));
+            stack.Driver.Loot.CollectNow(stack.Driver.Loot.SpawnCoffee(stack.Player.Pos));
+
+            report.Require(Mathf.Abs(stack.Player.CoffeeHealRemaining - oneCup) < 0.001f,
+                "two cups left " + stack.Player.CoffeeHealRemaining + " of sustained heal pending, " +
+                "one cup is " + oneCup + " and the second is meant to refresh rather than stack");
+            stack.Dispose();
+
             Harness expiry = Harness.Create(cfg);
             expiry.Driver.Flow.StartRun();
             AdvanceToBattle(expiry, report, "coffee expiry");
@@ -529,8 +560,141 @@ namespace OfficeHell.EditorTools
             expiry.Driver.Loot.Tick(GameClock.Delta);
             report.Require(stale.IsDead, "uncollected coffee survived beyond 30 seconds");
 
-            report.Line("coffee: 3% drop, 8% immediate + 8% sustained, 30-second world lifetime");
+            report.Line("coffee: 3% drop, 8% immediate + 8% over 6s that refreshes rather than stacks, " +
+                        "30-second world lifetime");
             expiry.Dispose();
+        }
+
+        /// <summary>
+        /// The reserved levels degrade into an ordinary hand without erroring: the panel still shows
+        /// three cards, they are still legal cards, and the one hand in the run that was authored
+        /// rather than drawn is simply gone. Every part of the promise is asserted separately, since
+        /// three cards of the right colour that name the same weapon twice is also a failure.
+        /// </summary>
+        static void TestWeaponHandLevels(Report report, ConfigManager cfg)
+        {
+            CardPoolDef pool = cfg.Cards;
+            if (pool.WeaponHands.Count != 2)
+            {
+                report.Fail("expected two reserved weapon hands, found " + pool.WeaponHands.Count);
+                return;
+            }
+
+            Harness h = Harness.Create(cfg);
+            h.Driver.Flow.StartRun();
+
+            for (int i = 0; i < pool.WeaponHands.Count; i++)
+            {
+                WeaponHandDef hand = pool.WeaponHands[i];
+                h.Player.Level = hand.Level;
+                h.Driver.Cards.Offer();
+
+                List<CardOffer> offers = h.Driver.Cards.Offers;
+                report.Require(offers.Count == pool.Choices,
+                    "level " + hand.Level + " offered " + offers.Count + " cards instead of " + pool.Choices);
+
+                HashSet<string> seen = new HashSet<string>();
+                for (int j = 0; j < offers.Count; j++)
+                {
+                    CardOffer o = offers[j];
+                    report.Require(o.Kind == CardKind.Equipment && o.IsWeapon,
+                        "level " + hand.Level + " offered '" + o.Title + "', which is not a weapon");
+                    report.Require(o.Quality == hand.Quality,
+                        "level " + hand.Level + " offered '" + o.Title + "' at " + o.Quality +
+                        " instead of " + hand.Quality);
+                    report.Require(seen.Add(o.DefId),
+                        "level " + hand.Level + " offered '" + o.DefId + "' twice");
+                }
+
+                // Cleared so the next iteration reads its own hand rather than the leftovers.
+                h.Driver.Cards.Pick(0);
+            }
+
+            // Reoffering at the same level has to fall back to the draw, or a player who levels twice
+            // on Wednesday gets the showcase again and the second copy is a strictly worse duplicate.
+            h.Player.Level = pool.WeaponHands[0].Level;
+            h.Driver.Cards.Offer();
+
+            bool allWeapons = h.Driver.Cards.Offers.Count > 0;
+            for (int i = 0; i < h.Driver.Cards.Offers.Count; i++)
+            {
+                allWeapons &= h.Driver.Cards.Offers[i].IsWeapon &&
+                              h.Driver.Cards.Offers[i].Quality == pool.WeaponHands[0].Quality;
+            }
+
+            report.Require(!allWeapons, "the reserved hand was handed out a second time at the same level");
+            h.Dispose();
+
+            // Reached, not equalled. The exp curve is allowed to skip a level and this hand is not
+            // allowed to be the casualty, so a jump straight past the trigger still pays it out.
+            Harness jumped = Harness.Create(cfg);
+            jumped.Driver.Flow.StartRun();
+            jumped.Player.Level = pool.WeaponHands[0].Level + 1;
+            jumped.Driver.Cards.Offer();
+
+            int weapons = 0;
+            for (int i = 0; i < jumped.Driver.Cards.Offers.Count; i++)
+            {
+                if (jumped.Driver.Cards.Offers[i].IsWeapon &&
+                    jumped.Driver.Cards.Offers[i].Quality == pool.WeaponHands[0].Quality)
+                {
+                    weapons++;
+                }
+            }
+
+            report.Require(weapons == pool.Choices,
+                "a level up that jumped past level " + pool.WeaponHands[0].Level + " showed " +
+                weapons + " of the reserved weapons");
+
+            report.Line("reserved hands: level " + pool.WeaponHands[0].Level + " is " + pool.Choices +
+                        " distinct " + pool.WeaponHands[0].Quality + " weapons, level " +
+                        pool.WeaponHands[1].Level + " is " + pool.WeaponHands[1].Quality +
+                        ", and neither repeats");
+            jumped.Dispose();
+        }
+
+        /// <summary>
+        /// A run sees a handful of legendaries at most. Spending two on one slot converts the second
+        /// into three experience, which is silent: the drop still lands, still beams, still plays the
+        /// orange sound, and is worth nothing.
+        /// </summary>
+        static void TestOrangeArmorNeverRepeatsASlot(Report report, ConfigManager cfg)
+        {
+            Harness h = Harness.Create(cfg);
+            h.Driver.Flow.StartRun();
+
+            int slots = cfg.Loot.ArmorBases.Count;
+            HashSet<EquipSlot> seen = new HashSet<EquipSlot>();
+
+            for (int i = 0; i < slots; i++)
+            {
+                LootModel l = h.Driver.Loot.SpawnArmor(h.Player.Pos, Quality.Orange);
+                report.Require(l.Kind == LootKind.Armor,
+                    "orange armour request " + (i + 1) + " of " + slots + " produced " + l.Kind +
+                    " while slots were still free");
+                report.Require(seen.Add(l.Slot),
+                    "orange armour repeated the " + l.Slot + " slot on request " + (i + 1));
+            }
+
+            // Nothing left to give, so the guarantee pays out as a weapon. Dropping nothing would
+            // spend the pity timer on empty floor, which is the one outcome it exists to prevent.
+            LootModel extra = h.Driver.Loot.SpawnArmor(h.Player.Pos, Quality.Orange);
+            report.Require(extra.Kind == LootKind.Weapon && extra.Quality == Quality.Orange,
+                "with every armour slot spent the next orange came out as " + extra.Kind + " " +
+                extra.Quality + " instead of an orange weapon");
+
+            // Lower tiers are untouched. Three green headphones across a week is how the ladder is
+            // supposed to read, and filtering them would starve the early slots.
+            HashSet<EquipSlot> greens = new HashSet<EquipSlot>();
+            for (int i = 0; i < 24; i++)
+            {
+                greens.Add(h.Driver.Loot.SpawnArmor(h.Player.Pos, Quality.Green).Slot);
+            }
+
+            report.Require(greens.Count > 0, "green armour stopped dropping entirely");
+
+            report.Line("orange armour covered " + seen.Count + " distinct slots, then fell back to a weapon");
+            h.Dispose();
         }
 
         static void AdvanceToBattle(Harness h, Report report, string subject)
@@ -689,25 +853,39 @@ namespace OfficeHell.EditorTools
                     "UIResult has incomplete button or KPI references");
             }
 
-            string[] iconKeys =
+            report.Line("UI prefabs: menu, HUD, off-work, three-card panel/item and result verified");
+        }
+
+        static void TestGameIcons(Report report, ConfigManager cfg)
+        {
+            // Restated here rather than read back out of the catalog: a table that points two cards at
+            // the same art is self-consistent, and the card panel degrades to a legible three letter
+            // label, so both mistakes survive a play session without ever looking broken.
+            string[] itemKeys =
             {
+                "stapler", "keyboard", "badge", "headphone", "hoodie", "slippers",
                 "c_atk", "c_atk_pct", "c_haste", "c_crit", "c_critdmg", "c_def", "c_dodge",
                 "c_san", "c_speed", "c_luck", "c_magnet",
                 "s_deep", "s_paid", "s_reverse", "s_extra", "s_mass",
-                "stapler", "keyboard", "badge", "headphone", "hoodie", "slippers",
             };
-            report.Require(new HashSet<string>(iconKeys).Count == 22,
-                "card UI icon-key table must contain 22 unique entries");
-            report.Line("UI prefabs: menu, HUD, off-work, three-card panel/item, result and 22 icon keys verified");
-        }
-
-        static void TestGameIcons(Report report)
-        {
-            string[] assetNames =
+            string[] expectedNames =
             {
-                "Coffee", "Crumpled paper", "Earphone", "Keyboard", "Magnet", "PlaidShirt",
-                "Slippers", "Stapler", "Staples", "Thumbtacks", "WorkCard", "WorkCardUse",
+                "Stapler", "Keyboard", "WorkCard", "Earphone", "PlaidShirt", "Slippers",
+                "Money", "Performance", "Progress", "Inspiration", "HitKill", "Calm", "Opportunity",
+                "Prepare", "Run", "Pray", "Seize",
+                "Fish", "Vacation", "AUP", "Health", "Fish3",
             };
+            report.Require(itemKeys.Length == expectedNames.Length &&
+                           new HashSet<string>(itemKeys).Count == itemKeys.Length &&
+                           new HashSet<string>(expectedNames).Count == expectedNames.Length,
+                "game icon key and asset tables must line up and each contain no duplicates");
+
+            string[] assetNames = new string[expectedNames.Length + 4];
+            expectedNames.CopyTo(assetNames, 0);
+            assetNames[expectedNames.Length + 0] = "Thumbtacks";
+            assetNames[expectedNames.Length + 1] = "Crumpled paper";
+            assetNames[expectedNames.Length + 2] = "WorkCardUse";
+            assetNames[expectedNames.Length + 3] = "Coffee";
 
             for (int i = 0; i < assetNames.Length; i++)
             {
@@ -723,20 +901,23 @@ namespace OfficeHell.EditorTools
                     "game icon importer does not preserve transparent single-Sprite art: " + assetPath);
             }
 
-            string[] itemKeys =
-            {
-                "stapler", "keyboard", "badge", "headphone", "hoodie", "slippers", "c_magnet", "c_atk",
-            };
-            string[] expectedNames =
-            {
-                "Stapler", "Keyboard", "WorkCard", "Earphone", "PlaidShirt", "Slippers", "Magnet", "Staples",
-            };
-
             for (int i = 0; i < itemKeys.Length; i++)
             {
                 Sprite sprite = GameIconCatalog.Item(itemKeys[i]);
                 report.Require(sprite != null && sprite.name == expectedNames[i],
                     "game icon key '" + itemKeys[i] + "' did not resolve to " + expectedNames[i]);
+            }
+
+            report.Require(GameIconCatalog.Item("no_such_card") == null && GameIconCatalog.Item(null) == null,
+                "an unmapped icon key must resolve to null so the card panel can fall back to its label");
+
+            // Every authored card carries art. A card added to Cards.xml without a row in the catalog
+            // still draws and still works, it just wears three letters where the picture goes.
+            for (int i = 0; i < cfg.Cards.Cards.Count; i++)
+            {
+                CardDef d = cfg.Cards.Cards[i];
+                report.Require(GameIconCatalog.Item(d.Id) != null,
+                    "card '" + d.Id + "' has no icon in GameIconCatalog and would draw as a text placeholder");
             }
 
             report.Require(GameIconCatalog.FriendlyProjectile != null &&
@@ -813,7 +994,8 @@ namespace OfficeHell.EditorTools
             report.Require(greenHeight < blueHeight && greenAlpha < blueAlpha,
                 "green loot beam no longer stays visually below the blue quality tier");
             Object.DestroyImmediate(view.gameObject);
-            report.Line("game icons and world FX: auras, stains, cards, HUD, projectiles and loot mappings verified");
+            report.Line("game icons and world FX: 22 distinct card/HUD icons, every authored card covered, " +
+                        "plus auras, stains, projectiles and loot mappings verified");
         }
 
         static void TestUiControllerBindings(Report report, ConfigManager cfg)
@@ -1095,7 +1277,7 @@ namespace OfficeHell.EditorTools
                 "sfx_coffee_drink", "sfx_coffee_drop", "sfx_drop_convert_xp", "sfx_drop_pickup",
                 "sfx_enemy_bug_split", "sfx_enemy_email_death", "sfx_flow_dayend",
                 "sfx_growth_card_appear", "sfx_growth_levelup", "sfx_player_death",
-                "sfx_player_hurt", "sfx_ui_clockin",
+                "sfx_player_hurt", "sfx_slam", "sfx_ui_clockin",
                 "sfx_weapon_stapler_fire", "sfx_weapon_stapler_hit",
             };
             string[] drops = { "sfx_drop_green", "sfx_drop_blue", "sfx_drop_purple", "sfx_drop_orange" };
@@ -1104,8 +1286,8 @@ namespace OfficeHell.EditorTools
             string[] bgm = { "bgm_login", "bgm_battle", "bgm_boss", "bgm_result" };
 
             string[] guids = AssetDatabase.FindAssets("t:AudioClip", new[] { "Assets/_Game/Audio" });
-            report.Require(guids.Length == 23,
-                "derived audio directory contains " + guids.Length + " AudioClip asset(s), expected exactly 23");
+            report.Require(guids.Length == 24,
+                "derived audio directory contains " + guids.Length + " AudioClip asset(s), expected exactly 24");
             report.Require(cfg.Audio.MaxSourcePool == 24,
                 "Audio.xml maxSourcePool is " + cfg.Audio.MaxSourcePool + ", expected 24");
 
@@ -1178,6 +1360,13 @@ namespace OfficeHell.EditorTools
             report.Require(bug != null && Mathf.Abs(bug.length - 0.48f) <= 0.01f,
                 "BUG split clip should retain its original 0.48s duration");
 
+            // Six keyboards landing two slams each is the densest key in the game. Past half a second
+            // the three permitted tails overlap continuously and the impact stops reading as an impact.
+            AudioClip slam = Resources.Load<AudioClip>("Audio/SFX/sfx_slam");
+            report.Require(slam != null && slam.length <= 0.5f,
+                "keyboard slam clip is " + (slam == null ? "missing" : slam.length.ToString("0.000") + "s") +
+                ", expected a delivered clip no longer than 0.500s");
+
             HashSet<string> dropClips = new HashSet<string>();
             for (int i = 0; i < drops.Length; i++)
             {
@@ -1187,6 +1376,8 @@ namespace OfficeHell.EditorTools
                 "the four quality keys should reference four distinct delivered drop clips");
             report.Require(cfg.Audio.Sfx["sfx_growth_card_appear"].Clip == "SFX/sfx_growth_card_appear",
                 "card appearance should use its newly delivered dedicated clip");
+            report.Require(cfg.Audio.Sfx["sfx_slam"].Clip == "SFX/sfx_slam",
+                "keyboard slam should use its delivered clip rather than falling back to the synth thud");
             report.Require(Mathf.Abs(cfg.Audio.Sfx["sfx_drop_green"].Volume - 0.36f) < 0.001f &&
                            Mathf.Abs(cfg.Audio.Sfx["sfx_drop_blue"].Volume - 0.52f) < 0.001f &&
                            Mathf.Abs(cfg.Audio.Sfx["sfx_drop_purple"].Volume - 1.00f) < 0.001f &&
@@ -1234,7 +1425,7 @@ namespace OfficeHell.EditorTools
             report.Require(Mathf.Abs(cfg.QualityOf(Quality.Purple).BgmLowPass - 0.3f) < 0.001f &&
                            Mathf.Abs(cfg.QualityOf(Quality.Orange).BgmLowPass - 1.2f) < 0.001f,
                 "purple/orange reward ducking should last 0.3s / 1.2s");
-            report.Line("audio assets: 14 SFX + 4 stereo drops + 1 low SAN loop + 4 BGM, imports and mix profiles verified");
+            report.Line("audio assets: 15 SFX + 4 stereo drops + 1 low SAN loop + 4 BGM, imports and mix profiles verified");
         }
 
         static void RequireAudioImport(
@@ -2081,7 +2272,27 @@ namespace OfficeHell.EditorTools
             float perBar = boss.MaxHp;
 
             // Break one bar. The phase has to advance and the boss has to go untargetable for a moment.
+            int fieldBefore = h.Run.Enemies.Count;
             CombatSystem.DealDamageToEnemy(h.Ctx, boss, perBar * 2f, boss.Pos);
+
+            // The wave is the consequence of the break, and it is drawn from a weighted roster rather
+            // than one hard coded id. Both halves are checked here because the config cannot show
+            // either: an unparsable roster spawns nothing, and one that resolves to a single entry
+            // still spawns the right number of the same silhouette.
+            int addsWanted = Mathf.Max(0, (int)bossDef.Param.GetFloat("phaseAdds", 20f));
+            int addsSpawned = h.Run.Enemies.Count - fieldBefore;
+            report.Require(addsSpawned == addsWanted,
+                "a bar break spawned " + addsSpawned + " adds, phaseAdds asks for " + addsWanted);
+
+            HashSet<string> addKinds = new HashSet<string>();
+            for (int i = fieldBefore; i < h.Run.Enemies.Count; i++)
+            {
+                addKinds.Add(h.Run.Enemies[i].DefId);
+            }
+
+            report.Require(addKinds.Count > 1,
+                "the bar break wave contains " + addKinds.Count +
+                " enemy type(s), phaseAddId is a weighted roster and is meant to mix");
 
             report.Require(!boss.IsDead, "one bar of damage killed the whole boss");
             report.Require(boss.BarsLeft == bars - 1,
@@ -2098,6 +2309,8 @@ namespace OfficeHell.EditorTools
             // pooled model is reset back to phase one.
             int phaseAfterBreak = boss.Phase;
 
+            TestPieRing(report, cfg, h, boss);
+
             // 21:00. The boss goes home and the run still counts as cleared on time.
             h.Run.DayElapsed = h.Run.Day.Duration;
             int guard = 0;
@@ -2112,8 +2325,141 @@ namespace OfficeHell.EditorTools
                 "surviving to 21:00 with the boss alive gave " + h.Run.Ending + " instead of ClearTimeout");
 
             report.Line(string.Format(
-                "boss: {0} bars of {1:0} hp, bar break advanced to phase {2}, timeout ended as {3}",
-                bars, perBar, phaseAfterBreak, h.Run.Ending));
+                "boss: {0} bars of {1:0} hp, bar break advanced to phase {2} and summoned {3} adds " +
+                "across {4} types, timeout ended as {5}",
+                bars, perBar, phaseAfterBreak, addsSpawned, addKinds.Count, h.Run.Ending));
+
+            h.Dispose();
+
+            TestBossDeathClosesTheRun(report, cfg, bossDef);
+        }
+
+        /// <summary>
+        /// 画饼 marks the ground the boss is standing on rather than the ground the player is standing
+        /// on, which is the inverse of every other marker in the game and therefore the thing a later
+        /// edit is most likely to "fix". The circles are red, and Views.xml spends a paragraph on red
+        /// meaning "this is about to hurt you", so a ring that resolves for nothing is worse than no
+        /// ring: it teaches the player to dodge something that is not there.
+        /// </summary>
+        static void TestPieRing(Report report, ConfigManager cfg, Harness h, EnemyModel boss)
+        {
+            int before = h.Run.Telegraphs.Count;
+
+            // Cast it by hand. Waiting for the cooldown would put the KPI marks in the same list and
+            // the assertions below would be reading a mixture.
+            boss.PieReadyAt = GameClock.Now;
+            boss.InvulnUntil = 0f;
+            boss.MeetingReadyAt = float.MaxValue;
+            boss.KpiReadyAt = float.MaxValue;
+            boss.RainReadyAt = float.MaxValue;
+            EnemyBehaviorRegistry.Get(boss.Def.Behavior).Tick(boss, h.Ctx, FixedDelta);
+
+            int wanted = (int)boss.Def.Param.GetFloat(
+                boss.Phase >= 2 ? "pieCountLate" : "pieCount", 6f);
+            float inner = boss.Def.Param.GetFloat("pieInner", 1.8f);
+            float outer = boss.Def.Param.GetFloat("pieOuter", 5.2f);
+
+            int pies = 0;
+            int free = 0;
+
+            for (int i = before; i < h.Run.Telegraphs.Count; i++)
+            {
+                TelegraphModel t = h.Run.Telegraphs[i];
+                if (t.ViewId != "v_warn_pie")
+                {
+                    continue;
+                }
+
+                pies++;
+                if (t.Damage <= 0f)
+                {
+                    free++;
+                }
+
+                // Measured off the boss, which is also what catches the ring being re-centred on the
+                // player: he is six units away here, so that band and this one barely overlap.
+                // Arena clamping can pull a mark inwards, hence the slack rather than an exact band.
+                float fromBoss = (t.Pos - boss.Pos).magnitude;
+                report.Require(fromBoss <= outer + 1.01f && fromBoss >= inner - 1.01f,
+                    "a pie landed " + fromBoss.ToString("0.0") + " from the boss, the band is " +
+                    inner + " to " + outer);
+            }
+
+            report.Require(pies == wanted,
+                "画饼 placed " + pies + " circles, pieCount asks for " + wanted);
+
+            // The boss only casts this on Saturday, and the play mode soak never gets past Tuesday, so
+            // nothing else in the pipeline ever draws one of these. An id that exists on the system
+            // side and not in Views.xml resolves to the magenta fallback rather than to an error.
+            report.Require(cfg.View("v_warn_pie") != ConfigManager.FallbackView,
+                "Views.xml has no v_warn_pie row, the pie circles fall back to magenta");
+            report.Require(free == 0,
+                free + " of the pie circles resolve for no damage, red is reserved for what hurts");
+            report.Require(h.Player.GlobalSlowUntil > GameClock.Now,
+                "画饼 dropped its circles but stopped applying the global slow");
+
+            report.Line(string.Format(
+                "画饼: {0} damaging pies scattered {1}-{2} around the boss, slow still applied",
+                pies, inner, outer));
+        }
+
+        /// <summary>
+        /// The last bar breaking is the end of the run, not the end of a health bar. Without the beat
+        /// the player wins and then keeps fighting an emptying office for whatever is left of the
+        /// hundred and twenty seconds, which reads as the kill not having registered.
+        ///
+        /// The Fail branch being skipped for the length of the beat is the other half and it is the
+        /// half that degrades silently: a Deadline landing during the celebration would turn a Clear
+        /// into a death with the boss already gone from the field.
+        /// </summary>
+        static void TestBossDeathClosesTheRun(Report report, ConfigManager cfg, EnemyDef bossDef)
+        {
+            Harness h = Harness.Create(cfg);
+            h.Driver.Flow.StartRun();
+            h.Driver.Flow.DebugJumpToDay(cfg.DayCount);
+            h.Player.GodMode = true;
+            AdvanceToBattle(h, report, "boss death");
+
+            EnemyModel boss = h.Driver.Spawn.Spawn(bossDef, h.Player.Pos + new Vector2(6f, 0f), null);
+
+            // Straight to the last bar. The break path is already covered above and each break grants
+            // two seconds of invulnerability, so grinding all three here would only measure that.
+            boss.BarsLeft = 1;
+            h.Run.BossBarsLeft = 1;
+            CombatSystem.DealDamageToEnemy(h.Ctx, boss, boss.MaxHp * 2f, boss.Pos);
+
+            report.Require(h.Run.BossDefeated, "killing the last bar did not set BossDefeated");
+
+            float killedAt = GameClock.Now;
+            float dayLeft = h.Run.Day != null ? h.Run.Day.Duration - h.Run.DayElapsed : 0f;
+
+            // The corpse must not be able to lose the run it just won.
+            h.Player.GodMode = false;
+            h.Player.San = 0f;
+            h.Player.Alive = false;
+
+            int guard = 0;
+            while (h.Driver.Flow.State != GameState.Result && guard++ < 1200)
+            {
+                h.Step();
+            }
+
+            float beat = GameClock.Now - killedAt;
+
+            report.Require(h.Driver.Flow.State == GameState.Result,
+                "the boss died and the run never reached the result page");
+            report.Require(h.Run.Ending == Ending.Clear,
+                "killing the boss ended the run as " + h.Run.Ending + " instead of Clear");
+            report.Require(dayLeft > GameFlowFsm.VictoryBeatSeconds * 4f,
+                "the boss death test had only " + dayLeft.ToString("0.0") +
+                "s of day left, the beat cannot be told apart from the day simply running out");
+            report.Require(Mathf.Abs(beat - GameFlowFsm.VictoryBeatSeconds) < 0.1f,
+                "the result page arrived " + beat.ToString("0.00") + "s after the boss died, " +
+                GameFlowFsm.VictoryBeatSeconds.ToString("0.00") + "s was expected");
+
+            report.Line(string.Format(
+                "boss death closed the run as {0} after a {1:0.00}s beat with {2:0}s of Saturday unspent",
+                h.Run.Ending, beat, dayLeft));
 
             h.Dispose();
         }
@@ -2150,6 +2496,7 @@ namespace OfficeHell.EditorTools
             h.Player.Passives = SlackPassive.DeepSlack | SlackPassive.MassSlack;
             h.Player.Stats.AddModifier(new StatModifier(StatType.Atk, ModifierOp.Flat, 999f, 7));
             h.Run.CountKill("mail");
+            h.Driver.Loot.SpawnArmor(h.Player.Pos + new Vector2(20f, 0f), Quality.Orange);
 
             h.Run.ResetRun(cfg);
             h.Ctx.Grid.Clear();
@@ -2174,7 +2521,18 @@ namespace OfficeHell.EditorTools
             report.Require(h.Player.EquippedCount() == 0, "restart left " + h.Player.EquippedCount() + " weapons equipped");
             report.Require(h.Player.ArmorCount() == 0, "restart left " + h.Player.ArmorCount() + " armour pieces equipped");
 
-            report.Line("restart cleared entities, counters, stats, passives and equipment slots");
+            // Carried over, this one locks slots out of the legendary channel for the whole of the
+            // next run and there is nothing on screen that would say why the drops stopped.
+            bool orangeSlotsClear = true;
+            for (int i = 0; i < h.Run.OrangeArmorTaken.Length; i++)
+            {
+                orangeSlotsClear &= !h.Run.OrangeArmorTaken[i];
+            }
+
+            report.Require(orangeSlotsClear, "restart left the orange armour slot record populated");
+
+            report.Line("restart cleared entities, counters, stats, passives, equipment slots and " +
+                        "the orange armour record");
             h.Dispose();
         }
 

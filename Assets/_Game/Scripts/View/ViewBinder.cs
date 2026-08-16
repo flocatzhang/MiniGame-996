@@ -570,7 +570,6 @@ namespace OfficeHell.View
                 ViewDef def = _ctx.Cfg.View(w.ViewId);
                 EntityView v = Bind(w.Id, KeyWarn, 6, def);
                 v.SetWorldPosition(w.Pos);
-                v.Body.enabled = false;
 
                 // Views.xml spends four rows distinguishing these markers and red is reserved there for
                 // "this is about to hurt you". The elite entrance ring deals no damage, so painting every
@@ -578,8 +577,20 @@ namespace OfficeHell.View
                 Color ring = def != null ? def.Color : new Color(1f, 0.3f, 0.25f);
                 Sprite ringSprite = TelegraphSprite(w.ViewId);
                 Color tint = ringSprite != null ? Color.white : ring;
+                float grown = w.Radius * Mathf.Lerp(0.6f, 1f, t);
                 tint.a = 0.25f + 0.45f * t;
-                v.ShowRing(ringSprite, tint, w.Radius * Mathf.Lerp(0.6f, 1f, t));
+                v.ShowRing(ringSprite, tint, grown);
+
+                // Most markers are the ring and nothing else, so the fill is the timer. The pie fills
+                // its ring instead, and the ring still has to read through it: kept under the ring
+                // diameter and faded in, so what grows is still the circle and not the pancake.
+                Sprite fill = TelegraphFill(w.ViewId);
+                v.Body.enabled = fill != null;
+                if (fill != null)
+                {
+                    v.SetStaticSprite(fill, grown * 1.7f);
+                    v.SetAlpha(0.45f + 0.4f * t);
+                }
             }
         }
 
@@ -591,11 +602,18 @@ namespace OfficeHell.View
                 case "v_warn_elite":
                     return WorldFxCatalog.CircleYellow;
                 case "v_warn_kpi":
+                case "v_warn_pie":
                     return WorldFxCatalog.CircleRed;
                 default:
                     // The summon marker is purple and has no matching delivered Circle asset.
                     return null;
             }
+        }
+
+        /// <summary>Art drawn inside the ring. Only 画饼 has any, and the joke is the whole point of it.</summary>
+        static Sprite TelegraphFill(string viewId)
+        {
+            return viewId == "v_warn_pie" ? ArtCatalog.Pie : null;
         }
 
         /// <summary>

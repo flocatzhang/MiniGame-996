@@ -93,11 +93,35 @@
     31 and 领导 for 42 while the boss, which only ever appears on that one day, still hit for 20.
     52 is 20 x 2.6, so the figure written here is the figure that lands. Change dmgPerDay in Days.xml
     and this one has to be recomputed by hand, because opting out of the formula is what the flag is.
+
+    phaseAddId and summonId are weighted rosters, "id:weight,id:weight". A bare id still works and
+    weighs one. Both used to be a single id, which meant the two loudest moments of the fight always
+    produced the same silhouette: twenty identical mails on a bar break, four identical PPTs on every
+    meeting.
+
+    The rosters are picked for what they do to the auto lock, not for flavour. Every weapon targets
+    the nearest body, so the bar break wave is all cheap fast shapes that die on contact with the
+    six slots and clear out again: putting sponges in a twenty six body wave would park the whole
+    loadout on the wave and leave the boss untouched for the rest of the bar. 老油条 and PPT appear
+    only in the meeting, where the count is small and being briefly walled in is the point of the
+    skill. 周报 rounds it out because a meeting where everyone reports is the joke, and because it is
+    the one summon that keeps threatening from outside the ring the player is trying to leave.
+
+    画饼 lands its circles on the boss rather than on the player, which is the opposite of what 甩 KPI
+    does and deliberately so. KPI has to follow the player or it cannot hit anybody; the pies are a
+    tax on the ground next to the boss, and the two together are what stops the fight being readable
+    as "stand anywhere and hold still". The slow is applied at cast and the circles resolve pieWarn
+    later, so the skill bills the player for the distance the slow just took away from them.
+
+    pieDamage is a share of contactDamage so it tracks the one figure on this row that was hand
+    computed against dmgScale. 0.5 sits well under the 0.9 the KPI circles take because those land
+    on the player's head with no way to be out of position, while a pie is only ever collected by
+    somebody who chose to be next to the boss.
   -->
   <Enemy id="boss" name="老板" reportVerb="挺过述职" reportUnit="次"
          hp="9999" speed="1.4" contactDamage="52" exp="60" radius="0.95"
          viewId="v_boss" tier="Boss" ignoreScaling="true" knockbackCd="4"
          behavior="BossSkills"
-         behaviorParam="bars=3;phaseInvuln=2;phaseAdds=20;phaseAddId=mail;pieCd=15;pieSlowPct=30;pieSlowPctLate=40;pieDuration=3;meetingCd=20;summonId=ppt;summonCount=4;summonRadius=3;summonWarn=1;kpiCd=8;kpiCount=3;kpiCountLate=5;kpiBlast=1.8;kpiWarn=0.8;kpiScatter=2.2;rainInterval=1.5;rainCount=4;rainWarn=0.7;rainBlast=1.5" />
+         behaviorParam="bars=3;phaseInvuln=2;phaseAdds=26;phaseAddId=mail:5,deadline:3,bug:3,report:2;pieCd=15;pieSlowPct=30;pieSlowPctLate=40;pieDuration=3;pieCount=6;pieCountLate=8;pieWarn=1;pieBlast=1.6;pieInner=1.8;pieOuter=5.2;pieDamage=0.5;meetingCd=16;summonId=ppt:2,report:2,veteran:1,deadline:1;summonCount=6;summonRadius=3;summonWarn=1;kpiCd=8;kpiCount=3;kpiCountLate=5;kpiBlast=1.8;kpiWarn=0.8;kpiScatter=2.2;rainInterval=1.5;rainCount=4;rainWarn=0.7;rainBlast=1.5" />
 
 </Enemies>

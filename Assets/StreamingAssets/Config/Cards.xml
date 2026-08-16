@@ -38,6 +38,29 @@
   <CardQuality day="6" quality="orange" upgradeChance="0" />
 
   <!--
+    Two rungs of the ladder are taken away from the weighted draw and handed to the weapon table: one
+    card per weapon, all at the tier named here, so the hand is a straight comparison between the three
+    attack patterns rather than another roll.
+
+    They exist because the draw cannot be relied on to show the table. Weapons are 60 percent of a 30
+    percent card kind, they pick their base at random out of three, and the six slots auto equip
+    whatever lands, so a player can reach Saturday having seen 订书机 nine times and never once chosen
+    between it and the other two. Level 3 is the first point where a second weapon is affordable enough
+    to be a decision, and level 6 is where a tier bump still has three days left to pay off.
+
+    The tiers are one step above the day floor those levels usually fall on, which is the same size of
+    gift the per-card upgrade roll already hands out, so this reads as a scripted beat rather than as
+    free power. Equipment deliberately never rolls upgrades elsewhere: a tier is also a behaviour, and
+    this is the one place the behaviour is the point.
+
+    Delivery is by level reached, not by level equalled. A double level up that jumps from 2 to 4 would
+    otherwise silently eat the beat, and the one hand in the run that is a promise cannot be the one
+    the exp curve is allowed to skip.
+  -->
+  <WeaponHand level="3" quality="blue" />
+  <WeaponHand level="6" quality="purple" />
+
+  <!--
     Flat where the stat starts at zero, percentage where it starts high. Flat ATK reads as nothing once
     ATK passes 40, and a percentage DEF card on a build with 0 DEF reads as a wasted pick.
 

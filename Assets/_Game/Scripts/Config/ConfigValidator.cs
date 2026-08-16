@@ -16,6 +16,7 @@ namespace OfficeHell.Config
             ValidateDays(cfg, report);
             ValidateWeapons(cfg, report);
             ValidateLoot(cfg, report);
+            ValidateCoffee(cfg, report);
             ValidateCards(cfg, report);
             ValidateProgression(cfg, report);
             ValidateSpawnGeometry(cfg, report);
@@ -95,6 +96,105 @@ namespace OfficeHell.Config
                 {
                     report.Add("Enemy '" + d.Id + "' has no reportVerb, it cannot appear on the end of day report");
                 }
+
+                ValidateRoster(d, "phaseAddId", cfg, report);
+                ValidateRoster(d, "summonId", cfg, report);
+                ValidateRoster(d, "splitInto", cfg, report);
+                ValidatePieRing(d, report);
+            }
+        }
+
+        /// <summary>
+        /// 画饼 puts red circles on the floor around the boss, and Views.xml reserves red for "this is
+        /// about to hurt you". Every way of getting this wrong produces circles that are still drawn:
+        /// a zero count draws none at all, an inverted band draws them all on one radius, and a zero
+        /// share draws the full set and bills nothing, which teaches the player to dodge an attack
+        /// that does not exist. None of the three is visible in the log.
+        /// </summary>
+        static void ValidatePieRing(EnemyDef owner, List<string> report)
+        {
+            if (!owner.Param.Has("pieCd"))
+            {
+                return;
+            }
+
+            float inner = owner.Param.GetFloat("pieInner", 1.8f);
+            float outer = owner.Param.GetFloat("pieOuter", 5.2f);
+
+            if (owner.Param.GetFloat("pieCount", 6f) < 1f || owner.Param.GetFloat("pieCountLate", 8f) < 1f)
+            {
+                report.Add("Enemy '" + owner.Id + "' casts 画饼 with no circles, the skill is a slow with no tell");
+            }
+
+            if (inner >= outer)
+            {
+                report.Add("Enemy '" + owner.Id + "' pieInner " + inner + " is not below pieOuter " + outer +
+                           ", every pie lands on one radius");
+            }
+
+            if (owner.Param.GetFloat("pieBlast", 1.6f) <= 0f)
+            {
+                report.Add("Enemy '" + owner.Id + "' has pieBlast 0, the circles cover nothing");
+            }
+
+            if (owner.Param.GetFloat("pieDamage", 0.5f) <= 0f)
+            {
+                report.Add("Enemy '" + owner.Id + "' has pieDamage 0, red circles that cost nothing " +
+                           "teach the player to dodge an attack that is not there");
+            }
+        }
+
+        /// <summary>
+        /// behaviorParam rosters read "id:weight,id:weight", and a bare id is a roster of one. Nothing
+        /// downstream complains about a bad entry: an unknown id is skipped at spawn time, so a
+        /// misspelling costs the boss a third of its pressure and leaves the log clean. Weight zero
+        /// does the same thing while looking deliberate.
+        /// </summary>
+        static void ValidateRoster(EnemyDef owner, string key, ConfigManager cfg, List<string> report)
+        {
+            string raw = owner.Param.GetString(key, null);
+            if (string.IsNullOrEmpty(raw))
+            {
+                return;
+            }
+
+            string[] entries = raw.Split(',');
+            int usable = 0;
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                string entry = entries[i].Trim();
+                if (entry.Length == 0)
+                {
+                    continue;
+                }
+
+                string[] parts = entry.Split(new[] { ':' }, 2);
+                string id = parts[0].Trim();
+
+                if (cfg.Enemy(id) == null)
+                {
+                    report.Add("Enemy '" + owner.Id + "' " + key + " references unknown enemyId '" + id + "'");
+                    continue;
+                }
+
+                float weight;
+                if (parts.Length == 2 &&
+                    (!float.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Float,
+                         System.Globalization.CultureInfo.InvariantCulture, out weight) || weight <= 0f))
+                {
+                    report.Add("Enemy '" + owner.Id + "' " + key + " entry '" + entry +
+                               "' has no usable weight, that type can never be drawn");
+                    continue;
+                }
+
+                usable++;
+            }
+
+            if (usable == 0)
+            {
+                report.Add("Enemy '" + owner.Id + "' " + key + " '" + raw +
+                           "' resolves to no spawnable enemy, the wave will be empty");
             }
         }
 
@@ -441,6 +541,27 @@ namespace OfficeHell.Config
             }
         }
 
+        static void ValidateCoffee(ConfigManager cfg, List<string> report)
+        {
+            CoffeeDef c = cfg.Coffee;
+
+            // A zero window pays the whole trickle on the frame the cup is picked up, which reads as
+            // one big instant heal rather than as a broken config: the split is the entire change.
+            if (c.HealOverTimePctMaxSan > 0f && c.HealOverTimeSeconds <= 0f)
+            {
+                report.Add("coffee heals " + c.HealOverTimePctMaxSan +
+                           "% over time across 0 seconds, so it silently lands as instant healing");
+            }
+
+            // The doubled rate below the threshold is the game's one lie in the player's favour.
+            // Inverting it turns the anti death spiral into a death spiral and nothing reports it.
+            if (c.LowSanChancePct < c.ChancePct)
+            {
+                report.Add("coffee drops at " + c.LowSanChancePct + "% below " + c.LowSanThresholdPct +
+                           "% SAN against " + c.ChancePct + "% above it, so being hurt makes it rarer");
+            }
+        }
+
         static void ValidateCards(ConfigManager cfg, List<string> report)
         {
             CardPoolDef pool = cfg.Cards;
@@ -517,6 +638,42 @@ namespace OfficeHell.Config
             if (weights <= 0f)
             {
                 report.Add("every card kind weight is zero, level up cannot offer anything");
+            }
+
+            ValidateWeaponHands(cfg, pool, report);
+        }
+
+        /// <summary>
+        /// A scripted hand that cannot be filled falls back to the ordinary draw, which is the one
+        /// failure here that looks like nothing at all: the player gets a normal hand on the level
+        /// that was supposed to be the weapon showcase, and nothing in the log says why.
+        /// </summary>
+        static void ValidateWeaponHands(ConfigManager cfg, CardPoolDef pool, List<string> report)
+        {
+            for (int i = 0; i < pool.WeaponHands.Count; i++)
+            {
+                WeaponHandDef h = pool.WeaponHands[i];
+
+                if (h.Level > cfg.Progression.MaxLevel)
+                {
+                    report.Add("WeaponHand level " + h.Level + " is above maxLevel " +
+                               cfg.Progression.MaxLevel + ", that hand can never be reached");
+                }
+
+                for (int j = i + 1; j < pool.WeaponHands.Count; j++)
+                {
+                    if (pool.WeaponHands[j].Level == h.Level)
+                    {
+                        report.Add("two WeaponHand entries claim level " + h.Level +
+                                   ", only the first tier will ever be shown");
+                    }
+                }
+            }
+
+            if (pool.WeaponHands.Count > 0 && cfg.WeaponOrder.Count < pool.Choices)
+            {
+                report.Add("a WeaponHand promises " + pool.Choices + " different weapons but only " +
+                           cfg.WeaponOrder.Count + " are declared, so the hand falls back to a normal draw");
             }
         }
 

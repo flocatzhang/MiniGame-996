@@ -23,12 +23,13 @@
 
 「目标时长」来自设计文档第十四节，是拿到素材后应该裁到的长度。
 
-### 音效（15 个）
+### 音效（16 个）
 
 | 现文件名 | 对应设计条目 | 目标时长 | 现时长 | 转换后文件名 |
 | --- | --- | --- | --- | --- |
 | `Stapler_Launch.mp4` | 订书机发射 | 0.15s | <1s | `sfx_weapon_stapler_fire.wav` |
 | `Stapler_Hit.mp4` | 订书针命中 | 0.12s | <1s | `sfx_weapon_stapler_hit.wav` |
+| `keyboard_attack.mp4` | 键盘砸击落地 | 0.35s | <1s | `sfx_slam.wav` |
 | `email_death.mp4` | 邮件死亡（兼通用死亡音） | 0.25s | ~1s | `sfx_enemy_email_death.wav` |
 | `BUG_slipt.mp3` | BUG 分裂 | 0.20s | <1s | `sfx_enemy_bug_split.wav` |
 | `take_hit.mp3` | 玩家受击 | 0.30s | <1s | `sfx_player_hurt.wav` |
@@ -126,6 +127,7 @@ powershell -ExecutionPolicy Bypass -File convert.ps1
 ### 转换结果
 
 `converted/` 里现在有 **23 个文件**：19 个加工产出（下表）加 4 条原样拷贝的掉落音（规格见第一节）。
+`sfx_slam.wav` 是第 24 条，见下表末行。
 
 | 文件 | 时长 | 峰值 | 文件 | 时长 | 峰值 |
 | --- | --- | --- | --- | --- | --- |
@@ -139,6 +141,16 @@ powershell -ExecutionPolicy Bypass -File convert.ps1
 | `sfx_growth_card_appear.wav` | 1.025s | −6 dB | `bgm_boss.ogg` | 14.4s | −3.5 dB |
 | `sfx_drop_pickup.wav` | 0.235s | −6 dB | `bgm_result.ogg` | 20.0s | −1.6 dB |
 | `sfx_drop_convert_xp.wav` | 0.313s | −6 dB | | | |
+| `sfx_slam.wav` | 0.364s | −6 dB | | | |
+
+> **`sfx_slam.wav` 是后一批交付的，走的是同一套音效两遍配方**（`-vn -ac 1 -ar 44100` + 去首尾静音 + 峰值补到 −6 dBFS），
+> 实测源文件峰值 −3.5 dB，补了 −2.5 dB。但它是**直接转进 `VoiceTest/` 的，没有经过 `convert.ps1`**，
+> 网络盘那份脚本也**刻意没有**加 `keyboard_attack.mp4` 的映射。
+>
+> 后果是跑脚本时它会出现在「未映射的源文件」那段黄字里，`converted/` 里也不会有它——
+> **这是预期的，不是漏了配置。** 那段黄字的本意是提醒有新素材没接进来，而这一条已经接完了：
+> 成品在 `VoiceTest/sfx_slam.wav`，派生资源由 `prepare_audio.py` 管，两道闸门都在守它。
+> 真要重新生成，照上面那行参数手动跑一次两遍配方即可。
 
 归一化之前的原始素材问题很典型，记在这里备查：`BOSS_BGM` 和 `take_hit` 峰值都顶在 **0 dB 已经削波**，而 `PickUp` 只有 **−18.8 dB**。最响和最轻差了 18 分贝，如果直接接进 Unity，结果就是订书机震耳朵、拾取声完全听不见——**而这种问题在单独试听每个文件时是发现不了的**，必须靠统一归一化在源头解决。
 

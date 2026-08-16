@@ -14,6 +14,13 @@
        synth="Blip" freq="880" dur="0.04" volume="0.55" maxConcurrent="4" />
   <Sfx id="sfx_weapon_stapler_hit" clip="SFX/sfx_weapon_stapler_hit"
        synth="Thud" freq="240" dur="0.05" volume="0.50" maxConcurrent="4" />
+  <!--
+    The delivered clip runs 0.364s against the 0.14s synth it replaces, so the concurrency cap is
+    what keeps six keyboards landing two slams each from stacking tails into a wall. Raise the cap
+    before the volume: this is the most frequent impact in the game and it has to sit under the mix.
+  -->
+  <Sfx id="sfx_slam" clip="SFX/sfx_slam"
+       synth="Thud" freq="150" dur="0.14" volume="0.42" maxConcurrent="3" />
   <Sfx id="sfx_enemy_email_death" clip="SFX/sfx_enemy_email_death"
        synth="Thud" freq="200" dur="0.09" volume="0.62" maxConcurrent="4" />
   <Sfx id="sfx_enemy_bug_split" clip="SFX/sfx_enemy_bug_split"
@@ -65,7 +72,6 @@
   <Sfx id="sfx_dodge" synth="Sweep" freq="1200" dur="0.10" volume="0.40" maxConcurrent="2" />
   <Sfx id="sfx_shield_break" synth="Noise" freq="320" dur="0.22" volume="0.60" maxConcurrent="1" />
   <Sfx id="sfx_skill" synth="Sweep" freq="520" dur="0.26" volume="0.55" maxConcurrent="1" />
-  <Sfx id="sfx_slam" synth="Thud" freq="150" dur="0.14" volume="0.42" maxConcurrent="3" />
   <Sfx id="sfx_select_all" synth="Sweep" freq="240" dur="0.40" volume="0.72" maxConcurrent="1" />
   <Sfx id="sfx_boss_phase" synth="Noise" freq="90" dur="0.60" volume="0.85" maxConcurrent="1" />
   <Sfx id="sfx_ui_click" bus="Ui" synth="Blip" freq="1480" dur="0.05" volume="0.35"

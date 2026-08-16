@@ -23,6 +23,7 @@ namespace OfficeHell.Systems
         readonly GameContext _ctx;
         readonly List<float> _weights = new List<float>(4);
         readonly List<int> _affixPool = new List<int>(16);
+        readonly List<int> _armorPool = new List<int>(4);
 
         public LootSystem(GameContext ctx)
         {
@@ -207,7 +208,26 @@ namespace OfficeHell.Systems
                 return SpawnWeapon(from, quality);
             }
 
-            ArmorBaseDef def = ArmorBase(bases, defId);
+            ArmorBaseDef def = quality >= Quality.Orange && defId == null
+                ? FreshOrangeArmor(bases)
+                : ArmorBase(bases, defId);
+
+            // Every slot has already had its legendary, so the payout becomes a weapon rather than a
+            // duplicate. It has to become something: the caller resets the pity timer on the way out
+            // regardless, so dropping nothing here would spend the guarantee on empty floor.
+            if (def == null)
+            {
+                return SpawnWeapon(from, quality);
+            }
+
+            if (quality >= Quality.Orange)
+            {
+                // Marked for the card path too, not just the floor. A card names its base and has to
+                // hand over that exact item, so it is allowed through the filter above, but the slot
+                // it fills still has to stop the floor from repeating it later.
+                _ctx.Run.OrangeArmorTaken[(int)def.Slot] = true;
+            }
+
             QualityDef qd = _ctx.Cfg.QualityOf(quality);
             float coef = _ctx.Cfg.WeaponQuality.Get(quality);
 
@@ -234,6 +254,29 @@ namespace OfficeHell.Systems
 
             Dispatch(EventID.LootDropped, l);
             return l;
+        }
+
+        /// <summary>An armour base whose slot has not had an orange yet, or null when none is left.</summary>
+        ArmorBaseDef FreshOrangeArmor(List<ArmorBaseDef> bases)
+        {
+            bool[] taken = _ctx.Run.OrangeArmorTaken;
+
+            _armorPool.Clear();
+            for (int i = 0; i < bases.Count; i++)
+            {
+                int slot = (int)bases[i].Slot;
+                if (slot >= 0 && slot < taken.Length && !taken[slot])
+                {
+                    _armorPool.Add(i);
+                }
+            }
+
+            if (_armorPool.Count == 0)
+            {
+                return null;
+            }
+
+            return bases[_armorPool[Random.Range(0, _armorPool.Count)]];
         }
 
         static ArmorBaseDef ArmorBase(List<ArmorBaseDef> bases, string defId)
@@ -525,13 +568,15 @@ namespace OfficeHell.Systems
                 p.MaxSan,
                 p.San + p.MaxSan * cf.InstantHealPctMaxSan * 0.01f);
 
+            // Refreshed, not stacked, the same way HasteBuffPct takes a Max. Two cups inside one
+            // window would otherwise pay double rate, and the second half of the effect is the half
+            // that has to saturate: the instant half already scales with kill rate, so letting the
+            // trickle scale too would make Friday, the densest day, also the safest one.
             float ongoing = p.MaxSan * cf.HealOverTimePctMaxSan * 0.01f;
             if (ongoing > 0f)
             {
-                p.CoffeeHealRemaining += ongoing;
-                p.CoffeeHealUntil = Mathf.Max(
-                    p.CoffeeHealUntil,
-                    GameClock.Now + cf.HealOverTimeSeconds);
+                p.CoffeeHealRemaining = Mathf.Max(p.CoffeeHealRemaining, ongoing);
+                p.CoffeeHealUntil = GameClock.Now + cf.HealOverTimeSeconds;
             }
 
             p.HasteBuffPct = Mathf.Max(p.HasteBuffPct, cf.HasteAddPct);

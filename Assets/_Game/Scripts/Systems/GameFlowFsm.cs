@@ -22,7 +22,18 @@ namespace OfficeHell.Systems
     {
         public const float DayIntroSeconds = 1.1f;
 
+        /// <summary>
+        /// How long the last bar breaking is left on screen before the result page takes over.
+        /// The kill is the payoff of the whole run and it used to be followed by however much of
+        /// Saturday was still on the clock, so the player fought an empty office for up to a minute
+        /// after already having won.
+        /// </summary>
+        public const float VictoryBeatSeconds = 2f;
+
         readonly GameContext _ctx;
+
+        /// <summary>Counts up once the boss is down. Negative while he is still standing.</summary>
+        float _victorySeconds = -1f;
 
         public GameState State { get; private set; }
         public float StateSeconds { get; private set; }
@@ -51,6 +62,7 @@ namespace OfficeHell.Systems
         {
             _ctx.Run.ResetRun(_ctx.Cfg);
             GameClock.Reset();
+            _victorySeconds = -1f;
 
             if (Cards != null)
             {
@@ -156,6 +168,33 @@ namespace OfficeHell.Systems
             run.DayElapsed += dt;
             run.CombatSeconds += dt;
             run.SecondsSinceLastLegendary += dt;
+
+            // Checked ahead of the death test on purpose. Once the last bar is gone the run is a
+            // Clear, and a stray Deadline landing during the celebration must not be able to convert
+            // it into a Fail. Counted on the logic clock so a level up landing in the same frame
+            // pauses the beat rather than eating it.
+            if (run.BossDefeated && run.DayIndex >= _ctx.Cfg.DayCount)
+            {
+                if (_victorySeconds < 0f)
+                {
+                    _victorySeconds = dt;
+
+                    // The adds the last bar break summoned are still walking. Letting them chip the
+                    // player through the celebration is damage taken in a fight that is already over.
+                    run.Player.InvulnUntil = GameClock.Now + VictoryBeatSeconds;
+                }
+                else
+                {
+                    _victorySeconds += dt;
+                }
+
+                if (_victorySeconds >= VictoryBeatSeconds)
+                {
+                    EndDay();
+                }
+
+                return;
+            }
 
             if (!run.Player.Alive)
             {

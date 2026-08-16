@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using OfficeHell.Config;
 using OfficeHell.Core;
 using OfficeHell.Model;
@@ -13,9 +14,14 @@ namespace OfficeHell.Systems
     /// </summary>
     public sealed class SpawnSystem
     {
+        static readonly char[] RosterSep = { ',' };
+        static readonly char[] RosterWeightSep = { ':' };
+
         readonly GameContext _ctx;
         readonly SpawnBand _band;
         readonly List<float> _weights = new List<float>(8);
+        readonly List<EnemyDef> _roster = new List<EnemyDef>(6);
+        readonly List<float> _rosterWeights = new List<float>(6);
         readonly List<float> _nextAt = new List<float>(4);
         readonly List<int> _budget = new List<int>(4);
         readonly List<int> _released = new List<int>(4);
@@ -284,14 +290,94 @@ namespace OfficeHell.Systems
             return idx < 0 ? null : _ctx.Cfg.Enemy(sp.Picks[idx].EnemyId);
         }
 
-        /// <summary>Boss phase transitions dump a wave of trash in one call.</summary>
-        public void SpawnBurst(EnemyDef def, int count)
+        /// <summary>
+        /// A behaviorParam roster, written "mail:5,deadline:3,bug:2". A bare id still works and weighs
+        /// one, so every roster that used to be a single id reads the same.
+        ///
+        /// Rebuilt on every call rather than cached against the raw string. The strings do repeat, but
+        /// a hot reload hands out new <see cref="EnemyDef"/> instances behind identical text, and a
+        /// cache keyed on that text would keep spawning the previous table's numbers.
+        ///
+        /// The two scratch lists live only until the next roster call, so nothing reached from inside
+        /// a spawn loop may draw from a roster of its own. No behaviour does today: OnSpawn either
+        /// dispatches or does nothing, and the one behaviour that spawns does it on death.
+        /// </summary>
+        void BuildRoster(string raw)
         {
+            _roster.Clear();
+            _rosterWeights.Clear();
+
+            if (string.IsNullOrEmpty(raw))
+            {
+                return;
+            }
+
+            string[] entries = raw.Split(RosterSep);
+            for (int i = 0; i < entries.Length; i++)
+            {
+                string[] parts = entries[i].Split(RosterWeightSep, 2);
+
+                EnemyDef def = _ctx.Cfg.Enemy(parts[0].Trim());
+                if (def == null)
+                {
+                    continue;
+                }
+
+                float weight = 1f;
+                if (parts.Length == 2 &&
+                    !float.TryParse(parts[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out weight))
+                {
+                    weight = 1f;
+                }
+
+                if (weight <= 0f)
+                {
+                    continue;
+                }
+
+                _roster.Add(def);
+                _rosterWeights.Add(weight);
+            }
+        }
+
+        EnemyDef PickRoster()
+        {
+            int idx = _roster.Count == 0 ? -1 : Rng.WeightedPick(_rosterWeights);
+            return idx < 0 ? null : _roster[idx];
+        }
+
+        /// <summary>
+        /// Boss phase transitions dump a wave of trash in one call. Deliberately blind to
+        /// concurrentMax: the wave is the punctuation of the fight, and a break that quietly produced
+        /// nothing because the field was full would read as the bar having no consequence.
+        /// </summary>
+        public void SpawnBurst(string roster, int count)
+        {
+            BuildRoster(roster);
+            if (_roster.Count == 0)
+            {
+                return;
+            }
+
             _band.BeginBurst();
             for (int i = 0; i < count; i++)
             {
-                Spawn(def, _band.NextPoint(_ctx.Run.Player.Pos), null);
+                EnemyDef def = PickRoster();
+                if (def != null)
+                {
+                    Spawn(def, _band.NextPoint(_ctx.Run.Player.Pos), null);
+                }
             }
+        }
+
+        /// <summary>
+        /// One draw from a roster, for callers that place their own telegraph rather than spawning
+        /// straight away. The boss summon warns the ground first, so it needs the id, not the body.
+        /// </summary>
+        public EnemyDef PickFromRoster(string roster)
+        {
+            BuildRoster(roster);
+            return PickRoster();
         }
 
         public EnemyModel Spawn(EnemyDef def, Vector2 pos, Quality? guaranteedDrop)

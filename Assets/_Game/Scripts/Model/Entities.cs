@@ -48,6 +48,13 @@ namespace OfficeHell.Model
 
         public float SlowPct;
 
+        /// <summary>
+        /// When a coffee stain is next allowed to bill this one. The trail overlaps itself and is
+        /// re-tested every frame, so without a per target gate the chip would be charged sixty times
+        /// a second by every mark the enemy is standing in at once.
+        /// </summary>
+        public float StainTickAt;
+
         /// <summary>Stapler orange pins its target in place for half a second.</summary>
         public float PinUntil;
 
@@ -165,6 +172,7 @@ namespace OfficeHell.Model
             ContactArmedAt = 0f;
             SlowUntil = 0f;
             SlowPct = 0f;
+            StainTickAt = 0f;
             PinUntil = 0f;
             AuraRadius = 0f;
             AuraKind = AuraChannel.MoveSlow;

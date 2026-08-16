@@ -8,6 +8,11 @@
 /[Mm]emoryCaptures/
 /[Rr]ecordings/
 
+# Written to the repo root by the four verification gates in AGENTS.md
+/discipline.log
+/selftest.log
+/playmode.log
+
 *.csproj
 !/Tools/Verify/Verify.csproj
 /Tools/Verify/bin/

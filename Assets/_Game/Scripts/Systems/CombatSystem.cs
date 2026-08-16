@@ -241,11 +241,9 @@ namespace OfficeHell.Systems
             ctx.Run.BossBarsLeft = e.BarsLeft;
 
             int adds = Mathf.Max(0, (int)e.Def.Param.GetFloat("phaseAdds", 20f));
-            string addId = e.Def.Param.GetString("phaseAddId", "mail");
-            EnemyDef add = ctx.Cfg.Enemy(addId);
-            if (add != null && ctx.Spawner != null && adds > 0)
+            if (ctx.Spawner != null && adds > 0)
             {
-                ctx.Spawner.SpawnBurst(add, adds);
+                ctx.Spawner.SpawnBurst(e.Def.Param.GetString("phaseAddId", "mail"), adds);
             }
 
             EvtArg a = new EvtArg();

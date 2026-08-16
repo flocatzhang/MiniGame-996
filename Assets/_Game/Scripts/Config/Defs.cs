@@ -611,6 +611,18 @@ namespace OfficeHell.Config
     }
 
     /// <summary>
+    /// A level whose hand is scripted instead of drawn: one card per weapon in the table, all at the
+    /// same tier. Six slots filled by a weighted draw can hand out the same weapon repeatedly and
+    /// never show the player what the other two do, so two rungs of the ladder are reserved for
+    /// putting the whole table side by side and asking which one the build wants.
+    /// </summary>
+    public sealed class WeaponHandDef
+    {
+        public int Level;
+        public Quality Quality = Quality.Blue;
+    }
+
+    /// <summary>
     /// The only decision the player makes. Equipment cards exist because the shop is gone: without
     /// them looting would be something to watch rather than something to want.
     /// </summary>
@@ -634,6 +646,12 @@ namespace OfficeHell.Config
         public readonly float[] UpgradeChanceByDay = new float[7];
 
         public readonly List<CardDef> Cards = new List<CardDef>(24);
+
+        /// <summary>
+        /// Levels whose hand is replaced by one card per weapon at a fixed tier. Empty means every
+        /// hand is drawn as usual.
+        /// </summary>
+        public readonly List<WeaponHandDef> WeaponHands = new List<WeaponHandDef>(2);
     }
 
     public sealed class ViewDef

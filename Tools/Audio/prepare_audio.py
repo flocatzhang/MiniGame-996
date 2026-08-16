@@ -23,6 +23,7 @@ SFX = (
     "sfx_growth_levelup.wav",
     "sfx_player_death.wav",
     "sfx_player_hurt.wav",
+    "sfx_slam.wav",
     "sfx_ui_clockin.wav",
     "sfx_weapon_stapler_fire.wav",
     "sfx_weapon_stapler_hit.wav",

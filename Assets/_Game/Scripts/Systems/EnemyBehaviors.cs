@@ -426,31 +426,51 @@ namespace OfficeHell.Systems
         /// </summary>
         void CastMeeting(EnemyModel e, GameContext ctx)
         {
-            string summonId = e.Def.Param.GetString("summonId", "ppt");
-            if (ctx.Cfg.Enemy(summonId) == null)
+            if (ctx.Spawner == null)
             {
                 return;
             }
 
+            string roster = e.Def.Param.GetString("summonId", "ppt");
             Vector2 center = ctx.Run.Player.Pos;
             int count = Mathf.Max(1, (int)e.Def.Param.GetFloat("summonCount", 4f));
             float radius = e.Def.Param.GetFloat("summonRadius", 3f);
 
             for (int i = 0; i < count; i++)
             {
+                // Drawn per seat rather than once for the ring, so a meeting is a mix of faces instead
+                // of the same shape repeated around the player.
+                EnemyDef pick = ctx.Spawner.PickFromRoster(roster);
+                if (pick == null)
+                {
+                    continue;
+                }
+
                 float angle = Mathf.PI * 2f / count * i + Rng.Range(-0.2f, 0.2f);
                 TelegraphModel t = ctx.Run.RentTelegraph();
                 t.Pos = ctx.Cfg.Arena.Clamp(center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius, 1f);
                 t.Radius = 0.9f;
                 t.BornAt = GameClock.Now;
                 t.FireAt = GameClock.Now + e.Def.Param.GetFloat("summonWarn", 1f);
-                t.SummonEnemyId = summonId;
+                t.SummonEnemyId = pick.Id;
                 t.SummonCount = 1;
                 t.ViewId = "v_warn_summon";
             }
         }
 
-        /// <summary>Global slow, the "let me paint you a picture" moment. Deeper in phase two.</summary>
+        /// <summary>
+        /// Global slow, the "let me paint you a picture" moment, plus a scattering of pies on the
+        /// ground the boss is standing on. Deeper and wider in phase two.
+        ///
+        /// The pies land around the boss rather than around the player, which is the one place in this
+        /// behaviour where that is the right answer. 甩 KPI has to follow the player or it hits nobody
+        /// (see the folder-throw post mortem on CastKpi); 画饼 is the opposite job. It puts a price on
+        /// the ground next to the boss, so the fight stops being "park at a comfortable distance and
+        /// hold still" for whoever chose to stand in melee.
+        ///
+        /// The slow is applied now and the circles resolve pieWarn later on purpose: the skill bills
+        /// the player for exactly the distance it just took away from them.
+        /// </summary>
         void CastPie(EnemyModel e, GameContext ctx)
         {
             PlayerModel p = ctx.Run.Player;
@@ -462,11 +482,46 @@ namespace OfficeHell.Systems
             p.GlobalSlowPct = slowPct;
             p.GlobalSlowUntil = GameClock.Now + duration;
 
+            ScatterPies(e, ctx);
+
             EvtArg a = new EvtArg();
-            a.P0 = p.Pos;
+            a.P0 = e.Pos;
             a.F0 = duration;
             a.F1 = slowPct;
             ctx.Bus.Dispatch(EventID.BossPieCast, a);
+        }
+
+        /// <summary>
+        /// Scattered through the ring rather than spaced evenly around it. An even ring is a fence:
+        /// at these counts the circles either close it completely, which makes the skill "you may not
+        /// be near the boss", or they leave the same gaps in the same places every cast, which makes
+        /// it free. A scatter keeps gaps without promising where they will be.
+        /// </summary>
+        void ScatterPies(EnemyModel e, GameContext ctx)
+        {
+            int count = e.Phase >= 2
+                ? (int)e.Def.Param.GetFloat("pieCountLate", 8f)
+                : (int)e.Def.Param.GetFloat("pieCount", 6f);
+
+            float warn = e.Def.Param.GetFloat("pieWarn", 1f);
+            float radius = e.Def.Param.GetFloat("pieBlast", 1.6f);
+            float inner = e.Def.Param.GetFloat("pieInner", 1.8f);
+            float outer = e.Def.Param.GetFloat("pieOuter", 5.2f);
+            float share = e.Def.Param.GetFloat("pieDamage", 0.5f);
+            float now = GameClock.Now;
+
+            ArenaDef arena = ctx.Cfg.Arena;
+
+            for (int i = 0; i < count; i++)
+            {
+                TelegraphModel t = ctx.Run.RentTelegraph();
+                t.Pos = arena.Clamp(Rng.RingPoint(e.Pos, inner, outer), 1f);
+                t.Radius = radius;
+                t.BornAt = now;
+                t.FireAt = now + warn;
+                t.Damage = e.ContactDamage * share;
+                t.ViewId = "v_warn_pie";
+            }
         }
 
         /// <summary>

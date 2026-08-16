@@ -807,6 +807,21 @@ namespace OfficeHell.Config
                     }
                 }
 
+                foreach (XElement e in doc.Root.Elements("WeaponHand"))
+                {
+                    int level = XmlRead.Int(e, "level", 0, Report);
+                    string q = XmlRead.Required(e, "quality", Report);
+                    if (level < 1 || q == null)
+                    {
+                        continue;
+                    }
+
+                    WeaponHandDef h = new WeaponHandDef();
+                    h.Level = level;
+                    h.Quality = ParseQuality(e, q);
+                    pool.WeaponHands.Add(h);
+                }
+
                 foreach (XElement e in doc.Root.Elements("Card"))
                 {
                     string id = XmlRead.Required(e, "id", Report);

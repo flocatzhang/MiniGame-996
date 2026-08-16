@@ -33,7 +33,6 @@ namespace OfficeHell.View
 
         Transform _cameraTransform;
         Image _flash;
-        Image _pieOverlay;
 
         float _hitStopUntil;
         float _lastHitStopAt = -999f;
@@ -43,10 +42,6 @@ namespace OfficeHell.View
 
         Color _flashColor = Color.white;
         float _flashAmount;
-
-        float _pieStartedAt;
-        float _pieUntil;
-        float _pieDuration;
 
         readonly List<PulseFx> _pulses = new List<PulseFx>(32);
 
@@ -79,8 +74,6 @@ namespace OfficeHell.View
             _bus.Register(EventID.BossPhaseChanged, OnBossPhaseChanged);
             _bus.Register(EventID.PlayerShieldBroken, OnShieldBroken);
             _bus.Register(EventID.PlayerGuarded, OnGuarded);
-            _bus.Register(EventID.RunStarted, OnRunStarted);
-            _bus.Register(EventID.GameStateChanged, OnGameStateChanged);
         }
 
         public void Dispose()
@@ -97,15 +90,12 @@ namespace OfficeHell.View
             _bus.Unregister(EventID.BossPhaseChanged, OnBossPhaseChanged);
             _bus.Unregister(EventID.PlayerShieldBroken, OnShieldBroken);
             _bus.Unregister(EventID.PlayerGuarded, OnGuarded);
-            _bus.Unregister(EventID.RunStarted, OnRunStarted);
-            _bus.Unregister(EventID.GameStateChanged, OnGameStateChanged);
         }
 
-        public void Bind(Transform cameraTransform, Image flash, Image pieOverlay)
+        public void Bind(Transform cameraTransform, Image flash)
         {
             _cameraTransform = cameraTransform;
             _flash = flash;
-            _pieOverlay = pieOverlay;
         }
 
         // ---------- requests ----------
@@ -181,46 +171,7 @@ namespace OfficeHell.View
                 _flash.enabled = _flashAmount > 0.001f;
             }
 
-            TickPie(unscaledDt);
             TickPulses();
-        }
-
-        void TickPie(float unscaledDt)
-        {
-            if (_pieOverlay == null || !_pieOverlay.enabled)
-            {
-                return;
-            }
-
-            float now = GameClock.Now;
-            if (now >= _pieUntil)
-            {
-                HidePie();
-                return;
-            }
-
-            float t = Mathf.Clamp01((now - _pieStartedAt) / Mathf.Max(0.01f, _pieDuration));
-            float fadeIn = Mathf.Clamp01(t / 0.12f);
-            float fadeOut = 1f - Mathf.Clamp01((t - 0.72f) / 0.28f);
-            Color color = Color.white;
-            color.a = 0.58f * Mathf.Min(fadeIn, fadeOut);
-            _pieOverlay.color = color;
-            _pieOverlay.rectTransform.localRotation *= Quaternion.Euler(0f, 0f, unscaledDt * 8f);
-        }
-
-        void HidePie()
-        {
-            if (_pieOverlay == null)
-            {
-                return;
-            }
-
-            _pieOverlay.enabled = false;
-            _pieOverlay.color = new Color(1f, 1f, 1f, 0f);
-            _pieOverlay.rectTransform.localRotation = Quaternion.identity;
-            _pieStartedAt = 0f;
-            _pieUntil = 0f;
-            _pieDuration = 0f;
         }
 
         void TickPulses()
@@ -341,33 +292,14 @@ namespace OfficeHell.View
             SpawnPulse(arg.P0, Mathf.Max(0.5f, arg.F0), new Color(0.6f, 0.8f, 1f, 0.8f), 0.3f);
         }
 
+        /// <summary>
+        /// The pies on the ground are the tell now; this is only the thump under them. 画饼 used to
+        /// answer with a pancake covering most of the screen, which arrived on top of the circles the
+        /// player was supposed to be reading their way out of.
+        /// </summary>
         void OnBossPieCast(EvtArg arg)
         {
-            if (_pieOverlay == null || _pieOverlay.sprite == null)
-            {
-                return;
-            }
-
-            _pieDuration = Mathf.Max(0.05f, arg.F0);
-            _pieStartedAt = GameClock.Now;
-            _pieUntil = _pieStartedAt + _pieDuration;
-            _pieOverlay.enabled = true;
-            _pieOverlay.color = new Color(1f, 1f, 1f, 0f);
-            _pieOverlay.rectTransform.localRotation = Quaternion.identity;
-        }
-
-        void OnRunStarted(EvtArg arg)
-        {
-            HidePie();
-        }
-
-        void OnGameStateChanged(EvtArg arg)
-        {
-            Systems.GameState state = (Systems.GameState)arg.I0;
-            if (state == Systems.GameState.MainMenu || state == Systems.GameState.Result)
-            {
-                HidePie();
-            }
+            RequestShake(0.07f);
         }
 
         /// <summary>

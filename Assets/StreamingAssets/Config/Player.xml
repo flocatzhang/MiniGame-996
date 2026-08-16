@@ -97,9 +97,23 @@
   <!--
     The drop rate doubles below one third sanity. This is the one number in the game that lies to the
     player in their favour, and it is invisible by design: felt as a lucky break, never as a handout.
+
+    A cup is 8 percent now and 8 percent over the next six seconds. The split, not the total, is the
+    point: 3 percent of 16 is the same budget as the old 4 percent of 12, so a run still recovers
+    about the same SAN, in two thirds as many cups that are each worth walking to.
+
+    The instant half stays at 8 and does not go to 6 in the name of an even split. Saturday's Deadline
+    hits for 31 and the boss for 52, which past three orange pieces is 26 and 44 taken: 8 is a third of
+    a Deadline and still answers "get to that cup", while 6 does not, and answering that is the reason
+    coffee exists.
+
+    Six seconds on the trickle is measured against Friday, where 3 percent of a 4.2 kills per second
+    day is a cup every 8 seconds. Six leaves a quarter of the day with nothing running, so the player
+    can tell the difference between on and off; eight would run permanently, and a state that is always
+    on is not a state, the same reason the headphone shield alternates 5 on and 5 off.
   -->
   <Coffee chancePct="3" lowSanChancePct="6" lowSanThresholdPct="33"
-          instantHealPctMaxSan="8" healOverTimePctMaxSan="8" healOverTimeSeconds="4"
+          instantHealPctMaxSan="8" healOverTimePctMaxSan="8" healOverTimeSeconds="6"
           worldLifetimeSeconds="30" hasteAddPct="15" buffSeconds="4" viewId="v_coffee" />
 
 </Config>

@@ -1,6 +1,5 @@
 using OfficeHell.Core;
 using OfficeHell.Systems;
-using OfficeHell.View;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -20,8 +19,6 @@ namespace OfficeHell.UI
         public Canvas WorldTextCanvas { get; private set; }
 
         public Image ScreenFlash { get; private set; }
-
-        public Image PieOverlay { get; private set; }
 
         public UIMainMenuController MainMenu { get; private set; }
 
@@ -46,19 +43,6 @@ namespace OfficeHell.UI
 
             WorldTextCanvas = UIFactory.CreateCanvas("Canvas_WorldText", 50, uiRoot);
             MainCanvas = UIFactory.CreateCanvas("Canvas_Main", 100, uiRoot);
-
-            PieOverlay = UIFactory.CreateSpriteImage(
-                MainCanvas.transform,
-                "PieOverlay",
-                ArtCatalog.Pie,
-                new Color(1f, 1f, 1f, 0f),
-                true);
-            UIFactory.Anchor(
-                PieOverlay.rectTransform,
-                new Vector2(0.5f, 0.5f),
-                Vector2.zero,
-                new Vector2(900f, 700f));
-            PieOverlay.enabled = false;
 
             ScreenFlash = UIFactory.CreateImage(MainCanvas.transform, "ScreenFlash", new Color(1f, 1f, 1f, 0f));
             UIFactory.Stretch(ScreenFlash.rectTransform);

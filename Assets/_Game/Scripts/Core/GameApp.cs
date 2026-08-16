@@ -183,7 +183,7 @@ namespace OfficeHell.Core
             _damageText = new DamageTextService(Ctx.Bus, Config, Ui.WorldTextCanvas.transform);
             _damageText.Bind(_camera);
 
-            _juice.Bind(_camera.transform, Ui.ScreenFlash, Ui.PieOverlay);
+            _juice.Bind(_camera.transform, Ui.ScreenFlash);
 
             _input = gameObject.AddComponent<InputProvider>();
             _input.Bind(Driver.Input, _camera);

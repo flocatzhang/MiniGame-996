@@ -54,6 +54,9 @@ namespace OfficeHell.Systems
         /// </summary>
         readonly Dictionary<string, Quality> _takenStats = new Dictionary<string, Quality>(16);
 
+        /// <summary>Scripted weapon hands already delivered, by the level that triggered them.</summary>
+        readonly HashSet<int> _handsDone = new HashSet<int>();
+
         public CardSystem(GameContext ctx, LootSystem loot)
         {
             _ctx = ctx;
@@ -69,6 +72,7 @@ namespace OfficeHell.Systems
         {
             _offers.Clear();
             _takenStats.Clear();
+            _handsDone.Clear();
         }
 
         /// <summary>Builds a fresh hand. Duplicate ids inside one hand are never offered.</summary>
@@ -78,25 +82,90 @@ namespace OfficeHell.Systems
             _offers.Clear();
 
             int want = Mathf.Max(1, pool.Choices);
-            int guard = 0;
 
-            while (_offers.Count < want && guard++ < 40)
+            if (!OfferWeaponHand(pool, want))
             {
-                CardKind kind = PickKind(pool);
-                CardOffer offer = Build(kind);
+                int guard = 0;
 
-                if (offer == null || Contains(offer.Id))
+                while (_offers.Count < want && guard++ < 40)
                 {
-                    continue;
-                }
+                    CardKind kind = PickKind(pool);
+                    CardOffer offer = Build(kind);
 
-                _offers.Add(offer);
+                    if (offer == null || Contains(offer.Id))
+                    {
+                        continue;
+                    }
+
+                    _offers.Add(offer);
+                }
             }
 
             EvtArg a = new EvtArg();
             a.I0 = _offers.Count;
             a.O0 = _offers;
             _ctx.Bus.Dispatch(EventID.CardsOffered, a);
+        }
+
+        /// <summary>
+        /// Replaces the draw with one card per weapon at a fixed tier, on the levels Cards.xml
+        /// reserves. Bails rather than part filling: three weapons side by side is the whole point,
+        /// and two of them plus whatever the draw produced is a different hand wearing its name.
+        /// </summary>
+        bool OfferWeaponHand(CardPoolDef pool, int want)
+        {
+            WeaponHandDef hand = PendingWeaponHand(pool);
+            if (hand == null)
+            {
+                return false;
+            }
+
+            List<string> order = _ctx.Cfg.WeaponOrder;
+
+            for (int i = 0; i < order.Count && _offers.Count < want; i++)
+            {
+                CardOffer offer = BuildWeapon(_ctx.Cfg.Weapon(order[i]), hand.Quality);
+                if (offer != null && !Contains(offer.Id))
+                {
+                    _offers.Add(offer);
+                }
+            }
+
+            if (_offers.Count < want)
+            {
+                _offers.Clear();
+                return false;
+            }
+
+            _handsDone.Add(hand.Level);
+            return true;
+        }
+
+        /// <summary>
+        /// The lowest reserved level already reached and not yet spent. Reached rather than equalled,
+        /// because a double level up from 2 to 4 would otherwise delete the beat outright; lowest
+        /// first, so a jump that comes due for both still shows blue before purple.
+        /// </summary>
+        WeaponHandDef PendingWeaponHand(CardPoolDef pool)
+        {
+            int level = _ctx.Run.Player.Level;
+            WeaponHandDef best = null;
+
+            for (int i = 0; i < pool.WeaponHands.Count; i++)
+            {
+                WeaponHandDef h = pool.WeaponHands[i];
+                if (h.Level > level || _handsDone.Contains(h.Level))
+                {
+                    continue;
+                }
+
+                if (best == null || h.Level < best.Level)
+                {
+                    best = h;
+                }
+            }
+
+            return best;
         }
 
         public void Pick(int index)
@@ -389,50 +458,49 @@ namespace OfficeHell.Systems
             int day = Mathf.Clamp(_ctx.Run.DayIndex, 1, pool.QualityByDay.Length - 1);
             Quality q = pool.QualityByDay[day];
 
-            bool weapon = Rng.ChancePercent(60f);
+            List<string> order = _ctx.Cfg.WeaponOrder;
+            if (order.Count > 0 && Rng.ChancePercent(60f))
+            {
+                return BuildWeapon(_ctx.Cfg.Weapon(order[Random.Range(0, order.Count)]), q);
+            }
+
+            List<ArmorBaseDef> bases = _ctx.Cfg.Loot.ArmorBases;
+            if (bases.Count == 0)
+            {
+                return null;
+            }
+
+            ArmorBaseDef armor = bases[Random.Range(0, bases.Count)];
 
             CardOffer offer = new CardOffer();
             offer.Kind = CardKind.Equipment;
             offer.Quality = q;
-            offer.IsWeapon = weapon;
+            offer.IsWeapon = false;
+            offer.Id = "equip_" + armor.Id + "_" + q;
+            offer.DefId = armor.Id;
+            offer.Title = _ctx.Cfg.QualityOf(q).RankName + armor.Name;
+            offer.Desc = ArmorBlurb(armor, q);
+            return offer;
+        }
 
-            if (weapon)
+        CardOffer BuildWeapon(WeaponDef def, Quality q)
+        {
+            if (def == null)
             {
-                List<string> order = _ctx.Cfg.WeaponOrder;
-                if (order.Count == 0)
-                {
-                    return null;
-                }
-
-                WeaponDef def = _ctx.Cfg.Weapon(order[Random.Range(0, order.Count)]);
-                if (def == null)
-                {
-                    return null;
-                }
-
-                offer.Id = "equip_" + def.Id + "_" + q;
-                offer.DefId = def.Id;
-                offer.Title = _ctx.Cfg.QualityOf(q).RankName + def.Name;
-
-                // The card states the unlocked behaviour, not the damage number. Players pick these
-                // for the effect, so a card that only shows numbers is selling the wrong thing.
-                offer.Desc = TierBlurb(def, q);
-            }
-            else
-            {
-                List<ArmorBaseDef> bases = _ctx.Cfg.Loot.ArmorBases;
-                if (bases.Count == 0)
-                {
-                    return null;
-                }
-
-                ArmorBaseDef def = bases[Random.Range(0, bases.Count)];
-                offer.Id = "equip_" + def.Id + "_" + q;
-                offer.DefId = def.Id;
-                offer.Title = _ctx.Cfg.QualityOf(q).RankName + def.Name;
-                offer.Desc = ArmorBlurb(def, q);
+                return null;
             }
 
+            CardOffer offer = new CardOffer();
+            offer.Kind = CardKind.Equipment;
+            offer.Quality = q;
+            offer.IsWeapon = true;
+            offer.Id = "equip_" + def.Id + "_" + q;
+            offer.DefId = def.Id;
+            offer.Title = _ctx.Cfg.QualityOf(q).RankName + def.Name;
+
+            // The card states the unlocked behaviour, not the damage number. Players pick these for
+            // the effect, so a card that only shows numbers is selling the wrong thing.
+            offer.Desc = TierBlurb(def, q);
             return offer;
         }
 
