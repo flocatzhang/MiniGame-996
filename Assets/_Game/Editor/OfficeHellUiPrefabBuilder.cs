@@ -69,6 +69,12 @@ namespace OfficeHell.EditorTools
                     hud.SkillFill.type == UnityEngine.UI.Image.Type.Filled &&
                     hud.SkillFill.fillMethod == UnityEngine.UI.Image.FillMethod.Horizontal,
                 "UIHud must expose a root-level horizontal slack-skill progress bar.");
+            Require(hud.KpiFill.transform.parent != null &&
+                    hud.KpiFill.transform.parent.GetComponent<UnityEngine.UI.Image>() != null &&
+                    hud.KpiFill.type == UnityEngine.UI.Image.Type.Filled &&
+                    hud.KpiFill.fillMethod == UnityEngine.UI.Image.FillMethod.Horizontal &&
+                    hud.KpiFill.fillOrigin == (int)UnityEngine.UI.Image.OriginHorizontal.Left,
+                "UIHud KPI must use a separate background and a left-to-right horizontal Fill image.");
             for (int i = 0; i < hud.WeaponSlots.Length; i++)
             {
                 UIHudView.WeaponSlotReferences slot = hud.WeaponSlots[i];
@@ -716,7 +722,7 @@ namespace OfficeHell.EditorTools
             SetTop(salaryRect, new Vector2(0f, -62f), new Vector2(760f, 126f), new Vector2(0.5f, 1f));
             Text salaryCaption = Label("Caption", salaryGroup.transform, "累计工资", 20, Ink, TextAnchor.MiddleCenter);
             SetTop(salaryCaption.rectTransform, new Vector2(0f, -12f), new Vector2(500f, 30f), new Vector2(0.5f, 1f));
-            Text salary = Label("Salary", salaryGroup.transform, "¥9,996", 52,
+            Text salary = Label("Salary", salaryGroup.transform, "¥9,999", 52,
                 new Color(0.72f, 0.35f, 0.12f), TextAnchor.MiddleCenter);
             SetBottom(salary.rectTransform, new Vector2(0f, 38f), new Vector2(620f, 72f), new Vector2(0.5f, 0f));
             salary.fontStyle = FontStyle.Bold;

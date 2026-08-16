@@ -79,6 +79,13 @@ namespace OfficeHell.Model
         public float HasteBuffUntil;
         public float HasteBuffPct;
 
+        /// <summary>
+        /// Unapplied coffee healing and its deadline. LootSystem consumes this linearly, which keeps
+        /// the effect in game time and therefore paused during cards, off-work and results.
+        /// </summary>
+        public float CoffeeHealRemaining;
+        public float CoffeeHealUntil;
+
         // ---- armour driven state ----
 
         /// <summary>Headphone blue: a shield every ten seconds. Zero means no headphone is worn.</summary>
@@ -413,6 +420,8 @@ namespace OfficeHell.Model
             GlobalSlowPct = 0f;
             HasteBuffUntil = 0f;
             HasteBuffPct = 0f;
+            CoffeeHealRemaining = 0f;
+            CoffeeHealUntil = 0f;
 
             for (int i = 0; i < WeaponSlots; i++)
             {

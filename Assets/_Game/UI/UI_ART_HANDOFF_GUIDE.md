@@ -212,8 +212,8 @@ UIHud
 | `StagePlate` | 星期/时段标签底板 `Image` | 便签、工牌或黄色标签 | 静态框体；节点名为兼容已有 View 保留，不代表关卡 |
 | `StagePlate/Stage` | 星期与时段文字 | 不挂图 | 动态显示“周一 · 上午”“周三 · 午休”“周六 · 加班”等，禁止改成“第 N 关” |
 | `KpiPanel` | 右上 KPI 主框 `Image` | KPI 长条外框、夹板装饰 | 静态框体 |
-| `KpiBar` | KPI 条背景 `Image` | KPI 槽底图 | 静态背景 |
-| `KpiBar/Fill` | KPI 条前景 `Image` | 蓝色/主题色填充图 | `fillAmount` 动态变化 |
+| `KpiBar` | KPI 条背景 `Image` | 只包含边框和空槽的 KPI 槽底图，不要把蓝色进度画进底图 | 始终显示，负责让未完成区域清晰可见 |
+| `KpiBar/Fill` | 独立的 KPI 条前景 `Image` | 可水平裁切的纯色、渐变或纹理填充图 | 必须保持 `Filled + Horizontal + Left`，`fillAmount` 从 0 到当前 KPI；未挂正式 Sprite 时程序会补纯色 Sprite，保证进度仍可见 |
 | `KpiBar/KpiText` | KPI 百分比 | 不挂图 | 动态显示百分比 |
 | `DayBanner` | 每日开始提示文字 | 不挂图 | 出现后自动隐藏；可加不参与数据的装饰父框，但不要解除 View 引用 |
 
@@ -229,6 +229,8 @@ UIHud
 | `ArmorSlots` | 3 个装备槽的布局容器 | 不挂图 | 可调整整体位置和间距，数量保持 3 |
 | `Armor1~Armor3` | 单个装备槽背景 `Image` | 装备/被动槽框 | 槽位底色会按状态变化 |
 | `Armor*/Icon` | 装备图标 `Image` | 不在 Prefab 固定挂正式装备图 | 按装备 `Def.Id` 自动加载 |
+
+进入新一局时，`Weapon1~Weapon3` 会依次显示绿色订书机、绿色键盘、绿色工牌；`Weapon4~Weapon6` 保持空槽。三件图标与绿色品质底色都由运行时代码填写，美术不要把它们直接画死在 Prefab 背景中。
 | `Armor*/Label` | 装备名称/等级 | 不挂图 | 动态变化 |
 
 #### Boss 区
@@ -387,7 +389,7 @@ UIResult
 | `TopRule`、`MiddleRule` | 分隔线 `Image` | 手绘线、打印线、虚线 | 静态装饰 |
 | `SalaryGroup` | 工资区域容器 | 不挂图 | 按结算动画分阶段显示 |
 | `SalaryGroup/Caption` | “累计工资”标题 | 不挂图 | 静态文字 |
-| `SalaryGroup/Salary` | 工资大数字 | 不挂图 | 使用现有工资公式，完整通关最高 `¥9,996` |
+| `SalaryGroup/Salary` | 工资大数字 | 不挂图 | 使用现有工资公式，完整通关最高 `¥9,999` |
 | `WorkGroup` | 工作统计区域 | 不挂图 | 分阶段显示 |
 | `WorkGroup/Caption` | 统计标题 | 不挂图 | 静态文字 |
 | `WorkLabel1~3` | 工作项目名称 | 不挂图 | 显示数量前三项；同类工作会合并 |

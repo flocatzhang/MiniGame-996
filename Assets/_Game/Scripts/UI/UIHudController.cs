@@ -33,6 +33,7 @@ namespace OfficeHell.UI
             ConfigureProgressFill(_view.SanFill);
             ConfigureProgressFill(_view.ExpFill);
             ConfigureProgressFill(_view.SkillFill);
+            ConfigureProgressFill(_view.KpiFill);
 
             Sprite[] playerFrames = ArtCatalog.Frames("player");
             if (playerFrames.Length > 0)

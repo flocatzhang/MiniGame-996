@@ -621,7 +621,23 @@ namespace OfficeHell.Config
                     cf.ChancePct = XmlRead.Num(cfe, "chancePct", cf.ChancePct, Report);
                     cf.LowSanChancePct = XmlRead.Num(cfe, "lowSanChancePct", cf.LowSanChancePct, Report);
                     cf.LowSanThresholdPct = XmlRead.Num(cfe, "lowSanThresholdPct", cf.LowSanThresholdPct, Report);
-                    cf.HealPctMaxSan = XmlRead.Num(cfe, "healPctMaxSan", cf.HealPctMaxSan, Report);
+                    // An external pre-split config remains playable: its old heal stays immediate.
+                    // New configs author the two parts explicitly so the 8 + 8 contract is visible.
+                    if (cfe.Attribute("healPctMaxSan") != null)
+                    {
+                        cf.InstantHealPctMaxSan = XmlRead.Num(
+                            cfe, "healPctMaxSan", cf.InstantHealPctMaxSan, Report);
+                        cf.HealOverTimePctMaxSan = 0f;
+                    }
+
+                    cf.InstantHealPctMaxSan = XmlRead.Num(
+                        cfe, "instantHealPctMaxSan", cf.InstantHealPctMaxSan, Report);
+                    cf.HealOverTimePctMaxSan = XmlRead.Num(
+                        cfe, "healOverTimePctMaxSan", cf.HealOverTimePctMaxSan, Report);
+                    cf.HealOverTimeSeconds = Mathf.Max(0.1f, XmlRead.Num(
+                        cfe, "healOverTimeSeconds", cf.HealOverTimeSeconds, Report));
+                    cf.WorldLifetimeSeconds = Mathf.Max(0.1f, XmlRead.Num(
+                        cfe, "worldLifetimeSeconds", cf.WorldLifetimeSeconds, Report));
                     cf.HasteAddPct = XmlRead.Num(cfe, "hasteAddPct", cf.HasteAddPct, Report);
                     cf.BuffSeconds = XmlRead.Num(cfe, "buffSeconds", cf.BuffSeconds, Report);
                     cf.ViewId = XmlRead.Str(cfe, "viewId", cf.ViewId, Report);

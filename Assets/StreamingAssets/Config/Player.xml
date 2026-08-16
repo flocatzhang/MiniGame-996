@@ -65,9 +65,9 @@
     The exp supply is whatever the spawn table pays out, so the curve has to be refitted every time
     that table is rescaled. It has been rescaled twice. Doubling it took the supply from roughly 1230
     exp across six days to roughly 2480 and power went 1.55 -> 1.95 to match; pulling a quarter back
-    off leaves roughly 1860 and power comes down to 1.80. Miss either refit and the player is CEO on
-    Wednesday with the back half of the week holding no level ups at all, which is the exact failure
-    the 10 -> 12 change was made to avoid.
+    off left roughly 1860 and power came down to 1.80. Halving keyboard landing areas and removing
+    work-card knockback then lowered the measured six-day supply to 1608, so the third fit moves power
+    to 1.76 without touching the first-upgrade cost.
 
     power carries the change rather than coef, and which one moves is not arbitrary. Level 1 costs
     coef x 1, so the coefficient is also the price of the first upgrade, and that upgrade is the one
@@ -75,7 +75,7 @@
     inside ten seconds. Moving coef would move it off six mails. Leaving it alone pins level 1 at 12
     exp no matter what power does, and puts the whole of the adjustment on levels 5 through 9, which
     is also where the difference in supply actually shows up. Cumulative cost to rank 9 tracks the
-    supply: 1103 at 1.55, about 2266 at 1.95, about 1711 at 1.80.
+    supply: 1103 at 1.55, about 2266 at 1.95, about 1711 at 1.80, and 1596 at 1.76.
 
     Both this and kpiTargetKills below are fitted against an estimated supply rather than a measured
     one. Run the headless self test and correct them from its output: 'last rank on day' has to read
@@ -84,21 +84,22 @@
     downgradeExp 3: a drop that cannot beat what is worn is still worth walking over. Without it the
     late game turns the floor into scenery, which quietly deletes the reason to move.
 
-    kpiTargetKills 840 against the roughly 900 bodies the week is now expected to produce, so the bar
+    kpiTargetKills 910 against the roughly 968 bodies the three-weapon opening now produces, so the bar
     reaches the 99 cap partway through Saturday and clips. It has to clip somewhere: a target the run
     cannot reach leaves the bar at 98 and the cap never reads as a cap, while a much lower target
     parks it at 99 from Thursday onward and the cap stops reading as a cap and starts reading as a
     full bar. This one is pure bookkeeping against the spawn table, so it moves by the same proportion
     every time that table does. Set it to about 94 percent of the self test's 'total kills'.
   -->
-  <Progression maxLevel="9" expCoef="12" expPower="1.80" downgradeExp="3"
-               kpiCap="99" kpiTargetKills="840" finalSalary="9996" />
+  <Progression maxLevel="9" expCoef="12" expPower="1.76" downgradeExp="3"
+               kpiCap="99" kpiTargetKills="910" finalSalary="9999" />
 
   <!--
     The drop rate doubles below one third sanity. This is the one number in the game that lies to the
     player in their favour, and it is invisible by design: felt as a lucky break, never as a handout.
   -->
-  <Coffee chancePct="4" lowSanChancePct="8" lowSanThresholdPct="33"
-          healPctMaxSan="12" hasteAddPct="15" buffSeconds="4" viewId="v_coffee" />
+  <Coffee chancePct="3" lowSanChancePct="6" lowSanThresholdPct="33"
+          instantHealPctMaxSan="8" healOverTimePctMaxSan="8" healOverTimeSeconds="4"
+          worldLifetimeSeconds="30" hasteAddPct="15" buffSeconds="4" viewId="v_coffee" />
 
 </Config>

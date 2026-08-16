@@ -395,7 +395,7 @@ namespace OfficeHell.Core
         {
             ResetWorld();
             Driver.Flow.StartRun();
-            EquipStartingWeapon();
+            StartingLoadout.Equip(Ctx.Run.Player, Config);
             Driver.Camera.SnapToPlayer();
             Driver.ForceRebuildGrid();
         }
@@ -408,18 +408,5 @@ namespace OfficeHell.Core
             GameClock.Reset();
         }
 
-        void EquipStartingWeapon()
-        {
-            WeaponDef def = Config.Weapon("stapler");
-            if (def == null && Config.WeaponOrder.Count > 0)
-            {
-                def = Config.Weapon(Config.WeaponOrder[0]);
-            }
-
-            if (def != null)
-            {
-                Ctx.Run.Player.Equip(0, def, Quality.Green);
-            }
-        }
     }
 }

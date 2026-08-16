@@ -341,6 +341,8 @@ namespace OfficeHell.Systems
             LootDef loot = _ctx.Cfg.Loot;
             PlayerModel player = run.Player;
 
+            TickCoffeeHealing(player, dt);
+
             float magnet = player.MagnetRadius;
             float step = _ctx.Cfg.Player.StepPickupRadius;
             float tossTotal = loot.TossDuration * 1.6f;
@@ -350,6 +352,15 @@ namespace OfficeHell.Systems
                 LootModel l = run.Loots[i];
                 if (l.IsDead)
                 {
+                    continue;
+                }
+
+                // Equipment remains until collected. Coffee is the only consumable that can expire,
+                // and the deadline includes toss and magnet time because it is still uncollected.
+                if (l.Kind == LootKind.Coffee &&
+                    GameClock.Now - l.BornAt >= _ctx.Cfg.Coffee.WorldLifetimeSeconds)
+                {
+                    l.IsDead = true;
                     continue;
                 }
 
@@ -482,7 +493,18 @@ namespace OfficeHell.Systems
             PlayerModel p = _ctx.Run.Player;
 
             float before = p.San;
-            p.San = Mathf.Min(p.MaxSan, p.San + p.MaxSan * cf.HealPctMaxSan * 0.01f);
+            p.San = Mathf.Min(
+                p.MaxSan,
+                p.San + p.MaxSan * cf.InstantHealPctMaxSan * 0.01f);
+
+            float ongoing = p.MaxSan * cf.HealOverTimePctMaxSan * 0.01f;
+            if (ongoing > 0f)
+            {
+                p.CoffeeHealRemaining += ongoing;
+                p.CoffeeHealUntil = Mathf.Max(
+                    p.CoffeeHealUntil,
+                    GameClock.Now + cf.HealOverTimeSeconds);
+            }
 
             p.HasteBuffPct = Mathf.Max(p.HasteBuffPct, cf.HasteAddPct);
             p.HasteBuffUntil = GameClock.Now + cf.BuffSeconds;
@@ -491,6 +513,31 @@ namespace OfficeHell.Systems
             a.F0 = p.San - before;
             a.P0 = p.Pos;
             _ctx.Bus.Dispatch(EventID.CoffeeDrunk, a);
+        }
+
+        void TickCoffeeHealing(PlayerModel p, float dt)
+        {
+            if (p.CoffeeHealRemaining <= 0f || dt <= 0f)
+            {
+                return;
+            }
+
+            // GameClock.Now has already advanced by dt when systems tick. Reconstruct the duration
+            // at the start of this frame so a four-second effect pays exactly 8%, not one frame early.
+            float secondsAtFrameStart = p.CoffeeHealUntil - (GameClock.Now - dt);
+            float fraction = secondsAtFrameStart <= dt
+                ? 1f
+                : Mathf.Clamp01(dt / secondsAtFrameStart);
+            float amount = p.CoffeeHealRemaining * fraction;
+
+            p.San = Mathf.Min(p.MaxSan, p.San + amount);
+            p.CoffeeHealRemaining = Mathf.Max(0f, p.CoffeeHealRemaining - amount);
+
+            if (fraction >= 1f || p.CoffeeHealRemaining <= 0.0001f)
+            {
+                p.CoffeeHealRemaining = 0f;
+                p.CoffeeHealUntil = 0f;
+            }
         }
 
         /// <summary>

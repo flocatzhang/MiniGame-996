@@ -442,7 +442,7 @@ namespace OfficeHell.Config
         public int KpiCap = 99;
 
         public int KpiTargetKills = 500;
-        public int FinalSalary = 9996;
+        public int FinalSalary = 9999;
 
         public readonly string[] RankNames =
         {
@@ -452,13 +452,16 @@ namespace OfficeHell.Config
 
     public sealed class CoffeeDef
     {
-        public float ChancePct = 4f;
+        public float ChancePct = 3f;
 
         /// <summary>Doubled while sanity is low. The player never notices, the quit rate does.</summary>
-        public float LowSanChancePct = 8f;
+        public float LowSanChancePct = 6f;
 
         public float LowSanThresholdPct = 33f;
-        public float HealPctMaxSan = 12f;
+        public float InstantHealPctMaxSan = 8f;
+        public float HealOverTimePctMaxSan = 8f;
+        public float HealOverTimeSeconds = 4f;
+        public float WorldLifetimeSeconds = 30f;
         public float HasteAddPct = 15f;
         public float BuffSeconds = 4f;
         public string ViewId = "v_coffee";

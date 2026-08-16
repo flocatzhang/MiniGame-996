@@ -236,22 +236,23 @@ Unity.exe -batchmode -quit -nographics -projectPath <dir> -logFile selftest.log 
 菜单入口：`Office Hell/Run Headless Self Test`。当前输出：
 
 ```
-config: enemies 9, days 6, weapons 3, views 24, cards 16, issues 0
-stapler damage at atk 10: white 12.0, orange 25.2
-exp to reach CEO: 1103
-authored combat time 420s pays 9996
+config: enemies 9, days 6, weapons 3, views 25, cards 16, issues 0
+stapler damage at atk 10: green 12.0, orange 25.2
+exp to reach CEO: 1596
+authored combat time 420s pays 9999
 aura channels: same channel takes the max, different channels coexist
 clock projection monotonic and snapped to 30 minutes
 ring sampling area uniform, outer half ratio 0.503
-spawn band: closest point 8.62 units, side ratio 0.77 over 2400 points
-day 1 (周一) closed at 40.0s: kills 33, kpi 5%, weapons 2, armour 2, 高级专员 Lv.3
-day 2 (周二) closed at 90.0s: kills 115, kpi 17%, weapons 4, armour 2, 主管 Lv.4
-day 3 (周三) closed at 150.1s: kills 226, kpi 35%, weapons 6, armour 3, 经理 Lv.5
-day 4 (周四) closed at 220.0s: kills 379, kpi 59%, weapons 6, armour 3, 总监 Lv.7
-day 5 (周五) closed at 300.0s: kills 594, kpi 92%, weapons 6, armour 3, 高级总监 Lv.8
-day 6 (周六) closed at 420.0s: kills 681, kpi 99%, weapons 6, armour 3, CEO Lv.9
-first level up at 7.9s, last rank on day 6, kpi peaked at 99%
-run summary: 25605 frames, 6 days, peak alive 30, kills 681, cards 8, CEO Lv.9, hpScale 5.00, ended as Clear
+spawn band: closest point 8.69 units, side ratio 0.77 over 2400 points
+coffee: 3% drop, 8% immediate + 8% sustained, 30-second world lifetime
+day 1 (周一) closed at 40.0s: kills 45, kpi 4%, weapons 5, armour 0, 高级专员 Lv.3
+day 2 (周二) closed at 90.0s: kills 160, kpi 17%, weapons 6, armour 2, 主管 Lv.4
+day 3 (周三) closed at 150.1s: kills 314, kpi 34%, weapons 6, armour 3, 高级经理 Lv.6
+day 4 (周四) closed at 220.0s: kills 566, kpi 62%, weapons 6, armour 3, 总监 Lv.7
+day 5 (周五) closed at 300.0s: kills 885, kpi 97%, weapons 6, armour 3, 高级总监 Lv.8
+day 6 (周六) closed at 420.0s: kills 980, kpi 99%, weapons 6, armour 3, CEO Lv.9
+first level up at 7.2s, last rank on day 6, kpi peaked at 99%
+run summary: 25605 frames, 6 days, peak alive 36, kills 980, cards 8, CEO Lv.9 (0/574 exp), hpScale 5.00, ended as Clear
 contact damage: one weak mob 6.0, weak plus strong 12.0
 spawn grace: 0.5s inside 3.0 units
 BUG split: 1 death produced 2 children worth 0 exp
@@ -276,6 +277,7 @@ restart cleared entities, counters, stats, passives and equipment slots
 | 保底触发后计时器归零 | 连爆橙装 |
 | 自动装备补空位 / 换最差 / 折算经验 | 换成换第一格，橙装被白装顶掉 |
 | 三类武器各自产生效果 | 只有投射物真跑，另两类接口形状是猜的 |
+| 开局槽位 1–3 为绿色订书机、键盘、工牌 | 正式游戏与测试使用了不同初始装备 |
 | 破血条进下一阶段且 2 秒无敌 | 溢出伤害连破两条，三阶段塌成一阶段 |
 | 首次升级在 10 秒内 | 开局十几秒毫无反馈，试玩者直接退出 |
 | 最后一个职级落在最后一天 | 提前满级则末尾两天没有任何成长 |

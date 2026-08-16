@@ -350,7 +350,7 @@ namespace OfficeHell.View
 
             if (p.HasShield)
             {
-                _playerView.ShowRing(new Color(0.4f, 0.85f, 1f, 0.55f), p.Radius * 2.2f);
+                _playerView.ShowRing(WorldFxCatalog.CircleBlue, new Color(1f, 1f, 1f, 0.55f), p.Radius * 2.2f);
             }
             else
             {
@@ -358,7 +358,7 @@ namespace OfficeHell.View
             }
 
             _pickupRing.SetWorldPosition(p.Pos);
-            _pickupRing.ShowRing(new Color(1f, 1f, 1f, 0.12f), p.MagnetRadius);
+            _pickupRing.ShowRing(WorldFxCatalog.CircleBlue, new Color(1f, 1f, 1f, 0.12f), p.MagnetRadius);
         }
 
         void SyncEnemies()
@@ -438,11 +438,11 @@ namespace OfficeHell.View
 
                 if (now < e.TelegraphUntil)
                 {
-                    v.ShowRing(new Color(1f, 0.2f, 0.2f, 0.75f), e.Radius * 2.2f);
+                    v.ShowRing(WorldFxCatalog.CircleRed, new Color(1f, 1f, 1f, 0.75f), e.Radius * 2.2f);
                 }
                 else if (e.AuraRadius > 0f)
                 {
-                    v.ShowRing(AuraColor(e.AuraKind), e.AuraRadius);
+                    v.ShowRing(AuraSprite(e.AuraKind), new Color(1f, 1f, 1f, 0.32f), e.AuraRadius);
                 }
                 else
                 {
@@ -462,13 +462,13 @@ namespace OfficeHell.View
             return e.Def.Name + "  " + new string('|', e.BarsLeft) + "  " + Mathf.CeilToInt(e.Hp);
         }
 
-        static Color AuraColor(AuraChannel channel)
+        static Sprite AuraSprite(AuraChannel channel)
         {
             switch (channel)
             {
-                case AuraChannel.MoveSlow: return new Color(0.35f, 0.6f, 1f, 0.16f);
-                case AuraChannel.AttackSlow: return new Color(1f, 0.9f, 0.3f, 0.16f);
-                default: return new Color(1f, 0.35f, 0.35f, 0.16f);
+                case AuraChannel.MoveSlow: return WorldFxCatalog.CircleBlue;
+                case AuraChannel.AttackSlow: return WorldFxCatalog.CircleYellow;
+                default: return WorldFxCatalog.CircleRed;
             }
         }
 
@@ -498,7 +498,9 @@ namespace OfficeHell.View
                 ViewDef def = _ctx.Cfg.View(p.ViewId);
                 EntityView v = Bind(p.Id, KeyProjectile, 30, def);
                 Sprite icon = p.FromEnemy ? GameIconCatalog.EnemyProjectile : GameIconCatalog.FriendlyProjectile;
-                v.SetStaticSprite(icon, def.Scale);
+                // The authored paper ball and thumbtack are intentionally larger than the old
+                // primitive bullets. Their gameplay radius stays in ProjectileModel.
+                v.SetStaticSprite(icon, def.Scale * 2f);
                 v.SetWorldPosition(p.Pos + lift);
 
                 if (p.FromEnemy && icon != null)
@@ -544,7 +546,7 @@ namespace OfficeHell.View
                 Vector2 air = Vector2.Lerp(from, s.Target + Vector2.up * 1.2f, t);
                 v.SetWorldPosition(Vector2.Lerp(air, s.Target, t * t));
                 v.SetScaleMultiplier(Mathf.Lerp(0.7f, 1.15f, t));
-                v.ShowRing(new Color(1f, 0.85f, 0.4f, 0.35f + 0.3f * t), s.Radius);
+                v.ShowRing(WorldFxCatalog.CircleYellow, new Color(1f, 1f, 1f, 0.35f + 0.3f * t), s.Radius);
                 v.transform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-40f, 0f, t));
             }
         }
@@ -574,8 +576,25 @@ namespace OfficeHell.View
                 // "this is about to hurt you". The elite entrance ring deals no damage, so painting every
                 // telegraph red told the player to run from a landing that costs nothing.
                 Color ring = def != null ? def.Color : new Color(1f, 0.3f, 0.25f);
-                ring.a = 0.25f + 0.45f * t;
-                v.ShowRing(ring, w.Radius * Mathf.Lerp(0.6f, 1f, t));
+                Sprite ringSprite = TelegraphSprite(w.ViewId);
+                Color tint = ringSprite != null ? Color.white : ring;
+                tint.a = 0.25f + 0.45f * t;
+                v.ShowRing(ringSprite, tint, w.Radius * Mathf.Lerp(0.6f, 1f, t));
+            }
+        }
+
+        static Sprite TelegraphSprite(string viewId)
+        {
+            switch (viewId)
+            {
+                case "v_warn":
+                case "v_warn_elite":
+                    return WorldFxCatalog.CircleYellow;
+                case "v_warn_kpi":
+                    return WorldFxCatalog.CircleRed;
+                default:
+                    // The summon marker is purple and has no matching delivered Circle asset.
+                    return null;
             }
         }
 
@@ -604,11 +623,10 @@ namespace OfficeHell.View
 
                 EntityView v = Bind(id, KeyStain, 4, def);
                 v.SetWorldPosition(p.StainPos(i));
-                v.Body.enabled = false;
-
-                Color ring = def != null ? def.Color : new Color(0.42f, 0.27f, 0.16f);
-                ring.a = 0.42f * Mathf.Clamp01(left * 0.8f);
-                v.ShowRing(ring, 0.9f);
+                v.SetStaticSprite(WorldFxCatalog.CoffeeStain, 1.8f);
+                v.Body.enabled = true;
+                v.SetAlpha(0.42f * Mathf.Clamp01(left * 0.8f));
+                v.HideRing();
             }
         }
 
@@ -624,7 +642,9 @@ namespace OfficeHell.View
 
                 ViewDef def = _ctx.Cfg.View(c.ViewId);
                 EntityView v = Bind(c.Id, KeyOrbit, 32, def);
-                v.SetStaticSprite(GameIconCatalog.OrbitWeapon, def.Scale);
+                // Work cards are presentation only at this size; their contact radius remains the
+                // model's fixed HitRadius so making the art readable cannot silently buff damage.
+                v.SetStaticSprite(GameIconCatalog.OrbitWeapon, def.Scale * 2f);
                 v.SetWorldPosition(c.Pos + lift);
                 v.transform.localRotation = Quaternion.Euler(0f, 0f, Time.unscaledTime * 90f);
             }
@@ -654,7 +674,7 @@ namespace OfficeHell.View
             }
 
             _tether.SetWorldPosition(_ctx.Run.Player.Pos + new Vector2(0f, _bodyPlaneY));
-            _tether.ShowRing(new Color(1f, 0.68f, 0.2f, 0.5f), c.Radius);
+            _tether.ShowRing(WorldFxCatalog.CircleYellow, new Color(1f, 1f, 1f, 0.5f), c.Radius);
         }
 
         void HideTether()
@@ -688,7 +708,10 @@ namespace OfficeHell.View
 
                 if (icon != null)
                 {
-                    v.SetStaticSprite(icon, def.Scale);
+                    // Drops need to win against the office floor. Keyboard art is already broad, so
+                    // it uses the smaller multiplier while coffee and every other item use 3x.
+                    float iconScale = l.SourceDefId == "keyboard" ? 1.5f : 3f;
+                    v.SetStaticSprite(icon, def.Scale * iconScale);
                 }
                 else if (gear)
                 {

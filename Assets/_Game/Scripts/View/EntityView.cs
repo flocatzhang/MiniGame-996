@@ -326,18 +326,30 @@ namespace OfficeHell.View
 
         public void ShowRing(Color color, float radius)
         {
+            ShowRing(null, color, radius);
+        }
+
+        /// <summary>
+        /// Imported ground art is authored at UI pixel density rather than as a one-unit primitive.
+        /// Normalising by its width keeps the requested gameplay radius while retaining its authored
+        /// top-down ellipse instead of stretching it back into a perfect circle.
+        /// </summary>
+        public void ShowRing(Sprite sprite, Color color, float radius)
+        {
             if (_ring == null)
             {
                 GameObject go = new GameObject("Ring");
                 go.transform.SetParent(transform, false);
                 _ring = go.AddComponent<SpriteRenderer>();
-                _ring.sprite = PrimitiveFactory.Ring;
                 _ring.sortingOrder = Body.sortingOrder - 2;
             }
 
+            _ring.sprite = sprite != null ? sprite : PrimitiveFactory.Ring;
             _ring.enabled = true;
             _ring.color = color;
-            _ring.transform.localScale = Vector3.one * radius * 2f;
+            float sourceWidth = Mathf.Max(0.01f, _ring.sprite.bounds.size.x);
+            float scale = Mathf.Max(0f, radius) * 2f / sourceWidth;
+            _ring.transform.localScale = Vector3.one * scale;
         }
 
         public void HideRing()

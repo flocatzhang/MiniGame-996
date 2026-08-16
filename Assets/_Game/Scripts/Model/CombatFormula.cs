@@ -121,7 +121,7 @@ namespace OfficeHell.Model
         /// </summary>
         public static int Salary(float servedSeconds, float totalSeconds, ProgressionDef p)
         {
-            int full = p != null ? p.FinalSalary : 9996;
+            int full = p != null ? p.FinalSalary : 9999;
             if (totalSeconds <= 0f)
             {
                 return full;

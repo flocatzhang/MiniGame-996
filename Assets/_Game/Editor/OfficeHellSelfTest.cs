@@ -116,6 +116,7 @@ namespace OfficeHell.EditorTools
             }
 
             TestFormulas(report, cfg);
+            TestStartingLoadout(report, cfg);
             TestArtAssets(report, cfg);
             TestUiPrefabs(report, cfg);
             TestGameIcons(report);
@@ -129,6 +130,7 @@ namespace OfficeHell.EditorTools
             TestCardQualityTiers(report, cfg);
             TestArmorSlotEffects(report, cfg);
             TestSkillHealIsSilentAtFullSanity(report, cfg);
+            TestCoffeeTuning(report, cfg);
             TestFullRun(report, cfg);
             TestRestartLeavesNoResidue(report, cfg);
 
@@ -385,6 +387,77 @@ namespace OfficeHell.EditorTools
             h.Dispose();
         }
 
+        static void TestCoffeeTuning(Report report, ConfigManager cfg)
+        {
+            CoffeeDef coffee = cfg.Coffee;
+            report.Require(Mathf.Abs(coffee.ChancePct - 3f) < 0.001f &&
+                           Mathf.Abs(coffee.LowSanChancePct - 6f) < 0.001f,
+                "coffee drop chance should be 3%, doubled to 6% at low SAN");
+            report.Require(Mathf.Abs(coffee.InstantHealPctMaxSan - 8f) < 0.001f &&
+                           Mathf.Abs(coffee.HealOverTimePctMaxSan - 8f) < 0.001f &&
+                           Mathf.Abs(coffee.HealOverTimeSeconds - 4f) < 0.001f,
+                "one coffee should heal 8% immediately and 8% over four seconds");
+            report.Require(Mathf.Abs(coffee.WorldLifetimeSeconds - 30f) < 0.001f,
+                "coffee world lifetime should be 30 seconds");
+
+            Harness healing = Harness.Create(cfg);
+            healing.Driver.Flow.StartRun();
+            AdvanceToBattle(healing, report, "coffee healing");
+            healing.Player.San = 0f;
+            float maxSan = healing.Player.MaxSan;
+            LootModel cup = healing.Driver.Loot.SpawnCoffee(healing.Player.Pos);
+            healing.Driver.Loot.CollectNow(cup);
+
+            float instant = maxSan * 0.08f;
+            report.Require(Mathf.Abs(healing.Player.San - instant) < 0.001f,
+                "coffee immediate heal was " + healing.Player.San + " instead of " + instant);
+
+            int healingFrames = Mathf.CeilToInt(coffee.HealOverTimeSeconds / FixedDelta) + 2;
+            for (int i = 0; i < healingFrames; i++)
+            {
+                GameClock.Tick(FixedDelta);
+                healing.Driver.Loot.Tick(GameClock.Delta);
+            }
+
+            float fullCup = maxSan * 0.16f;
+            report.Require(Mathf.Abs(healing.Player.San - fullCup) < 0.01f,
+                "coffee total heal was " + healing.Player.San + " instead of " + fullCup);
+            report.Require(healing.Player.CoffeeHealRemaining <= 0.0001f,
+                "coffee continuous heal still had " + healing.Player.CoffeeHealRemaining + " pending");
+            healing.Dispose();
+
+            Harness expiry = Harness.Create(cfg);
+            expiry.Driver.Flow.StartRun();
+            AdvanceToBattle(expiry, report, "coffee expiry");
+            LootModel stale = expiry.Driver.Loot.SpawnCoffee(new Vector2(12f, 0f));
+            float expiresAt = stale.BornAt + coffee.WorldLifetimeSeconds;
+
+            while (GameClock.Now + FixedDelta < expiresAt)
+            {
+                GameClock.Tick(FixedDelta);
+                expiry.Driver.Loot.Tick(GameClock.Delta);
+            }
+
+            report.Require(!stale.IsDead, "coffee expired before its 30-second deadline");
+            GameClock.Tick(FixedDelta * 2f);
+            expiry.Driver.Loot.Tick(GameClock.Delta);
+            report.Require(stale.IsDead, "uncollected coffee survived beyond 30 seconds");
+
+            report.Line("coffee: 3% drop, 8% immediate + 8% sustained, 30-second world lifetime");
+            expiry.Dispose();
+        }
+
+        static void AdvanceToBattle(Harness h, Report report, string subject)
+        {
+            for (int i = 0; i < 120 && h.Driver.Flow.State != GameState.Battle; i++)
+            {
+                h.Step();
+            }
+
+            report.Require(h.Driver.Flow.State == GameState.Battle,
+                subject + " test could not leave the day-start pause");
+        }
+
         static void TestArtAssets(Report report, ConfigManager cfg)
         {
             report.Require(ArtCatalog.Map != null, "office map art is missing from Resources");
@@ -474,6 +547,12 @@ namespace OfficeHell.EditorTools
                                hud.SkillFill.type == Image.Type.Filled &&
                                hud.SkillFill.fillMethod == Image.FillMethod.Horizontal,
                     "UIHud slack skill is not an independently editable horizontal progress bar");
+                report.Require(hud.KpiFill.transform.parent != null &&
+                               hud.KpiFill.transform.parent.GetComponent<Image>() != null &&
+                               hud.KpiFill.type == Image.Type.Filled &&
+                               hud.KpiFill.fillMethod == Image.FillMethod.Horizontal &&
+                               hud.KpiFill.fillOrigin == (int)Image.OriginHorizontal.Left,
+                    "UIHud KPI is not a separate left-to-right horizontal progress bar");
                 report.Require(hud.WeaponSlots != null && hud.WeaponSlots.Length == PlayerModel.WeaponSlots &&
                                hud.ArmorSlots != null && hud.ArmorSlots.Length == PlayerModel.ArmorSlots,
                     "UIHud slot arrays do not match the 6 weapon / 3 armor model contract");
@@ -583,14 +662,72 @@ namespace OfficeHell.EditorTools
                            GameIconCatalog.Coffee != null && GameIconCatalog.Coffee.name == "Coffee",
                 "world projectile, orbit or coffee icon mapping is incomplete");
 
+            string[] worldFxNames = { "Circle_Blue", "Circle_Red", "Circle_Yellow", "CoffeeStains" };
+            for (int i = 0; i < worldFxNames.Length; i++)
+            {
+                string resourcePath = "Slice/" + worldFxNames[i];
+                Sprite sprite = Resources.Load<Sprite>(resourcePath);
+                report.Require(sprite != null, "world FX art is not loadable as a Sprite: " + resourcePath);
+
+                string assetPath = "Assets/_Game/UI/Resources/" + resourcePath + ".png";
+                TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+                report.Require(importer != null && importer.textureType == TextureImporterType.Sprite &&
+                               importer.spriteImportMode == SpriteImportMode.Single && importer.alphaIsTransparency &&
+                               !importer.mipmapEnabled && importer.npotScale == TextureImporterNPOTScale.None,
+                    "world FX importer does not preserve transparent single-Sprite art: " + assetPath);
+            }
+
+            report.Require(WorldFxCatalog.CircleBlue != null && WorldFxCatalog.CircleBlue.name == "Circle_Blue" &&
+                           WorldFxCatalog.CircleRed != null && WorldFxCatalog.CircleRed.name == "Circle_Red" &&
+                           WorldFxCatalog.CircleYellow != null && WorldFxCatalog.CircleYellow.name == "Circle_Yellow" &&
+                           WorldFxCatalog.CoffeeStain != null && WorldFxCatalog.CoffeeStain.name == "CoffeeStains",
+                "world aura or coffee-stain art mapping is incomplete");
+
             EntityView view = EntityView.Create("GameIconSelfTest", 0);
             view.Bind(ConfigManager.FallbackView, ViewShape.Quad, true);
             view.SetStaticSprite(GameIconCatalog.FriendlyProjectile, 0.4f);
             report.Require(view.Body.sprite == GameIconCatalog.FriendlyProjectile &&
                            ColorDistance(view.Body.color, Color.white) < 0.01f,
                 "world item icon is missing or receives a color tint");
+            view.ShowRing(WorldFxCatalog.CircleRed, Color.white, 2f);
+            Transform ringTransform = view.transform.Find("Ring");
+            SpriteRenderer ringRenderer = ringTransform != null ? ringTransform.GetComponent<SpriteRenderer>() : null;
+            float ringWidth = ringRenderer != null
+                ? ringRenderer.sprite.bounds.size.x * ringTransform.localScale.x
+                : 0f;
+            report.Require(ringRenderer != null && ringRenderer.sprite == WorldFxCatalog.CircleRed &&
+                           Mathf.Abs(ringWidth - 4f) < 0.01f,
+                "imported aura art does not preserve the requested world radius");
+            view.SetStaticSprite(WorldFxCatalog.CoffeeStain, 1.8f);
+            report.Require(view.Body.sprite == WorldFxCatalog.CoffeeStain,
+                "coffee-stain floor art cannot be assigned to a pooled world view");
+
+            Color greenLoot = new Color(0.44f, 0.72f, 0.42f, 1f);
+            view.ShowLootBeam(Quality.Green, greenLoot, 1f, 17);
+            Transform lootBeam = view.transform.Find("LootBeamFx");
+            SpriteRenderer greenCore = lootBeam != null
+                ? lootBeam.Find("CoreBeam").GetComponent<SpriteRenderer>()
+                : null;
+            SpriteRenderer greenGlow = lootBeam != null
+                ? lootBeam.Find("GroundGlow").GetComponent<SpriteRenderer>()
+                : null;
+            ParticleSystem greenSparks = lootBeam != null
+                ? lootBeam.Find("Sparks").GetComponent<ParticleSystem>()
+                : null;
+            float greenHeight = greenCore != null ? greenCore.transform.localScale.y : 0f;
+            float greenAlpha = greenCore != null ? greenCore.color.a : 0f;
+            report.Require(greenCore != null && greenGlow != null && greenSparks != null &&
+                           greenHeight >= 1.3f && greenAlpha >= 0.16f && greenGlow.color.a >= 0.1f &&
+                           greenSparks.main.maxParticles >= 10,
+                "green equipment loot does not retain a visible beam, ground glow and particle profile");
+
+            view.ShowLootBeam(Quality.Blue, new Color(0.29f, 0.61f, 1f, 1f), 1.1f, 17);
+            float blueHeight = greenCore != null ? greenCore.transform.localScale.y : 0f;
+            float blueAlpha = greenCore != null ? greenCore.color.a : 0f;
+            report.Require(greenHeight < blueHeight && greenAlpha < blueAlpha,
+                "green loot beam no longer stays visually below the blue quality tier");
             Object.DestroyImmediate(view.gameObject);
-            report.Line("game icons: card, HUD, projectiles, orbit, coffee and equipment loot mappings verified");
+            report.Line("game icons and world FX: auras, stains, cards, HUD, projectiles and loot mappings verified");
         }
 
         static void TestUiControllerBindings(Report report, ConfigManager cfg)
@@ -704,8 +841,8 @@ namespace OfficeHell.EditorTools
             UIHudController hudController = new UIHudController(context, hud);
             hudController.UIInit(hud.RectTransform);
             hudController.UIOpen();
-            Color emptyWeaponSlotColor = hud.WeaponSlots[1].Background.color;
-            game.Run.Player.Equip(0, cfg.Weapon("stapler"), Quality.Blue);
+            Color emptyWeaponSlotColor = hud.WeaponSlots[3].Background.color;
+            StartingLoadout.Equip(game.Run.Player, cfg);
             ArmorRuntime testArmor = game.Run.Player.Armors[0];
             testArmor.DefId = "headphone";
             testArmor.Def = cfg.Armor("headphone");
@@ -717,18 +854,42 @@ namespace OfficeHell.EditorTools
                 "battle HUD did not preserve the Monday 09:00 weekly-work semantics");
             report.Require(hud.CoinText.text == "0" && hud.KillText.text == "0",
                 "battle HUD initial salary or kill counter is not zero");
+            game.Run.Kills = cfg.Progression.KpiTargetKills / 2;
+            hudController.UITick(0f);
+            int expectedKpi = game.Run.Kpi(cfg.Progression);
+            report.Require(hud.KpiFill.sprite != null &&
+                           hud.KpiFill.type == Image.Type.Filled &&
+                           hud.KpiFill.fillMethod == Image.FillMethod.Horizontal &&
+                           hud.KpiFill.fillOrigin == (int)Image.OriginHorizontal.Left &&
+                           Mathf.Abs(hud.KpiFill.fillAmount - expectedKpi / 100f) < 0.001f &&
+                           hud.KpiText.text.Contains(expectedKpi + "%"),
+                "battle HUD KPI did not render its current percentage as a visible horizontal fill");
+            game.Run.Kills = 0;
+            hudController.UITick(0f);
             report.Require(hud.WeaponSlots.Length == 6 && hud.ArmorSlots.Length == 3,
                 "battle HUD does not retain 6 weapon slots and 3 armor slots at runtime");
             report.Require(hud.WeaponSlots[0].Icon.enabled &&
                            hud.WeaponSlots[0].Icon.sprite == GameIconCatalog.Item("stapler") &&
+                           hud.WeaponSlots[1].Icon.enabled &&
+                           hud.WeaponSlots[1].Icon.sprite == GameIconCatalog.Item("keyboard") &&
+                           hud.WeaponSlots[2].Icon.enabled &&
+                           hud.WeaponSlots[2].Icon.sprite == GameIconCatalog.Item("badge") &&
                            ColorDistance(hud.WeaponSlots[0].Icon.color, Color.white) < 0.01f,
-                "battle HUD weapon slot did not display the untinted stapler icon");
-            report.Require(ColorDistance(hud.WeaponSlots[0].Background.color,
-                                         cfg.QualityOf(Quality.Blue).Color) < 0.01f &&
-                           ColorDistance(hud.WeaponSlots[1].Background.color, emptyWeaponSlotColor) < 0.01f &&
+                "battle HUD did not display the three untinted starting weapon icons");
+            Color starterGreen = cfg.QualityOf(Quality.Green).Color;
+            report.Require(ColorDistance(hud.WeaponSlots[0].Background.color, starterGreen) < 0.01f &&
+                           ColorDistance(hud.WeaponSlots[1].Background.color, starterGreen) < 0.01f &&
+                           ColorDistance(hud.WeaponSlots[2].Background.color, starterGreen) < 0.01f &&
+                           ColorDistance(hud.WeaponSlots[3].Background.color, emptyWeaponSlotColor) < 0.01f &&
                            hud.WeaponSlots[0].CooldownFill.transform.GetSiblingIndex() <
                            hud.WeaponSlots[0].Icon.transform.GetSiblingIndex(),
-                "battle HUD weapon slot did not use its equipped quality tint, preserve its empty tint, or expose its icon");
+                "battle HUD did not show three green starting slots followed by an empty slot");
+
+            game.Run.Player.Weapons[0].Quality = Quality.Blue;
+            hudController.UITick(0f);
+            report.Require(ColorDistance(hud.WeaponSlots[0].Background.color,
+                                         cfg.QualityOf(Quality.Blue).Color) < 0.01f,
+                "battle HUD weapon slot did not update after a quality change");
             Quality[] slotQualities = { Quality.Green, Quality.Blue, Quality.Purple, Quality.Orange };
             for (int i = 0; i < slotQualities.Length; i++)
             {
@@ -1067,7 +1228,7 @@ namespace OfficeHell.EditorTools
             ProgressionDef prog = cfg.Progression;
 
             WeaponDef stapler = cfg.Weapon("stapler");
-            report.Require(stapler != null, "weapon 'stapler' is missing, it is the starting weapon");
+            report.Require(stapler != null, "weapon 'stapler' is missing, it is one of the starting weapons");
             if (stapler == null)
             {
                 return;
@@ -1117,6 +1278,8 @@ namespace OfficeHell.EditorTools
             report.Require(CombatFormula.KpiPercent(0, prog) == 0, "KPI at zero kills should be 0");
 
             float total = cfg.TotalCombatSeconds;
+            report.Require(prog.FinalSalary == 9999,
+                "the authored full-run salary should be 9999, got " + prog.FinalSalary);
             report.Require(CombatFormula.Salary(total, total, prog) == prog.FinalSalary,
                 "a full run should pay exactly " + prog.FinalSalary);
             report.Require(CombatFormula.Salary(total * 0.5f, total, prog) < prog.FinalSalary,
@@ -1139,6 +1302,35 @@ namespace OfficeHell.EditorTools
                 "RemoveBySource did not restore the base value");
 
             TestAuraChannelsDoNotStack(report, cfg);
+        }
+
+        static void TestStartingLoadout(Report report, ConfigManager cfg)
+        {
+            PlayerModel player = new PlayerModel();
+            player.ResetFrom(cfg.Player, cfg.Progression);
+
+            int equipped = StartingLoadout.Equip(player, cfg);
+            report.Require(equipped == StartingLoadout.WeaponCount &&
+                           player.EquippedCount() == StartingLoadout.WeaponCount,
+                "starting loadout should equip exactly three weapons, equipped " + equipped);
+
+            for (int slot = 0; slot < StartingLoadout.WeaponCount; slot++)
+            {
+                WeaponRuntime weapon = player.Weapons[slot];
+                report.Require(!weapon.IsEmpty &&
+                               weapon.DefId == StartingLoadout.WeaponId(slot) &&
+                               weapon.Quality == Quality.Green,
+                    "starting weapon slot " + slot + " should contain green " +
+                    StartingLoadout.WeaponId(slot));
+            }
+
+            for (int slot = StartingLoadout.WeaponCount; slot < PlayerModel.WeaponSlots; slot++)
+            {
+                report.Require(player.Weapons[slot].IsEmpty,
+                    "starting loadout unexpectedly occupied weapon slot " + slot);
+            }
+
+            report.Line("starting loadout: green stapler, keyboard and work card in slots 1-3");
         }
 
         /// <summary>
@@ -1291,7 +1483,7 @@ namespace OfficeHell.EditorTools
             Random.InitState(996);
             Harness h = Harness.Create(cfg);
             h.Driver.Flow.StartRun();
-            h.EquipStarter();
+            h.EquipStartingLoadout();
             h.Player.GodMode = true;
 
             // The whole week, not a sample of it. The pacing claims in the design sheet are about where
@@ -1405,7 +1597,8 @@ namespace OfficeHell.EditorTools
             // make the result screen advertise a rank nobody can reach.
             report.Require(h.Player.Level >= cfg.Progression.MaxLevel,
                 "the run finished at Lv." + h.Player.Level + " of " + cfg.Progression.MaxLevel +
-                ", the last rank is unreachable with the exp the six days hand out");
+                " with " + h.Player.Exp + "/" + h.Player.ExpToNext +
+                " exp, the last rank is unreachable with the exp the six days hand out");
             report.Require(maxRankDay >= targetDays - 1,
                 "reached the last rank on day " + maxRankDay + ", too early: the remaining days would " +
                 "have no level ups left to give");
@@ -1420,10 +1613,11 @@ namespace OfficeHell.EditorTools
                 firstLevelUpSecond, maxRankDay, peakKpi));
 
             report.Line(string.Format(
-                "run summary: {0} frames, {1} days, peak alive {2}, kills {3}, cards {4}, {5} Lv.{6}, " +
-                "hpScale {7:0.00}, ended as {8}",
+                "run summary: {0} frames, {1} days, peak alive {2}, kills {3}, cards {4}, {5} Lv.{6} " +
+                "({7}/{8} exp), hpScale {9:0.00}, ended as {10}",
                 frames, h.Run.DayIndex, peakEnemies, h.Run.Kills, cardsPicked,
-                cfg.RankOf(h.Player.Level), h.Player.Level, h.Run.HpScale, h.Run.Ending));
+                cfg.RankOf(h.Player.Level), h.Player.Level, h.Player.Exp, h.Player.ExpToNext,
+                h.Run.HpScale, h.Run.Ending));
 
             h.Dispose();
 
@@ -1688,8 +1882,17 @@ namespace OfficeHell.EditorTools
             report.Require(sawLauncher && sawGround && sawOrbit,
                 "Weapons.xml does not cover all three behaviour kinds");
 
+            WeaponDef keyboard = cfg.Weapon("keyboard");
+            report.Require(keyboard != null &&
+                           Mathf.Abs(keyboard.Tier(Quality.Green).BlastRadius - 1.125f) < 0.001f &&
+                           Mathf.Abs(keyboard.Tier(Quality.Blue).BlastRadius - 1.5f) < 0.001f &&
+                           Mathf.Abs(keyboard.Tier(Quality.Purple).BlastRadius - 1.5f) < 0.001f &&
+                           Mathf.Abs(keyboard.Tier(Quality.Orange).BlastRadius - 1.8f) < 0.001f &&
+                           Mathf.Abs(keyboard.Tier(Quality.Orange).SelectAllRadius - 4.5f) < 0.001f,
+                "keyboard landing radii should remain at 75 percent of their original values");
+
             EnemyDef weak = cfg.Enemy("mail");
-            if (weak == null)
+            if (weak == null || keyboard == null)
             {
                 return;
             }
@@ -1708,7 +1911,6 @@ namespace OfficeHell.EditorTools
             // the readable part of the weapon, so its absence is a failure and not a detail.
             Harness ground = Harness.Create(cfg);
             ground.Driver.Flow.StartRun();
-            WeaponDef keyboard = cfg.Weapon("keyboard");
             ground.Player.Equip(0, keyboard, Quality.Green);
             EnemyModel target = ground.Driver.Spawn.Spawn(weak, ground.Player.Pos + new Vector2(1f, 0f), null);
             ground.Driver.ForceRebuildGrid();
@@ -1752,6 +1954,8 @@ namespace OfficeHell.EditorTools
             }
 
             report.Require(ringed.Hp < ringedHp || ringed.IsDead, "an orbiting card never hit an enemy on its ring");
+            report.Require(ringed.Knockback.sqrMagnitude > 0.0001f,
+                "work cards no longer apply their authored knockback after a hit");
             orbit.Dispose();
 
             report.Line("all three weapon kinds produced their effect");
@@ -1833,7 +2037,7 @@ namespace OfficeHell.EditorTools
         {
             Harness h = Harness.Create(cfg);
             h.Driver.Flow.StartRun();
-            h.EquipStarter();
+            h.EquipStartingLoadout();
             h.Player.GodMode = true;
 
             // Day one is 40 seconds. Running past its end would clear the arena and the residue check
@@ -1923,13 +2127,9 @@ namespace OfficeHell.EditorTools
                 return h;
             }
 
-            public void EquipStarter()
+            public void EquipStartingLoadout()
             {
-                WeaponDef def = Ctx.Cfg.Weapon("stapler");
-                if (def != null)
-                {
-                    Player.Equip(0, def, Quality.Green);
-                }
+                StartingLoadout.Equip(Player, Ctx.Cfg);
             }
 
             /// <summary>

@@ -38,22 +38,21 @@
   -->
   <Weapon id="keyboard" name="键盘" type="GroundAoe"
           baseDamage="14" atkCoef="0.9" rate="0.65" windup="0.35" viewId="v_slam">
-    <Tier q="green"  lockRange="3.0" blastRadius="1.5" slams="1" knockback="0.8" />
+    <Tier q="green"  lockRange="3.0" blastRadius="1.125" slams="1" knockback="0.8" />
     <!--
       slowSeconds has to stay under the 1.54s attack interval. At the 1.5s it used to be hard coded
       at, the next strike renewed the slow before it lapsed and every enemy in range of a keyboard
       was slowed permanently. 0.8 leaves half the cycle at full speed, which is what makes the slow
       readable as something that happened rather than as the enemy's real speed.
     -->
-    <Tier q="blue"   blastRadius="2.0" slowPct="25" slowSeconds="0.8" />
+    <Tier q="blue"   blastRadius="1.5" slowPct="25" slowSeconds="0.8" />
     <Tier q="purple" lockRange="3.6" slams="2" secondSlamPct="60" />
     <!--
       Ctrl+A. Every fifth strike abandons the locked target, centres on the player and sweeps
       selectAllRadius, at half a normal strike and carrying neither the knockback nor the slow.
 
-      6.0 against a camera half extent of 9.78 x 5.5. That is deliberately taller than the screen and
-      well short of its width: the sweep clears everything closing in and leaves the left and right
-      edges alive, so it reads as a big attack with an outside rather than as the screen resetting.
+      4.5 against a camera half extent of 9.78 x 5.5. It remains the largest keyboard landing while
+      leaving a clear outside rim, and keeps the revised radii at 75 percent of their original size.
       It used to bill every enemy alive with no radius at all, which left the other five slots with
       nothing to shoot every fifth attack.
 
@@ -64,8 +63,8 @@
       two seconds, which is what this exists for. A blocked slot holds its sweep for the next strike
       rather than forfeiting it, so the cost of the cooldown is delay and never a lost sweep.
     -->
-    <Tier q="orange" blastRadius="2.4" selectAllEvery="5" selectAllPct="50"
-          selectAllRadius="6.0" selectAllSharedCd="4" knockback="1.2" />
+    <Tier q="orange" blastRadius="1.8" selectAllEvery="5" selectAllPct="50"
+          selectAllRadius="4.5" selectAllSharedCd="4" knockback="1.2" />
   </Weapon>
 
   <!--

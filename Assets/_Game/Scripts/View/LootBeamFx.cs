@@ -226,24 +226,33 @@ namespace OfficeHell.View
                     break;
 
                 default:
-                    _height = 0.95f;
-                    _width = 0.20f;
-                    _alpha = 0.12f;
-                    _pulse = 0.025f;
-                    _ringRadius = 0.24f;
-                    _ringAlpha = 0.06f;
-                    _ringDuration = 0.58f;
-                    _initialBurstCount = 2;
-                    particleRate = 2f;
-                    maxParticles = 4;
-                    particleSizeMin = 0.018f;
-                    particleSizeMax = 0.035f;
-                    particleSpeedMin = 0.25f;
-                    particleSpeedMax = 0.55f;
-                    particleLifetimeMin = 0.65f;
-                    particleLifetimeMax = 1.05f;
+                    // Green still needs to read as loot at combat distance. It remains shorter,
+                    // dimmer and less populated than blue, but no longer disappears into the floor.
+                    _height = 1.35f;
+                    _width = 0.26f;
+                    _alpha = 0.24f;
+                    _pulse = 0.04f;
+                    _ringRadius = 0.30f;
+                    _ringAlpha = 0.13f;
+                    _ringDuration = 0.64f;
+                    _initialBurstCount = 4;
+                    particleRate = 6f;
+                    maxParticles = 10;
+                    particleSizeMin = 0.022f;
+                    particleSizeMax = 0.048f;
+                    particleSpeedMin = 0.35f;
+                    particleSpeedMax = 0.85f;
+                    particleLifetimeMin = 0.8f;
+                    particleLifetimeMax = 1.3f;
                     break;
             }
+
+            // The item icons are larger now, so the supporting effect receives a restrained lift in
+            // brightness and particle density without changing the quality hierarchy.
+            _alpha = Mathf.Min(1f, _alpha * 1.1f);
+            _ringAlpha = Mathf.Min(1f, _ringAlpha * 1.1f);
+            particleRate *= 1.15f;
+            _initialBurstCount += 1;
 
             Color bright = Color.Lerp(color, Color.white, quality == Quality.Orange ? 0.42f : 0.22f);
             _brightColor = bright;

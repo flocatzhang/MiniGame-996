@@ -19,7 +19,8 @@
 
     The four hues are the ladder every other looter already taught the player, which is the whole reason
     to use them: the tier has to be legible from a beam colour at the edge of the screen, with no label
-    and no time to read one. Green is muted on purpose so it never competes with the healing text.
+    and no time to read one. Green keeps a short visible beam so it still reads as loot, while staying
+    muted enough that it never competes with the healing text or the higher-tier drop celebrations.
   -->
   <Quality id="green" weight="62" affixCount="0" color="#6FB86B"
            beam="soft" hitStop="0" shake="0" label="false" autoMagnet="true"
