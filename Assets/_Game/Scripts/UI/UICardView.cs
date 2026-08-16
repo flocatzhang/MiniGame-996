@@ -22,6 +22,11 @@ namespace OfficeHell.UI
 
         public Button Button;
         public Image Frame;
+        [Header("Quality Frames")]
+        public Sprite GreenFrameSprite;
+        public Sprite BlueFrameSprite;
+        public Sprite PurpleFrameSprite;
+        public Sprite OrangeFrameSprite;
         public Outline Border;
         public Image Accent;
         public Image Footer;

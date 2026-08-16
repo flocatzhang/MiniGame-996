@@ -106,6 +106,34 @@ namespace OfficeHell.View
         }
 
         /// <summary>
+        /// Item art is centred instead of foot anchored. Sizing by its longest edge preserves the
+        /// authored aspect ratio while keeping the old ViewDef scale as the gameplay silhouette.
+        /// </summary>
+        public void SetStaticSprite(Sprite sprite, float worldSize)
+        {
+            if (sprite == null)
+            {
+                return;
+            }
+
+            _animationFrames = null;
+            Body.sprite = sprite;
+            _baseColor = Color.white;
+            _hitColor = HitColorFor(_baseColor);
+
+            Vector2 source = sprite.bounds.size;
+            float longestEdge = Mathf.Max(0.01f, Mathf.Max(source.x, source.y));
+            float size = Mathf.Max(0.01f, worldSize);
+            _baseScale = size / longestEdge;
+            _baseBodyY = 0f;
+            _visualTop = size * 0.5f;
+            _decorationGap = 0.18f;
+            Body.flipX = false;
+            ApplyBodyColor();
+            ApplyBodyTransform();
+        }
+
+        /// <summary>
         /// Height of the drawn body above the entity origin, for anything that wants to sit over an
         /// entity's head. Character art is anchored at the feet while a primitive is centred on the
         /// origin, so no caller can assume one or the other. Mirrors what Bind does for _visualTop

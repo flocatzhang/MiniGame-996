@@ -14,7 +14,7 @@ namespace OfficeHell.UI
         public const string CardPanelPath = "Prefabs/UICardPanel";
         public const string CardItemPath = "Prefabs/UICardItem";
         public const string ResultPath = "Prefabs/UIResult";
-        public const string CardIconRoot = "Icons/Cards/";
+        public const string CardIconRoot = "Icon/card/";
 
         public static T InstantiateRequired<T>(string path, Transform parent) where T : Component
         {
@@ -36,7 +36,7 @@ namespace OfficeHell.UI
                 return null;
             }
 
-            return Resources.Load<Sprite>(CardIconRoot + key);
+            return GameIconCatalog.Item(key);
         }
 
         public static void ApplyRuntimeFont(Transform root)

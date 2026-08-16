@@ -12,6 +12,7 @@ namespace OfficeHell.EditorTools
         const string UiRoot = "Assets/_Game/UI";
         const string ArtFolder = UiRoot + "/Art";
         const string ResourcesFolder = UiRoot + "/Resources";
+        const string SliceFolder = ResourcesFolder + "/Slice";
         const string PrefabFolder = ResourcesFolder + "/Prefabs";
         const string MainArtPath = ArtFolder + "/MainMenuBackgroundNoButton.png";
         const string MainMenuPrefabPath = PrefabFolder + "/UIMainMenu.prefab";
@@ -20,6 +21,10 @@ namespace OfficeHell.EditorTools
         const string CardPanelPrefabPath = PrefabFolder + "/UICardPanel.prefab";
         const string CardItemPrefabPath = PrefabFolder + "/UICardItem.prefab";
         const string ResultPrefabPath = PrefabFolder + "/UIResult.prefab";
+        const string GreenCardFramePath = SliceFolder + "/3green.png";
+        const string BlueCardFramePath = SliceFolder + "/3blue.png";
+        const string PurpleCardFramePath = SliceFolder + "/3purple.png";
+        const string OrangeCardFramePath = SliceFolder + "/3orange.png";
 
         static readonly Color Ink = new Color(0.08f, 0.09f, 0.14f, 1f);
         static readonly Color Paper = new Color(0.96f, 0.94f, 0.9f, 1f);
@@ -70,6 +75,9 @@ namespace OfficeHell.EditorTools
                 Require(slot != null && slot.Background != null && slot.CooldownFill != null &&
                         slot.Icon != null && slot.Label != null,
                     "UIHud weapon slot " + i + " has incomplete references.");
+                Require(slot.CooldownFill.transform.GetSiblingIndex() < slot.Icon.transform.GetSiblingIndex() &&
+                        slot.Icon.transform.GetSiblingIndex() < slot.Label.transform.GetSiblingIndex(),
+                    "UIHud weapon slot " + i + " must render in Cooldown -> Icon -> Label order.");
             }
             for (int i = 0; i < hud.ArmorSlots.Length; i++)
             {
@@ -89,8 +97,15 @@ namespace OfficeHell.EditorTools
                     card.IconPlate != null && card.Icon != null && card.IconFallback != null && card.Kind != null &&
                     card.Title != null && card.Primary != null && card.Description != null && card.FooterText != null &&
                     card.KeyHint != null && card.RecommendBadge != null && card.NewBadge != null &&
+                    card.GreenFrameSprite != null && card.BlueFrameSprite != null &&
+                    card.PurpleFrameSprite != null && card.OrangeFrameSprite != null &&
                     card.DesignAccents != null && card.DesignAccents.Length == 16,
                 "UICardItem serialized references are incomplete.");
+            Require(AssetDatabase.GetAssetPath(card.GreenFrameSprite) == GreenCardFramePath &&
+                    AssetDatabase.GetAssetPath(card.BlueFrameSprite) == BlueCardFramePath &&
+                    AssetDatabase.GetAssetPath(card.PurpleFrameSprite) == PurpleCardFramePath &&
+                    AssetDatabase.GetAssetPath(card.OrangeFrameSprite) == OrangeCardFramePath,
+                "UICardItem quality-frame sprites are not mapped to the four authored Slice assets.");
 
             UICardPanelView panel = Required<UICardPanelView>(CardPanelPrefabPath);
             Require(panel.Dimmer != null && panel.Title != null && panel.CardContainer != null && panel.CardPrefab != null,
@@ -334,16 +349,18 @@ namespace OfficeHell.EditorTools
                 slotOutline.effectColor = new Color(0.52f, 0.66f, 0.82f, 0.9f);
                 slotOutline.effectDistance = new Vector2(3f, -3f);
 
-                Image icon = Image("Icon", background.transform, new Color(0.18f, 0.22f, 0.29f, 1f));
-                SetTop(icon.rectTransform, new Vector2(16f, -10f), new Vector2(80f, 56f), new Vector2(0f, 1f));
-                icon.raycastTarget = false;
-                Image cooldown = Image("Cooldown", background.transform, new Color(0.1f, 0.65f, 0.95f, 0.42f));
+                // A neutral underlay preserves the equipped weapon's green/blue/purple/orange slot tint.
+                Image cooldown = Image("Cooldown", background.transform, new Color(0f, 0f, 0f, 0.28f));
                 Stretch(cooldown.rectTransform, 0f, 0f, 0f, 0f);
                 cooldown.type = UnityEngine.UI.Image.Type.Filled;
                 cooldown.fillMethod = UnityEngine.UI.Image.FillMethod.Vertical;
                 cooldown.fillOrigin = (int)UnityEngine.UI.Image.OriginVertical.Bottom;
                 cooldown.fillAmount = 0f;
                 cooldown.raycastTarget = false;
+
+                Image icon = Image("Icon", background.transform, new Color(0.18f, 0.22f, 0.29f, 1f));
+                SetTop(icon.rectTransform, new Vector2(16f, -10f), new Vector2(80f, 56f), new Vector2(0f, 1f));
+                icon.raycastTarget = false;
                 Text label = Label("Label", background.transform, "空", 16, Color.white, TextAnchor.MiddleCenter);
                 SetBottomStretch(label.rectTransform, 3f, 25f, 4f);
                 label.fontStyle = FontStyle.Bold;
@@ -509,7 +526,14 @@ namespace OfficeHell.EditorTools
             rect.sizeDelta = new Vector2(350f, 520f);
 
             Image frame = root.AddComponent<Image>();
-            frame.color = Paper;
+            Sprite greenFrame = AssetDatabase.LoadAssetAtPath<Sprite>(GreenCardFramePath);
+            Sprite blueFrame = AssetDatabase.LoadAssetAtPath<Sprite>(BlueCardFramePath);
+            Sprite purpleFrame = AssetDatabase.LoadAssetAtPath<Sprite>(PurpleCardFramePath);
+            Sprite orangeFrame = AssetDatabase.LoadAssetAtPath<Sprite>(OrangeCardFramePath);
+            Require(greenFrame != null && blueFrame != null && purpleFrame != null && orangeFrame != null,
+                "UICardItem quality-frame Slice assets are missing.");
+            frame.sprite = greenFrame;
+            frame.color = Color.white;
             frame.raycastTarget = true;
             Outline outline = root.AddComponent<Outline>();
             outline.effectColor = new Color(0.03f, 0.04f, 0.07f, 0.94f);
@@ -578,6 +602,10 @@ namespace OfficeHell.EditorTools
             UICardView view = root.AddComponent<UICardView>();
             view.Button = button;
             view.Frame = frame;
+            view.GreenFrameSprite = greenFrame;
+            view.BlueFrameSprite = blueFrame;
+            view.PurpleFrameSprite = purpleFrame;
+            view.OrangeFrameSprite = orangeFrame;
             view.Border = outline;
             view.Accent = accent;
             view.Footer = footer;

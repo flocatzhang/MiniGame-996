@@ -84,6 +84,27 @@ namespace OfficeHell.UI
 
         static int RecommendedEquipmentIndex(List<CardOffer> offers, int count)
         {
+            if (count <= 0)
+            {
+                return -1;
+            }
+
+            Quality sharedQuality = offers[0].Quality;
+            bool allSameQuality = true;
+            for (int i = 1; i < count; i++)
+            {
+                if (offers[i].Quality != sharedQuality)
+                {
+                    allSameQuality = false;
+                    break;
+                }
+            }
+
+            if (allSameQuality)
+            {
+                return -1;
+            }
+
             int recommendedIndex = -1;
             int highestQuality = -1;
 
@@ -112,14 +133,13 @@ namespace OfficeHell.UI
             card.FooterText.text = Footer(offer);
             card.KeyHint.text = "按 " + (index + 1);
 
-            // Two channels carrying two different facts. Identity says which card this is and stays
-            // put across tiers so ATK is always the same red; quality rides the border and the footer,
-            // which is the only pair a player can compare across three cards without reading them.
+            // Identity stays on the authored accents while quality selects one of the four card-frame
+            // sprites. Keeping the frame white preserves the delivered artwork instead of tinting it.
             Color identity = Identity(card, offer);
             Color quality = _ctx.Game.Cfg.QualityOf(offer.Quality).Color;
 
-            float bodyTint = offer.Kind == CardKind.Equipment ? 0.22f : 0.14f;
-            card.Frame.color = Color.Lerp(new Color(0.97f, 0.95f, 0.91f, 1f), identity, bodyTint);
+            card.Frame.sprite = QualityFrame(card, offer.Quality);
+            card.Frame.color = Color.white;
             if (card.Border != null)
             {
                 card.Border.effectColor = quality;
@@ -205,9 +225,20 @@ namespace OfficeHell.UI
         {
             switch (offer.Kind)
             {
-                case CardKind.Stat: return QualityName(offer.Quality) + "品质 · 基础成长";
-                case CardKind.Skill: return QualityName(offer.Quality) + "品质 · 强化摸鱼";
-                default: return QualityName(offer.Quality) + "品质 · 高效输出";
+                case CardKind.Stat: return "基础成长";
+                case CardKind.Skill: return "强化摸鱼";
+                default: return "高效输出";
+            }
+        }
+
+        static Sprite QualityFrame(UICardView card, Quality quality)
+        {
+            switch (quality)
+            {
+                case Quality.Blue: return card.BlueFrameSprite;
+                case Quality.Purple: return card.PurpleFrameSprite;
+                case Quality.Orange: return card.OrangeFrameSprite;
+                default: return card.GreenFrameSprite;
             }
         }
 

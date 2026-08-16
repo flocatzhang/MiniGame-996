@@ -118,6 +118,7 @@ namespace OfficeHell.EditorTools
             TestFormulas(report, cfg);
             TestArtAssets(report, cfg);
             TestUiPrefabs(report, cfg);
+            TestGameIcons(report);
             TestUiControllerBindings(report, cfg);
             TestResultPresentation(report, cfg);
             TestAudioAssets(report, cfg);
@@ -266,6 +267,10 @@ namespace OfficeHell.EditorTools
                 h.Dispose();
                 return;
             }
+
+            // Duplicate orange drops can convert to enough experience to open a level-up pause. The
+            // armor timer is the subject of this test, so an unrelated pending hand must not freeze it.
+            h.Player.PendingLevelUps = 0;
 
             // Headphone: the shield has to lapse, or the purple tier's control immunity is permanent.
             h.Player.NextShieldAt = GameClock.Now;
@@ -472,6 +477,18 @@ namespace OfficeHell.EditorTools
                 report.Require(hud.WeaponSlots != null && hud.WeaponSlots.Length == PlayerModel.WeaponSlots &&
                                hud.ArmorSlots != null && hud.ArmorSlots.Length == PlayerModel.ArmorSlots,
                     "UIHud slot arrays do not match the 6 weapon / 3 armor model contract");
+                if (hud.WeaponSlots != null)
+                {
+                    for (int i = 0; i < hud.WeaponSlots.Length; i++)
+                    {
+                        UIHudView.WeaponSlotReferences slot = hud.WeaponSlots[i];
+                        report.Require(slot != null && slot.CooldownFill != null && slot.Icon != null &&
+                                       slot.Label != null &&
+                                       slot.CooldownFill.transform.GetSiblingIndex() < slot.Icon.transform.GetSiblingIndex() &&
+                                       slot.Icon.transform.GetSiblingIndex() < slot.Label.transform.GetSiblingIndex(),
+                            "UIHud weapon slot " + i + " is not layered as cooldown -> icon -> label");
+                    }
+                }
             }
 
             if (offWork != null)
@@ -486,8 +503,13 @@ namespace OfficeHell.EditorTools
             {
                 report.Require(card.Button != null && card.Frame != null && card.Border != null && card.Icon != null &&
                                card.IconFallback != null && card.RecommendBadge != null && card.NewBadge != null &&
+                               card.GreenFrameSprite != null && card.BlueFrameSprite != null &&
+                               card.PurpleFrameSprite != null && card.OrangeFrameSprite != null &&
                                card.DesignAccents != null && card.DesignAccents.Length == 16,
                     "UICardItem has incomplete serialized references");
+                report.Require(card.GreenFrameSprite.name == "3green" && card.BlueFrameSprite.name == "3blue" &&
+                               card.PurpleFrameSprite.name == "3purple" && card.OrangeFrameSprite.name == "3orange",
+                    "UICardItem quality-frame references do not match the four authored Slice assets");
                 UICardView instance = Object.Instantiate(card);
                 report.Require(instance != null && instance.Button != null, "UICardItem cannot be instantiated");
                 if (instance != null) Object.DestroyImmediate(instance.gameObject);
@@ -512,6 +534,63 @@ namespace OfficeHell.EditorTools
             report.Require(new HashSet<string>(iconKeys).Count == 22,
                 "card UI icon-key table must contain 22 unique entries");
             report.Line("UI prefabs: menu, HUD, off-work, three-card panel/item, result and 22 icon keys verified");
+        }
+
+        static void TestGameIcons(Report report)
+        {
+            string[] assetNames =
+            {
+                "Coffee", "Crumpled paper", "Earphone", "Keyboard", "Magnet", "PlaidShirt",
+                "Slippers", "Stapler", "Staples", "Thumbtacks", "WorkCard", "WorkCardUse",
+            };
+
+            for (int i = 0; i < assetNames.Length; i++)
+            {
+                string resourcePath = "Icon/card/" + assetNames[i];
+                Sprite sprite = Resources.Load<Sprite>(resourcePath);
+                report.Require(sprite != null, "game icon is not loadable as a Sprite: " + resourcePath);
+
+                string assetPath = "Assets/_Game/UI/Resources/" + resourcePath + ".png";
+                TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+                report.Require(importer != null && importer.textureType == TextureImporterType.Sprite &&
+                               importer.spriteImportMode == SpriteImportMode.Single && importer.alphaIsTransparency &&
+                               !importer.mipmapEnabled && importer.npotScale == TextureImporterNPOTScale.None,
+                    "game icon importer does not preserve transparent single-Sprite art: " + assetPath);
+            }
+
+            string[] itemKeys =
+            {
+                "stapler", "keyboard", "badge", "headphone", "hoodie", "slippers", "c_magnet", "c_atk",
+            };
+            string[] expectedNames =
+            {
+                "Stapler", "Keyboard", "WorkCard", "Earphone", "PlaidShirt", "Slippers", "Magnet", "Staples",
+            };
+
+            for (int i = 0; i < itemKeys.Length; i++)
+            {
+                Sprite sprite = GameIconCatalog.Item(itemKeys[i]);
+                report.Require(sprite != null && sprite.name == expectedNames[i],
+                    "game icon key '" + itemKeys[i] + "' did not resolve to " + expectedNames[i]);
+            }
+
+            report.Require(GameIconCatalog.FriendlyProjectile != null &&
+                           GameIconCatalog.FriendlyProjectile.name == "Thumbtacks" &&
+                           GameIconCatalog.EnemyProjectile != null &&
+                           GameIconCatalog.EnemyProjectile.name == "Crumpled paper" &&
+                           GameIconCatalog.OrbitWeapon != null &&
+                           GameIconCatalog.OrbitWeapon.name == "WorkCardUse" &&
+                           GameIconCatalog.Coffee != null && GameIconCatalog.Coffee.name == "Coffee",
+                "world projectile, orbit or coffee icon mapping is incomplete");
+
+            EntityView view = EntityView.Create("GameIconSelfTest", 0);
+            view.Bind(ConfigManager.FallbackView, ViewShape.Quad, true);
+            view.SetStaticSprite(GameIconCatalog.FriendlyProjectile, 0.4f);
+            report.Require(view.Body.sprite == GameIconCatalog.FriendlyProjectile &&
+                           ColorDistance(view.Body.color, Color.white) < 0.01f,
+                "world item icon is missing or receives a color tint");
+            Object.DestroyImmediate(view.gameObject);
+            report.Line("game icons: card, HUD, projectiles, orbit, coffee and equipment loot mappings verified");
         }
 
         static void TestUiControllerBindings(Report report, ConfigManager cfg)
@@ -553,6 +632,7 @@ namespace OfficeHell.EditorTools
                 Title = "防御测试",
                 Desc = "防御",
                 Value = 20f,
+                Quality = Quality.Purple,
             });
             driver.Cards.Offers.Add(new CardOffer
             {
@@ -576,13 +656,41 @@ namespace OfficeHell.EditorTools
                 report.Require(ColorDistance(firstHand[2].Accent.color, blueQuality) < 0.01f &&
                                ColorDistance(firstHand[2].Border.effectColor, blueQuality) < 0.01f,
                     "equipment card did not retain its authored quality color");
-                report.Require(firstHand[2].FooterText.text.Contains("蓝色品质"),
-                    "equipment card did not expose its quality in the footer");
+                report.Require(firstHand[0].Frame.sprite == firstHand[0].GreenFrameSprite &&
+                               firstHand[1].Frame.sprite == firstHand[1].PurpleFrameSprite &&
+                               firstHand[2].Frame.sprite == firstHand[2].BlueFrameSprite,
+                    "card frames did not switch between the green, blue and purple quality artwork");
+                report.Require(firstHand[0].FooterText.text == "基础成长" &&
+                               !firstHand[0].FooterText.text.Contains("品质"),
+                    "stat footer still includes a quality prefix");
+                report.Require(firstHand[2].FooterText.text == "高效输出" &&
+                               !firstHand[2].FooterText.text.Contains("品质"),
+                    "equipment footer still includes a quality prefix");
+                report.Require(firstHand[2].Icon.sprite == GameIconCatalog.Item("keyboard"),
+                    "equipment card did not load the keyboard item icon");
             }
             int picked = -1;
             cardController.OnCardPicked = index => picked = index;
             if (firstHand.Length > 1) firstHand[1].Button.onClick.Invoke();
             report.Require(picked == 1, "second card click did not report selection index 1");
+
+            driver.Cards.Offers[0].Quality = Quality.Orange;
+            cardController.Refresh();
+            report.Require(firstHand.Length > 0 && firstHand[0].Frame.sprite == firstHand[0].OrangeFrameSprite,
+                "card frame did not switch to the orange quality artwork");
+
+            for (int i = 0; i < driver.Cards.Offers.Count; i++)
+            {
+                driver.Cards.Offers[i].Quality = Quality.Blue;
+            }
+            cardController.Refresh();
+            bool anySameQualityRecommendation = false;
+            for (int i = 0; i < firstHand.Length; i++)
+            {
+                anySameQualityRecommendation |= firstHand[i].RecommendBadge.activeSelf;
+            }
+            report.Require(!anySameQualityRecommendation,
+                "three cards of the same quality still displayed a recommendation badge");
 
             cardController.Refresh();
             cardController.Refresh();
@@ -596,6 +704,13 @@ namespace OfficeHell.EditorTools
             UIHudController hudController = new UIHudController(context, hud);
             hudController.UIInit(hud.RectTransform);
             hudController.UIOpen();
+            Color emptyWeaponSlotColor = hud.WeaponSlots[1].Background.color;
+            game.Run.Player.Equip(0, cfg.Weapon("stapler"), Quality.Blue);
+            ArmorRuntime testArmor = game.Run.Player.Armors[0];
+            testArmor.DefId = "headphone";
+            testArmor.Def = cfg.Armor("headphone");
+            testArmor.Quality = Quality.Purple;
+            testArmor.Name = testArmor.Def != null ? testArmor.Def.Name : "headphone";
             hudController.UITick(0f);
             report.Require(hud.StageText.text == "周一 · 上午" && hud.WorkClockText.text == "09:00" &&
                            !hud.StageText.text.Contains("关"),
@@ -604,6 +719,29 @@ namespace OfficeHell.EditorTools
                 "battle HUD initial salary or kill counter is not zero");
             report.Require(hud.WeaponSlots.Length == 6 && hud.ArmorSlots.Length == 3,
                 "battle HUD does not retain 6 weapon slots and 3 armor slots at runtime");
+            report.Require(hud.WeaponSlots[0].Icon.enabled &&
+                           hud.WeaponSlots[0].Icon.sprite == GameIconCatalog.Item("stapler") &&
+                           ColorDistance(hud.WeaponSlots[0].Icon.color, Color.white) < 0.01f,
+                "battle HUD weapon slot did not display the untinted stapler icon");
+            report.Require(ColorDistance(hud.WeaponSlots[0].Background.color,
+                                         cfg.QualityOf(Quality.Blue).Color) < 0.01f &&
+                           ColorDistance(hud.WeaponSlots[1].Background.color, emptyWeaponSlotColor) < 0.01f &&
+                           hud.WeaponSlots[0].CooldownFill.transform.GetSiblingIndex() <
+                           hud.WeaponSlots[0].Icon.transform.GetSiblingIndex(),
+                "battle HUD weapon slot did not use its equipped quality tint, preserve its empty tint, or expose its icon");
+            Quality[] slotQualities = { Quality.Green, Quality.Blue, Quality.Purple, Quality.Orange };
+            for (int i = 0; i < slotQualities.Length; i++)
+            {
+                game.Run.Player.Weapons[0].Quality = slotQualities[i];
+                hudController.UITick(0f);
+                report.Require(ColorDistance(hud.WeaponSlots[0].Background.color,
+                                             cfg.QualityOf(slotQualities[i]).Color) < 0.01f,
+                    "battle HUD weapon slot did not switch to " + slotQualities[i] + " quality tint");
+            }
+            report.Require(hud.ArmorSlots[0].Icon.enabled &&
+                           hud.ArmorSlots[0].Icon.sprite == GameIconCatalog.Item("headphone") &&
+                           ColorDistance(hud.ArmorSlots[0].Icon.color, Color.white) < 0.01f,
+                "battle HUD armor slot did not display the untinted earphone icon");
             float skillCd = game.Run.Player.SkillCd(cfg.Skill);
             game.Run.Player.SkillReadyAt = GameClock.Now + skillCd * 0.5f;
             hudController.UITick(0f);

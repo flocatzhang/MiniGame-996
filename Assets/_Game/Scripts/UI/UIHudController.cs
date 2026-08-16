@@ -15,6 +15,7 @@ namespace OfficeHell.UI
 
         readonly UIContext _ctx;
         readonly UIHudView _view;
+        readonly Color[] _emptyWeaponSlotColors = new Color[PlayerModel.WeaponSlots];
 
         public UIHudController(UIContext ctx, UIHudView view)
         {
@@ -24,6 +25,11 @@ namespace OfficeHell.UI
 
         protected override void OnUIInit()
         {
+            for (int i = 0; i < _emptyWeaponSlotColors.Length; i++)
+            {
+                _emptyWeaponSlotColors[i] = _view.WeaponSlots[i].Background.color;
+            }
+
             ConfigureProgressFill(_view.SanFill);
             ConfigureProgressFill(_view.ExpFill);
             ConfigureProgressFill(_view.SkillFill);
@@ -141,20 +147,25 @@ namespace OfficeHell.UI
                 WeaponRuntime weapon = player.Weapons[i];
                 if (weapon.IsEmpty)
                 {
+                    // Empty slots retain the neutral artwork/tint authored in the HUD prefab.
+                    view.Background.color = _emptyWeaponSlotColors[i];
                     view.Label.text = "空";
                     view.Label.color = new Color(0.4f, 0.42f, 0.48f);
                     view.Icon.sprite = null;
-                    view.Icon.color = new Color(0.18f, 0.22f, 0.29f, 1f);
+                    view.Icon.enabled = false;
+                    view.Icon.color = Color.white;
                     view.CooldownFill.fillAmount = 0f;
                     continue;
                 }
 
                 QualityDef quality = _ctx.Game.Cfg.QualityOf(weapon.Quality);
+                view.Background.color = quality.Color;
                 view.Label.text = weapon.Def.Name;
                 view.Label.color = quality.Color;
                 view.Icon.sprite = UIPrefabCatalog.CardIcon(weapon.Def.Id);
+                view.Icon.enabled = view.Icon.sprite != null;
                 view.Icon.preserveAspect = true;
-                view.Icon.color = quality.Color;
+                view.Icon.color = Color.white;
                 view.CooldownFill.fillAmount = 1f - _ctx.Driver.Weapons.CooldownProgress01(weapon);
             }
         }
@@ -170,7 +181,8 @@ namespace OfficeHell.UI
                     view.Label.text = SlotWord((EquipSlot)(i + 1));
                     view.Label.color = new Color(0.38f, 0.4f, 0.46f);
                     view.Icon.sprite = null;
-                    view.Icon.color = new Color(0.18f, 0.22f, 0.29f, 1f);
+                    view.Icon.enabled = false;
+                    view.Icon.color = Color.white;
                     continue;
                 }
 
@@ -178,8 +190,9 @@ namespace OfficeHell.UI
                 view.Label.text = armor.Def.Name;
                 view.Label.color = quality;
                 view.Icon.sprite = UIPrefabCatalog.CardIcon(armor.Def.Id);
+                view.Icon.enabled = view.Icon.sprite != null;
                 view.Icon.preserveAspect = true;
-                view.Icon.color = quality;
+                view.Icon.color = Color.white;
             }
         }
 

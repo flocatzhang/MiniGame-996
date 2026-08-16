@@ -183,6 +183,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Button: {fileID: 910225046147628696}
   Frame: {fileID: 4397540073528111446}
+  GreenFrameSprite: {fileID: 21300000, guid: fc5e3fef1575a774c8a12548fa006626, type: 3}
+  BlueFrameSprite: {fileID: 21300000, guid: 589dd9b5eae28f941986fa73ff6c43bb, type: 3}
+  PurpleFrameSprite: {fileID: 21300000, guid: b95e4cf69ccb39d4c95f0860fcce7857, type: 3}
+  OrangeFrameSprite: {fileID: 21300000, guid: 2c002d739b7602546b8f2e128a5d8131, type: 3}
   Border: {fileID: 3774274776478601906}
   Accent: {fileID: 8187159458783098904}
   Footer: {fileID: 492744881175078445}

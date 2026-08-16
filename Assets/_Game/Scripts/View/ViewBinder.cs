@@ -495,13 +495,21 @@ namespace OfficeHell.View
                 }
 
                 _seen.Add(p.Id);
-                EntityView v = Bind(p.Id, KeyProjectile, 30, _ctx.Cfg.View(p.ViewId));
+                ViewDef def = _ctx.Cfg.View(p.ViewId);
+                EntityView v = Bind(p.Id, KeyProjectile, 30, def);
+                Sprite icon = p.FromEnemy ? GameIconCatalog.EnemyProjectile : GameIconCatalog.FriendlyProjectile;
+                v.SetStaticSprite(icon, def.Scale);
                 v.SetWorldPosition(p.Pos + lift);
 
-                if (p.Vel.sqrMagnitude > 0.01f)
+                if (p.FromEnemy && icon != null)
+                {
+                    v.transform.localRotation = Quaternion.identity;
+                }
+                else if (p.Vel.sqrMagnitude > 0.01f)
                 {
                     float angle = Mathf.Atan2(p.Vel.y, p.Vel.x) * Mathf.Rad2Deg;
-                    v.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
+                    float artFacingOffset = icon != null ? 135f : 0f;
+                    v.transform.localRotation = Quaternion.Euler(0f, 0f, angle + artFacingOffset);
                 }
             }
         }
@@ -526,7 +534,9 @@ namespace OfficeHell.View
                 _seen.Add(s.Id);
 
                 float t = s.Progress01(now);
-                EntityView v = Bind(s.Id, KeySlam, 34, _ctx.Cfg.View("v_slam"));
+                ViewDef def = _ctx.Cfg.View("v_slam");
+                EntityView v = Bind(s.Id, KeySlam, 34, def);
+                v.SetStaticSprite(GameIconCatalog.Item("keyboard"), def.Scale);
 
                 // Leaves the hand rather than the floor, and the lift is gone by the time it lands
                 // because the blast itself belongs on the ground.
@@ -612,7 +622,9 @@ namespace OfficeHell.View
                 OrbitCardModel c = cards[i];
                 _seen.Add(c.Id);
 
-                EntityView v = Bind(c.Id, KeyOrbit, 32, _ctx.Cfg.View(c.ViewId));
+                ViewDef def = _ctx.Cfg.View(c.ViewId);
+                EntityView v = Bind(c.Id, KeyOrbit, 32, def);
+                v.SetStaticSprite(GameIconCatalog.OrbitWeapon, def.Scale);
                 v.SetWorldPosition(c.Pos + lift);
                 v.transform.localRotation = Quaternion.Euler(0f, 0f, Time.unscaledTime * 90f);
             }
@@ -670,9 +682,15 @@ namespace OfficeHell.View
 
                 QualityDef qd = _ctx.Cfg.QualityOf(l.Quality);
                 bool gear = l.Kind != LootKind.Coffee;
-                EntityView v = Bind(l.Id, KeyLoot, 15, _ctx.Cfg.View(l.ViewId));
+                ViewDef def = _ctx.Cfg.View(l.ViewId);
+                EntityView v = Bind(l.Id, KeyLoot, 15, def);
+                Sprite icon = gear ? GameIconCatalog.Item(l.SourceDefId) : GameIconCatalog.Coffee;
 
-                if (gear)
+                if (icon != null)
+                {
+                    v.SetStaticSprite(icon, def.Scale);
+                }
+                else if (gear)
                 {
                     v.SetBaseColor(qd.Color);
                 }
